@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **SmartBiz** is a mobile-first business management system for small businesses in Nepal. It's a college project (12 weeks, solo) with a strict constraint: **must use Java Spring Boot + PostgreSQL**.
 
 **Stack:**
-- Backend: Java Spring Boot 4.0.6 Microservices with Java 21 (8 services)
+- Backend: Java Spring Boot 3.4.5 Microservices with Java 21 (8 services)
 - Mobile: React Native (Expo) with TypeScript
 - Web Dashboard: React.js (Phase 2)
 - Database: PostgreSQL 15+ with Flyway migrations
