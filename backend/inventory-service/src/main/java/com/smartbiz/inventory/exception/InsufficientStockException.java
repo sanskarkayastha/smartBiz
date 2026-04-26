@@ -1,0 +1,7 @@
+package com.smartbiz.inventory.exception;
+
+public class InsufficientStockException extends RuntimeException {
+    public InsufficientStockException(Long productId, int available, int requested) {
+        super("Insufficient stock for product " + productId + ": available=" + available + ", requested=" + Math.abs(requested));
+    }
+}

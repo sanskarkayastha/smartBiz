@@ -1,0 +1,44 @@
+import { api } from './api';
+
+export type SaleItem = {
+  productId: number;
+  quantity: number;
+};
+
+export type SaleSummary = {
+  totalRevenue: number;
+  orderCount: number;
+  avgOrderValue: number;
+};
+
+export type Sale = {
+  id: number;
+  totalAmount: number;
+  paymentMethod: string;
+  status: string;
+  saleDate: string;
+  items: Array<{
+    productId: number;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    subtotal: number;
+  }>;
+};
+
+export const salesService = {
+  async createSale(items: SaleItem[], paymentMethod = 'CASH', customerId?: number): Promise<Sale> {
+    const { data } = await api.post<Sale>('/sales', { items, paymentMethod, customerId });
+    return data;
+  },
+
+  async getSales(): Promise<Sale[]> {
+    const { data } = await api.get<Sale[]>('/sales');
+    return data;
+  },
+
+  async getDailySummary(): Promise<SaleSummary> {
+    const { data } = await api.get<SaleSummary>('/sales/analytics/today');
+    return data;
+  },
+};

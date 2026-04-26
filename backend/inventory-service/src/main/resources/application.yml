@@ -19,6 +19,10 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+  security:
+    user:
+      password: disabled
+
 server:
   port: 8082
 

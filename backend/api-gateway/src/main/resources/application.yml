@@ -58,6 +58,10 @@ eureka:
   instance:
     prefer-ip-address: true
 
+app:
+  jwt:
+    secret: your-secret-key-change-in-production-at-least-32-characters-long
+
 logging:
   level:
     root: INFO

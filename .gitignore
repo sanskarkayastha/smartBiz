@@ -40,6 +40,7 @@ build/Release
 
 # Dependency directories
 mobile/node_modules/
+frontend/web/node_modules/
 jspm_packages/
 
 # TypeScript v1 declaration files
@@ -75,6 +76,14 @@ typings/
 # dotenv environment variables
 .env
 .env.*
+!.env.example
+
+# Claude Code local settings (machine-specific permissions)
+.claude/settings.local.json
+
+# Auto-generated AI context dumps
+llms-full.txt
+llms.txt
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
