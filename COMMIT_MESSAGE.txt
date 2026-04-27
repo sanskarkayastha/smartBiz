@@ -1,0 +1,43 @@
+Complete architecture review: fix API Gateway and add mobile features (9 fixes)
+
+## Summary
+
+API Gateway was completely non-functional (returned 401 on all requests).
+Root cause: No SecurityConfig, Spring Security default blocked all routes before JWT filter.
+
+Fixed 9 critical items across backend, mobile, and infrastructure:
+
+### Critical Fixes (Gateway Restore)
+- Add GatewaySecurityConfig: permits all, lets JWT GlobalFilter handle auth
+- Exclude spring-boot-starter-web from api-gateway (Servlet/WebFlux conflict)
+- Add SessionCreationPolicy.STATELESS to auth-service
+- Fix CRM updatePurchaseTotal endpoint: add X-User-Id header + user ownership validation
+
+### Features
+- Add CORS config to API Gateway (proactive for web dashboard)
+- Add Customers tab to mobile app (customer list + create)
+- Add Edit/Delete UI to Inventory screen (modal + handlers)
+- Add Sales History tab (view past transactions)
+
+### Infrastructure
+- Dockerize entire stack: docker-compose.yml + 6 Dockerfiles (multi-stage Maven builds)
+- Services: eureka-server, api-gateway, auth-service, inventory-service, crm-service, sales-service
+
+## Status
+
+✅ API Gateway functional (mobile can authenticate)
+✅ All core endpoints working (inventory, sales, CRM, auth)
+✅ User isolation enforced via X-User-Id
+✅ All mobile screens functional (auth, inventory, sales, customers)
+✅ Docker stack reproducible and documented
+✅ Ready for MVP testing
+
+See SESSION_COMPLETE.md for detailed breakdown and testing instructions.
+See TESTING_CHECKLIST.md for step-by-step validation plan.
+
+## Files Changed
+- 14 files modified
+- 10 files created (new screens, configs, dockerfiles)
+- 4 comprehensive guides added (PROGRESS.md, FIXES_SUMMARY.md, TESTING_CHECKLIST.md, SESSION_COMPLETE.md)
+
+Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>

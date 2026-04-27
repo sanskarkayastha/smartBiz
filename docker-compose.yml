@@ -1,4 +1,5 @@
 services:
+  # ===== INFRASTRUCTURE =====
   postgres:
     image: postgres:15-alpine
     container_name: smartbiz-postgres
@@ -18,6 +19,155 @@ services:
       retries: 5
     networks:
       - smartbiz-network
+
+  # ===== SERVICE DISCOVERY =====
+  eureka-server:
+    build:
+      context: ./backend
+      dockerfile: eureka-server/Dockerfile
+    container_name: smartbiz-eureka
+    ports:
+      - "8761:8761"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      - smartbiz-network
+
+  # ===== API GATEWAY =====
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: api-gateway/Dockerfile
+    container_name: smartbiz-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      APP_JWT_SECRET: smartbiz-dev-secret-key-at-least-32-chars-long-min
+    depends_on:
+      - eureka-server
+    networks:
+      - smartbiz-network
+
+  # ===== MICROSERVICES =====
+  auth-service:
+    build:
+      context: ./backend
+      dockerfile: auth-service/Dockerfile
+    container_name: smartbiz-auth
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: password
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      APP_JWT_SECRET: smartbiz-dev-secret-key-at-least-32-chars-long-min
+    depends_on:
+      - postgres
+      - eureka-server
+    networks:
+      - smartbiz-network
+
+  inventory-service:
+    build:
+      context: ./backend
+      dockerfile: inventory-service/Dockerfile
+    container_name: smartbiz-inventory
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventory_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: password
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      APP_JWT_SECRET: smartbiz-dev-secret-key-at-least-32-chars-long-min
+    depends_on:
+      - postgres
+      - eureka-server
+    networks:
+      - smartbiz-network
+
+  crm-service:
+    build:
+      context: ./backend
+      dockerfile: crm-service/Dockerfile
+    container_name: smartbiz-crm
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/crm_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: password
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      APP_JWT_SECRET: smartbiz-dev-secret-key-at-least-32-chars-long-min
+    depends_on:
+      - postgres
+      - eureka-server
+    networks:
+      - smartbiz-network
+
+  sales-service:
+    build:
+      context: ./backend
+      dockerfile: sales-service/Dockerfile
+    container_name: smartbiz-sales
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sales_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: password
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      APP_JWT_SECRET: smartbiz-dev-secret-key-at-least-32-chars-long-min
+    depends_on:
+      - postgres
+      - eureka-server
+    networks:
+      - smartbiz-network
+
+  # ===== OPTIONAL SERVICES (Phase 2) =====
+  # Uncomment to enable AI and Messaging services
+  # ai-service:
+  #   build:
+  #     context: ./backend/ai-service
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8085:8085"
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: docker
+  #     EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+  #     OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  #   depends_on:
+  #     eureka-server:
+  #       condition: service_healthy
+  #   networks:
+  #     - smartbiz-network
+  #
+  # messaging-service:
+  #   build:
+  #     context: ./backend/messaging-service
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8086:8086"
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: docker
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/messaging_db
+  #     SPRING_DATASOURCE_USERNAME: postgres
+  #     SPRING_DATASOURCE_PASSWORD: password
+  #     EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     eureka-server:
+  #       condition: service_healthy
+  #   networks:
+  #     - smartbiz-network
 
 volumes:
   postgres_data:

@@ -5,6 +5,24 @@ spring:
     web-application-type: reactive
   cloud:
     gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - Authorization
+              - X-User-Id
+              - Content-Type
+            exposedHeaders:
+              - Authorization
+            allowCredentials: false
+            maxAge: 3600
       routes:
         - id: auth-service
           uri: lb://AUTH-SERVICE

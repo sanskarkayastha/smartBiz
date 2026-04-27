@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(mvn clean *)",
+      "Bash(docker --version)",
+      "Bash(docker exec smartbiz-postgres *)",
+      "Bash(docker run *)",
+      "Bash(npm --version)",
+      "Bash(npx tsc *)",
+      "Bash(cat .gitmodules)",
+      "Bash(ls mobile/.git)",
+      "Bash(git ls-tree *)",
+      "Bash(git rm *)"
     ]
   }
 }

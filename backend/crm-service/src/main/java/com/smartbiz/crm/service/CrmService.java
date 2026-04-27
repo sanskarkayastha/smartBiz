@@ -64,8 +64,8 @@ public class CrmService {
     }
 
     @Transactional
-    public void updatePurchaseTotal(Long customerId, BigDecimal amount) {
-        customerRepository.findById(customerId).ifPresent(customer -> {
+    public void updatePurchaseTotal(Long userId, Long customerId, BigDecimal amount) {
+        customerRepository.findByIdAndUserId(customerId, userId).ifPresent(customer -> {
             customer.setTotalPurchases(customer.getTotalPurchases().add(amount));
             customer.setLastPurchaseDate(LocalDateTime.now());
             customerRepository.save(customer);

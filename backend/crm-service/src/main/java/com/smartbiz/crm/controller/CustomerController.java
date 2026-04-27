@@ -48,9 +48,10 @@ public class CustomerController {
 
     @PutMapping("/{id}/purchase")
     public ResponseEntity<Void> updatePurchaseTotal(
+            @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long id,
             @RequestBody BigDecimal amount) {
-        crmService.updatePurchaseTotal(id, amount);
+        crmService.updatePurchaseTotal(userId, id, amount);
         return ResponseEntity.ok().build();
     }
 }

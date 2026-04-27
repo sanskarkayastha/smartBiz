@@ -79,7 +79,11 @@ const styles = StyleSheet.create({
   backText: { fontSize: 15, color: Colors.primary },
   title: { fontSize: 28, fontWeight: 'bold', color: Colors.textDark, marginBottom: 6 },
   subtitle: { fontSize: 15, color: Colors.textMuted, marginBottom: 32 },
-  form: { gap: 16, marginBottom: 24 },
+  form: {
+    height:160, 
+    gap: 16, 
+    marginBottom: 24,
+  },
   btn: {
     backgroundColor: Colors.primary,
     borderRadius: 14,

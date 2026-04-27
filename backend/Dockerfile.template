@@ -1,0 +1,26 @@
+# Use this as a template for each service. Save as `backend/{service}/Dockerfile`
+# Replace {SERVICE_NAME} with the actual service name, e.g., auth-service, inventory-service
+
+FROM maven:3.9-eclipse-temurin-21 AS builder
+WORKDIR /app
+
+# Copy parent pom and service pom
+COPY pom.xml .
+COPY {SERVICE_NAME}/pom.xml {SERVICE_NAME}/pom.xml
+
+# Download dependencies (cache layer)
+RUN mvn dependency:resolve -f pom.xml || true
+
+# Copy source code and build
+COPY {SERVICE_NAME} {SERVICE_NAME}
+RUN mvn clean package -f {SERVICE_NAME}/pom.xml -DskipTests
+
+# Runtime image
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+
+# Copy jar from builder
+COPY --from=builder /app/{SERVICE_NAME}/target/*.jar app.jar
+
+EXPOSE 8081
+ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -1,22 +1,14 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
-import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import ButtonWithRightIcon from '@/components/buttonWithRightIcon';
-import { useAuth } from '@/contexts/AuthContext';
 import { Colors } from '@/components/ui/colors';
 
 const image = require('@/assets/images/onboarding.png');
 
 export default function OnBoarding() {
   const router = useRouter();
-  const { user } = useAuth();
-
-  if (user) {
-    router.replace('/(tabs)');
-    return null;
-  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -26,12 +18,12 @@ export default function OnBoarding() {
           <View style={styles.langPill}>
             <Text style={styles.langActive}>EN</Text>
             <Text style={styles.langSep}>|</Text>
-            <Text style={styles.langInactive}>हिन्दी</Text>
+            <Text style={styles.langInactive}>नेपाली</Text>
           </View>
         </View>
 
         <View style={styles.imageContainer}>
-          <Image source={image} style={styles.image} />
+          <Image source={image} style={styles.image} contentFit="cover" />
         </View>
 
         <View style={styles.contentContainer}>
@@ -109,8 +101,8 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     width: '100%',
-    height: 380,
-    marginBottom: 5,
+    height: 340,
+    marginBottom: 8,
   },
   image: {
     width: '100%',
@@ -119,7 +111,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 10,
   },
   headerTextContainer: {
@@ -129,17 +121,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   headerText: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: 'bold',
     letterSpacing: 0.5,
     color: Colors.textDark,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 14,
     textAlign: 'center',
     color: '#666',
     marginBottom: 6,
-    lineHeight: 22,
+    lineHeight: 21,
   },
   tagline: {
     fontSize: 13,
@@ -150,6 +142,7 @@ const styles = StyleSheet.create({
     gap: 10,
     width: '100%',
     alignItems: 'center',
+    marginTop: 8,
   },
   terms: {
     fontSize: 11,
