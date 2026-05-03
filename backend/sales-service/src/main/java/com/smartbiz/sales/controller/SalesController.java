@@ -1,6 +1,7 @@
 package com.smartbiz.sales.controller;
 
 import com.smartbiz.sales.dto.CreateSaleRequest;
+import com.smartbiz.sales.dto.DailyRevenueDTO;
 import com.smartbiz.sales.dto.SaleDTO;
 import com.smartbiz.sales.dto.SaleSummaryDTO;
 import com.smartbiz.sales.service.SalesService;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/sales")
@@ -40,5 +42,10 @@ public class SalesController {
     @GetMapping("/analytics/today")
     public ResponseEntity<SaleSummaryDTO> getDailySummary(@RequestHeader("X-User-Id") Long userId) {
         return ResponseEntity.ok(salesService.getDailySummary(userId));
+    }
+
+    @GetMapping("/analytics/weekly")
+    public ResponseEntity<List<DailyRevenueDTO>> getWeeklySummary(@RequestHeader("X-User-Id") Long userId) {
+        return ResponseEntity.ok(salesService.getWeeklySummary(userId));
     }
 }

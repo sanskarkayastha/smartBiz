@@ -64,6 +64,14 @@ public class CrmService {
     }
 
     @Transactional
+    public void deleteCustomer(Long id, Long userId) {
+        Customer customer = customerRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new CustomerNotFoundException("Customer not found: " + id));
+        customerRepository.delete(customer);
+        log.info("Deleted customerId={} for userId={}", id, userId);
+    }
+
+    @Transactional
     public void updatePurchaseTotal(Long userId, Long customerId, BigDecimal amount) {
         customerRepository.findByIdAndUserId(customerId, userId).ifPresent(customer -> {
             customer.setTotalPurchases(customer.getTotalPurchases().add(amount));

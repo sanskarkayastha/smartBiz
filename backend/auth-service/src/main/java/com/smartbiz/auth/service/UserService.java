@@ -3,6 +3,7 @@ package com.smartbiz.auth.service;
 import com.smartbiz.auth.dto.LoginRequest;
 import com.smartbiz.auth.dto.LoginResponse;
 import com.smartbiz.auth.dto.SignupRequest;
+import com.smartbiz.auth.dto.UpdateProfileRequest;
 import com.smartbiz.auth.exception.DuplicateEmailException;
 import com.smartbiz.auth.exception.InvalidCredentialsException;
 import com.smartbiz.auth.model.RefreshToken;
@@ -60,6 +61,20 @@ public class UserService {
         log.info("User logged in: {}", user.getEmail());
 
         return createLoginResponse(user);
+    }
+
+    @Transactional
+    public void updateProfile(Long userId, UpdateProfileRequest request) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        if (request.fullName() != null && !request.fullName().isBlank()) {
+            user.setFullName(request.fullName());
+        }
+        if (request.phone() != null) {
+            user.setPhone(request.phone());
+        }
+        userRepository.save(user);
+        log.info("Profile updated for userId={}", userId);
     }
 
     @Transactional

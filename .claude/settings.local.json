@@ -12,7 +12,14 @@
       "Bash(cat .gitmodules)",
       "Bash(ls mobile/.git)",
       "Bash(git ls-tree *)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(xargs wc *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Sanskar\\\\College\\\\FYP\\\\project\\\\smartBiz\\\\frontend\" -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object FullName)",
+      "Bash(dir \"C:\\\\Sanskar\\\\College\\\\FYP\\\\project\\\\smartBiz\\\\frontend\\\\web\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Sanskar\\\\College\\\\FYP\\\\project\\\\smartBiz\\\\frontend\\\\web\\\\src\" -Recurse -File)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Sanskar\\\\College\\\\FYP\\\\project\\\\smartBiz\\\\frontend\\\\web\" -Depth 3 | Where-Object { $_.PSIsContainer } | Select-Object FullName)"
     ]
   }
 }

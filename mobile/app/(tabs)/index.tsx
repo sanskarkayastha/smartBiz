@@ -5,29 +5,29 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import { Colors } from '@/components/ui/colors';
 import { useAuth } from '@/contexts/AuthContext';
-import { salesService, SaleSummary } from '@/services/sales';
+import { salesService, SaleSummary, DailyRevenue } from '@/services/sales';
 import { inventoryService, Product } from '@/services/inventory';
-
-const BAR_DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-const BAR_HEIGHTS = [0.5, 0.8, 0.6, 1.0, 0.7, 0.4, 0.3];
 
 export default function Home() {
   const router = useRouter();
   const { user } = useAuth();
   const [summary, setSummary] = useState<SaleSummary | null>(null);
   const [lowStock, setLowStock] = useState<Product[]>([]);
+  const [weeklyData, setWeeklyData] = useState<DailyRevenue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
     setError(false);
     try {
-      const [sum, ls] = await Promise.all([
+      const [sum, ls, weekly] = await Promise.all([
         salesService.getDailySummary(),
         inventoryService.getLowStockProducts(),
+        salesService.getWeeklySummary(),
       ]);
       setSummary(sum);
       setLowStock(ls);
+      setWeeklyData(weekly);
     } catch {
       setError(true);
     } finally {
@@ -160,15 +160,28 @@ export default function Home() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Weekly Revenue</Text>
-            <Text style={styles.chartNote}>Sample data</Text>
           </View>
           <View style={styles.chartContainer}>
-            {BAR_DAYS.map((day, i) => (
-              <View key={i} style={styles.barWrapper}>
-                <View style={[styles.bar, { height: BAR_HEIGHTS[i] * 72 }]} />
-                <Text style={styles.barLabel}>{day}</Text>
-              </View>
-            ))}
+            {weeklyData.length > 0
+              ? (() => {
+                  const maxRevenue = Math.max(...weeklyData.map((d) => d.revenue), 1);
+                  return weeklyData.map((d, i) => (
+                    <View key={i} style={styles.barWrapper}>
+                      <View style={[styles.bar, { height: Math.max((d.revenue / maxRevenue) * 72, 3) }]} />
+                      <Text style={styles.barLabel}>
+                        {new Date(d.date).toLocaleDateString(undefined, { weekday: 'narrow' })}
+                      </Text>
+                    </View>
+                  ));
+                })()
+              : loading
+              ? null
+              : Array.from({ length: 7 }).map((_, i) => (
+                  <View key={i} style={styles.barWrapper}>
+                    <View style={[styles.bar, { height: 3, opacity: 0.3 }]} />
+                    <Text style={styles.barLabel}>—</Text>
+                  </View>
+                ))}
           </View>
         </View>
       </ScrollView>

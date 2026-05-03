@@ -1,13 +1,30 @@
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Alert,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Colors } from '@/components/ui/colors';
 import { useAuth } from '@/contexts/AuthContext';
+import { authService } from '@/services/auth';
 
 export default function Settings() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
+
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ fullName: '', phone: '' });
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
@@ -23,6 +40,28 @@ export default function Settings() {
     ]);
   };
 
+  const openEditProfile = () => {
+    setProfileForm({ fullName: user?.fullName ?? '', phone: '' });
+    setShowEditProfile(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profileForm.fullName.trim()) {
+      Alert.alert('Validation', 'Name cannot be empty');
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      await authService.updateProfile(profileForm.fullName.trim(), profileForm.phone.trim() || undefined);
+      await updateUser({ fullName: profileForm.fullName.trim() });
+      setShowEditProfile(false);
+    } catch {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   const initials = user?.fullName
     ?.split(' ')
     .map((n) => n[0])
@@ -34,15 +73,15 @@ export default function Settings() {
     {
       title: 'Account',
       items: [
-        { icon: 'person-outline' as const, label: 'Edit Profile', chevron: true, onPress: () => {} },
-        { icon: 'lock-closed-outline' as const, label: 'Change Password', chevron: true, onPress: () => {} },
+        { icon: 'person-outline' as const, label: 'Edit Profile', chevron: true, onPress: openEditProfile },
+        { icon: 'lock-closed-outline' as const, label: 'Change Password', chevron: true, onPress: () => Alert.alert('Coming Soon', 'Password change will be available soon.') },
       ],
     },
     {
       title: 'Preferences',
       items: [
-        { icon: 'language-outline' as const, label: 'Language', chevron: true, onPress: () => {} },
-        { icon: 'notifications-outline' as const, label: 'Notifications', chevron: true, onPress: () => {} },
+        { icon: 'language-outline' as const, label: 'Language', chevron: true, onPress: () => Alert.alert('Coming Soon', 'Language support will be available soon.') },
+        { icon: 'notifications-outline' as const, label: 'Notifications', chevron: true, onPress: () => Alert.alert('Coming Soon', 'Push notifications will be available soon.') },
       ],
     },
     {
@@ -65,7 +104,7 @@ export default function Settings() {
           <Text style={styles.name}>{user?.fullName ?? 'User'}</Text>
           <Text style={styles.email}>{user?.email ?? ''}</Text>
         </View>
-        <Pressable style={styles.editIcon}>
+        <Pressable style={styles.editIcon} onPress={openEditProfile}>
           <Ionicons name="pencil-outline" size={18} color={Colors.primary} />
         </Pressable>
       </View>
@@ -98,6 +137,50 @@ export default function Settings() {
           </View>
         </View>
       ))}
+
+      <Modal visible={showEditProfile} animationType="slide" transparent onRequestClose={() => setShowEditProfile(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Profile</Text>
+              <Pressable onPress={() => setShowEditProfile(false)}>
+                <Ionicons name="close" size={22} color={Colors.textDark} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.label}>Full Name *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Your name"
+              value={profileForm.fullName}
+              onChangeText={(v) => setProfileForm((f) => ({ ...f, fullName: v }))}
+              placeholderTextColor={Colors.textMuted}
+            />
+
+            <Text style={styles.label}>Phone</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 98XXXXXXXX"
+              keyboardType="phone-pad"
+              value={profileForm.phone}
+              onChangeText={(v) => setProfileForm((f) => ({ ...f, phone: v }))}
+              placeholderTextColor={Colors.textMuted}
+            />
+
+            <Pressable
+              style={[styles.saveBtn, savingProfile && { opacity: 0.7 }]}
+              onPress={handleSaveProfile}
+              disabled={savingProfile}
+            >
+              {savingProfile ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.saveBtnText}>Save Changes</Text>
+              )}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -121,4 +204,12 @@ const styles = StyleSheet.create({
   menuIconBox: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' },
   menuIconBoxDanger: { backgroundColor: Colors.dangerLight },
   menuLabel: { fontSize: 15, color: Colors.textDark, fontWeight: '500' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  modalSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textDark },
+  label: { fontSize: 13, fontWeight: '600', color: Colors.textDark, marginBottom: 4, marginTop: 10 },
+  input: { backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.textDark },
+  saveBtn: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
+  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

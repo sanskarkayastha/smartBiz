@@ -15,6 +15,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (updates: Partial<Pick<AuthUser, 'fullName'>>) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -68,8 +69,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }
 
+  async function updateUser(updates: Partial<Pick<AuthUser, 'fullName'>>) {
+    if (!user) return;
+    const updated = { ...user, ...updates };
+    await SecureStore.setItemAsync('userInfo', JSON.stringify(updated));
+    setUser(updated);
+  }
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

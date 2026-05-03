@@ -36,12 +36,32 @@
 |---|------|--------|-------|
 | 9 | Dockerize all Spring Boot services in docker-compose.yml | ✅ | Created docker-compose.yml + 6 Dockerfiles (multi-stage builds) |
 
-## Batch 5 — Nice-to-Have (Post-MVP)
+## Batch 5 — Backend Completion + Frontend Polish
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
-| 10 | Externalize JWT secret to env variable | ⬜ | docker-compose.yml has env var, but services still need application-docker.yml |
-| 11 | Implement refresh token flow in mobile | ⬜ | Out of scope for now |
+| 10 | Add `DELETE /customers/{id}` to CRM service | ✅ | CustomerController + CrmService.deleteCustomer() |
+| 11 | Add `GET /sales/analytics/weekly` to Sales service | ✅ | SalesController + SalesService.getWeeklySummary() + DailyRevenueDTO |
+| 12 | Add `PUT /auth/profile` to Auth service | ✅ | AuthController + UserService.updateProfile() + UpdateProfileRequest DTO |
+| 13 | Customers screen: search + edit + delete | ✅ | Search bar, edit modal, delete with confirm, pull-to-refresh |
+| 14 | Customers service: updateCustomer + deleteCustomer | ✅ | Added PUT /customers/{id} and DELETE /customers/{id} calls |
+| 15 | Sales POS: payment method selector (CASH/CARD/DIGITAL) | ✅ | Toggle buttons in cart, passed to createSale API |
+| 16 | Home: replace hardcoded weekly chart with real API data | ✅ | Calls /sales/analytics/weekly, proportional bar heights, real day labels |
+| 17 | Sales service: getWeeklySummary() + DailyRevenue type | ✅ | Added to mobile/services/sales.ts |
+| 18 | Settings: Edit Profile modal wired to PUT /auth/profile | ✅ | Modal with fullName/phone fields, updates AuthContext on save |
+| 19 | Auth service: updateProfile() | ✅ | Added to mobile/services/auth.ts |
+| 20 | AuthContext: expose updateUser() | ✅ | Updates SecureStore + in-memory user state |
+| 21 | Sales History: pull-to-refresh | ✅ | RefreshControl on FlatList in History tab |
+
+## Batch 6 — Nice-to-Have (Post-MVP)
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 22 | Externalize JWT secret to env variable | ⬜ | docker-compose.yml has env var, but services still need application-docker.yml |
+| 23 | Implement refresh token flow in mobile | ⬜ | Out of scope for now |
+| 24 | Change Password flow (backend + mobile) | ⬜ | Needs PUT /auth/password endpoint + mobile modal |
+| 25 | Language support (i18n) | ⬜ | Phase 2 |
+| 26 | Push notifications | ⬜ | Phase 2 — Firebase integration |
 
 ---
 
@@ -61,16 +81,23 @@
   - ✅ Sales history tab
   - ✅ Docker infrastructure (compose + 6 Dockerfiles)
 
-## Next Steps (if continuing)
+### Session 2 — 2026-05-03
+- **Full audit:** All 6 MVP services + all mobile screens reviewed
+- **Backend finding:** Route ordering in SalesController is NOT a bug (Spring MVC prefers literal paths over variables)
+- **Status:** Completed Batch 5 (12 items, #10–21):
+  - ✅ CRM DELETE endpoint
+  - ✅ Sales weekly analytics endpoint + DTO
+  - ✅ Auth profile update endpoint + DTO
+  - ✅ Customers: search, edit, delete, pull-to-refresh
+  - ✅ Sales POS: payment method selector + history pull-to-refresh
+  - ✅ Home: real weekly chart data
+  - ✅ Settings: Edit Profile modal
 
-1. **Test Gateway:** `docker-compose up -d` → test with `curl -X POST http://localhost:8080/auth/signup ...`
-2. **Fix #10 (Optional):** Create `application-docker.yml` per service to read JWT_SECRET from env
-3. **Fix #11 (Post-MVP):** Add refresh token rotation to mobile auth flow
-4. **Run Mobile Tests:** Connect to gateway via `http://<local-ip>:8080` from phone
+---
 
 ## Files Changed
 
-**Backend**
+**Backend — Session 1**
 - ✅ `backend/api-gateway/src/main/java/com/smartbiz/gateway/config/GatewaySecurityConfig.java` (NEW)
 - ✅ `backend/api-gateway/pom.xml` (exclusions)
 - ✅ `backend/api-gateway/src/main/resources/application.yml` (CORS)
@@ -80,8 +107,28 @@
 - ✅ `docker-compose.yml` (expanded)
 - ✅ 6× Dockerfiles (eureka, gateway, auth, inventory, crm, sales)
 
-**Mobile**
+**Backend — Session 2**
+- ✅ `backend/crm-service/src/main/java/com/smartbiz/crm/controller/CustomerController.java` (DELETE endpoint)
+- ✅ `backend/crm-service/src/main/java/com/smartbiz/crm/service/CrmService.java` (deleteCustomer)
+- ✅ `backend/sales-service/src/main/java/com/smartbiz/sales/controller/SalesController.java` (weekly analytics)
+- ✅ `backend/sales-service/src/main/java/com/smartbiz/sales/service/SalesService.java` (getWeeklySummary)
+- ✅ `backend/sales-service/src/main/java/com/smartbiz/sales/dto/DailyRevenueDTO.java` (NEW)
+- ✅ `backend/auth-service/src/main/java/com/smartbiz/auth/controller/AuthController.java` (PUT /profile)
+- ✅ `backend/auth-service/src/main/java/com/smartbiz/auth/service/UserService.java` (updateProfile)
+- ✅ `backend/auth-service/src/main/java/com/smartbiz/auth/dto/UpdateProfileRequest.java` (NEW)
+
+**Mobile — Session 1**
 - ✅ `mobile/app/(tabs)/customers.tsx` (NEW)
 - ✅ `mobile/app/(tabs)/_layout.tsx` (added customers tab)
 - ✅ `mobile/app/(tabs)/inventory.tsx` (edit/delete UI)
 - ✅ `mobile/app/(tabs)/sales.tsx` (history tab)
+
+**Mobile — Session 2**
+- ✅ `mobile/services/customers.ts` (updateCustomer, deleteCustomer)
+- ✅ `mobile/services/sales.ts` (getWeeklySummary, DailyRevenue type)
+- ✅ `mobile/services/auth.ts` (updateProfile)
+- ✅ `mobile/contexts/AuthContext.tsx` (updateUser)
+- ✅ `mobile/app/(tabs)/customers.tsx` (search, edit, delete, pull-to-refresh)
+- ✅ `mobile/app/(tabs)/sales.tsx` (payment method selector, history pull-to-refresh)
+- ✅ `mobile/app/(tabs)/index.tsx` (real weekly chart)
+- ✅ `mobile/app/(tabs)/settings.tsx` (Edit Profile modal)

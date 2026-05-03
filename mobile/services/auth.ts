@@ -18,4 +18,8 @@ export const authService = {
     const { data } = await api.post<LoginResponse>('/auth/signup', { email, password, fullName });
     return data;
   },
+
+  async updateProfile(fullName: string, phone?: string): Promise<void> {
+    await api.put('/auth/profile', { fullName, phone });
+  },
 };

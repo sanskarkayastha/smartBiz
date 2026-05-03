@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, Alert, ScrollView, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, ScrollView, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect, useCallback } from 'react';
@@ -17,8 +17,10 @@ export default function Sales() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'DIGITAL'>('CASH');
   const [sales, setSales] = useState<Sale[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [refreshingHistory, setRefreshingHistory] = useState(false);
 
   const loadPOS = useCallback(async () => {
     try {
@@ -30,13 +32,15 @@ export default function Sales() {
     }
   }, []);
 
-  const loadHistory = useCallback(async () => {
+  const loadHistory = useCallback(async (isPullRefresh = false) => {
+    if (!isPullRefresh) setLoadingHistory(true);
     try {
       const data = await salesService.getSales();
       setSales(data);
     } catch {}
     finally {
       setLoadingHistory(false);
+      setRefreshingHistory(false);
     }
   }, []);
 
@@ -73,8 +77,8 @@ export default function Sales() {
     setSubmitting(true);
     try {
       const items = cartItems.map((p) => ({ productId: p.id, quantity: quantities[p.id] }));
-      await salesService.createSale(items);
-      Alert.alert('Sale Recorded!', `Total: NPR ${totalAmount.toLocaleString()}`, [
+      await salesService.createSale(items, paymentMethod);
+      Alert.alert('Sale Recorded!', `Total: NPR ${totalAmount.toLocaleString()} · ${paymentMethod}`, [
         { text: 'OK', onPress: clearCart },
       ]);
     } catch (err: any) {
@@ -174,6 +178,21 @@ export default function Sales() {
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>NPR {totalAmount.toLocaleString()}</Text>
             </View>
+            <View style={styles.divider} />
+            <Text style={styles.paymentLabel}>PAYMENT METHOD</Text>
+            <View style={styles.paymentRow}>
+              {(['CASH', 'CARD', 'DIGITAL'] as const).map((method) => (
+                <Pressable
+                  key={method}
+                  style={[styles.paymentBtn, paymentMethod === method && styles.paymentBtnActive]}
+                  onPress={() => setPaymentMethod(method)}
+                >
+                  <Text style={[styles.paymentBtnText, paymentMethod === method && styles.paymentBtnTextActive]}>
+                    {method}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
         )}
         </ScrollView>
@@ -183,6 +202,13 @@ export default function Sales() {
           keyExtractor={(s) => String(s.id)}
           contentContainerStyle={styles.historyList}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshingHistory}
+              onRefresh={() => { setRefreshingHistory(true); loadHistory(true); }}
+              tintColor={Colors.primary}
+            />
+          }
           ListEmptyComponent={
             loadingHistory ? (
               <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
@@ -301,4 +327,10 @@ const styles = StyleSheet.create({
   historyItemName: { fontSize: 12, color: Colors.textDark, flex: 1 },
   historyItemQty: { fontSize: 11, color: Colors.textMuted, marginLeft: 8 },
   historyMore: { fontSize: 11, color: Colors.primary, fontWeight: '500', marginTop: 6 },
+  paymentLabel: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, letterSpacing: 0.6, marginBottom: 8 },
+  paymentRow: { flexDirection: 'row', gap: 8 },
+  paymentBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', backgroundColor: Colors.background },
+  paymentBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  paymentBtnText: { fontSize: 12, fontWeight: '600', color: Colors.textMuted },
+  paymentBtnTextActive: { color: '#fff' },
 });

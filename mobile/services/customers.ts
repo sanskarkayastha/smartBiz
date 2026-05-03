@@ -26,4 +26,13 @@ export const customersService = {
     const { data } = await api.post<Customer>('/customers', payload);
     return data;
   },
+
+  async updateCustomer(id: number, payload: Partial<CreateCustomerPayload>): Promise<Customer> {
+    const { data } = await api.put<Customer>(`/customers/${id}`, payload);
+    return data;
+  },
+
+  async deleteCustomer(id: number): Promise<void> {
+    await api.delete(`/customers/${id}`);
+  },
 };

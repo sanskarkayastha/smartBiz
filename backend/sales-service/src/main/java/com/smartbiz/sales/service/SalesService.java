@@ -113,6 +113,18 @@ public class SalesService {
         return toDTO(sale, items);
     }
 
+    public List<DailyRevenueDTO> getWeeklySummary(Long userId) {
+        List<DailyRevenueDTO> result = new ArrayList<>();
+        for (int i = 6; i >= 0; i--) {
+            LocalDate day = LocalDate.now().minusDays(i);
+            LocalDateTime start = day.atStartOfDay();
+            LocalDateTime end = start.plusDays(1);
+            BigDecimal revenue = saleRepository.sumRevenueByUserIdAndDateRange(userId, start, end);
+            result.add(new DailyRevenueDTO(day, revenue));
+        }
+        return result;
+    }
+
     public SaleSummaryDTO getDailySummary(Long userId) {
         LocalDateTime start = LocalDate.now().atStartOfDay();
         LocalDateTime end = start.plusDays(1);

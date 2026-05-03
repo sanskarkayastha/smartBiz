@@ -54,4 +54,12 @@ public class CustomerController {
         crmService.updatePurchaseTotal(userId, id, amount);
         return ResponseEntity.ok().build();
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCustomer(
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long id) {
+        crmService.deleteCustomer(id, userId);
+        return ResponseEntity.noContent().build();
+    }
 }

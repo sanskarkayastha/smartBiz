@@ -11,6 +11,11 @@ export type SaleSummary = {
   avgOrderValue: number;
 };
 
+export type DailyRevenue = {
+  date: string;
+  revenue: number;
+};
+
 export type Sale = {
   id: number;
   totalAmount: number;
@@ -39,6 +44,11 @@ export const salesService = {
 
   async getDailySummary(): Promise<SaleSummary> {
     const { data } = await api.get<SaleSummary>('/sales/analytics/today');
+    return data;
+  },
+
+  async getWeeklySummary(): Promise<DailyRevenue[]> {
+    const { data } = await api.get<DailyRevenue[]>('/sales/analytics/weekly');
     return data;
   },
 };

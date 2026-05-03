@@ -3,15 +3,15 @@ package com.smartbiz.auth.controller;
 import com.smartbiz.auth.dto.LoginRequest;
 import com.smartbiz.auth.dto.LoginResponse;
 import com.smartbiz.auth.dto.SignupRequest;
+import com.smartbiz.auth.dto.UpdateProfileRequest;
 import com.smartbiz.auth.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
@@ -29,5 +29,13 @@ public class AuthController {
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = userService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<Map<String, String>> updateProfile(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestBody UpdateProfileRequest request) {
+        userService.updateProfile(userId, request);
+        return ResponseEntity.ok(Map.of("message", "Profile updated"));
     }
 }
