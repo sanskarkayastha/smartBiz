@@ -49,6 +49,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="ai"
+        options={{
+          tabBarLabel: 'AI',
+          tabBarIcon: ({ color }) => <Ionicons name="sparkles" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           tabBarLabel: 'Settings',

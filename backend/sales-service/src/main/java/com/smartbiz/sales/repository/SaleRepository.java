@@ -20,7 +20,7 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
 
     List<Sale> findByUserIdAndSaleDateBetween(Long userId, LocalDateTime start, LocalDateTime end);
 
-    @Query("SELECT COALESCE(SUM(s.totalAmount), 0) FROM Sale s WHERE s.userId = :userId AND s.saleDate BETWEEN :start AND :end")
+    @Query("SELECT SUM(s.totalAmount) FROM Sale s WHERE s.userId = :userId AND s.saleDate BETWEEN :start AND :end")
     BigDecimal sumRevenueByUserIdAndDateRange(@Param("userId") Long userId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query("SELECT COUNT(s) FROM Sale s WHERE s.userId = :userId AND s.saleDate BETWEEN :start AND :end")

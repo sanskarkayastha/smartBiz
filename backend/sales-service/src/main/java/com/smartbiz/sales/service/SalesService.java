@@ -120,7 +120,7 @@ public class SalesService {
             LocalDateTime start = day.atStartOfDay();
             LocalDateTime end = start.plusDays(1);
             BigDecimal revenue = saleRepository.sumRevenueByUserIdAndDateRange(userId, start, end);
-            result.add(new DailyRevenueDTO(day, revenue));
+            result.add(new DailyRevenueDTO(day, revenue != null ? revenue : BigDecimal.ZERO));
         }
         return result;
     }
@@ -130,6 +130,7 @@ public class SalesService {
         LocalDateTime end = start.plusDays(1);
 
         BigDecimal revenue = saleRepository.sumRevenueByUserIdAndDateRange(userId, start, end);
+        revenue = revenue != null ? revenue : BigDecimal.ZERO;
         Long count = saleRepository.countByUserIdAndDateRange(userId, start, end);
 
         BigDecimal avg = count > 0

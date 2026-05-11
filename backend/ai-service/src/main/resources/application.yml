@@ -1,6 +1,8 @@
 spring:
   application:
     name: AI-SERVICE
+  config:
+    import: optional:file:../.env[.properties]
 
 server:
   port: 8085
@@ -11,6 +13,10 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
   instance:
     prefer-ip-address: true
+
+app:
+  gemini-api-key: ${GEMINI_API_KEY:}
+  gemini-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent
 
 logging:
   level:

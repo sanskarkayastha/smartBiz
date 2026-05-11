@@ -1,4 +1,5 @@
 import { requireSession, apiFetch } from '@/src/lib/session'
+import AiInsightCard from '@/src/components/AiInsightCard'
 
 type SaleSummary = { totalRevenue: number; orderCount: number; avgOrderValue: number }
 type Product = { id: number; name: string; category: string | null; quantity: number; reorderLevel: number | null }
@@ -17,10 +18,11 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
 export default async function OverviewPage() {
   const session = await requireSession()
 
-  const [summary, lowStock, weekly] = await Promise.all([
+  const [summary, lowStock, weekly, aiData] = await Promise.all([
     apiFetch<SaleSummary>('/sales/analytics/today', session),
     apiFetch<Product[]>('/inventory/products/low-stock', session),
     apiFetch<DailyRevenue[]>('/sales/analytics/weekly', session),
+    apiFetch<{ insight: string }>('/ai/insights', session).catch(() => null),
   ])
 
   const maxRevenue = Math.max(...(weekly ?? []).map((d) => d.revenue), 1)
@@ -50,6 +52,8 @@ export default async function OverviewPage() {
           sub="Per transaction"
         />
       </div>
+
+      <AiInsightCard initialInsight={aiData?.insight ?? null} />
 
       <div className="grid grid-cols-2 gap-6">
         {/* Weekly Chart */}

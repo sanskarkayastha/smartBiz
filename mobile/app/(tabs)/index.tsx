@@ -7,6 +7,7 @@ import { Colors } from '@/components/ui/colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { salesService, SaleSummary, DailyRevenue } from '@/services/sales';
 import { inventoryService, Product } from '@/services/inventory';
+import { getDailyInsight } from '@/services/ai';
 
 export default function Home() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function Home() {
   const [summary, setSummary] = useState<SaleSummary | null>(null);
   const [lowStock, setLowStock] = useState<Product[]>([]);
   const [weeklyData, setWeeklyData] = useState<DailyRevenue[]>([]);
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -28,6 +30,7 @@ export default function Home() {
       setSummary(sum);
       setLowStock(ls);
       setWeeklyData(weekly);
+      getDailyInsight().then(setAiInsight).catch(() => {});
     } catch {
       setError(true);
     } finally {
@@ -122,6 +125,18 @@ export default function Home() {
             <Text style={styles.actionLabel}>Inventory</Text>
           </Pressable>
         </View>
+
+        {/* AI Insight Card */}
+        {aiInsight && (
+          <Pressable style={styles.aiCard} onPress={() => router.push('/(tabs)/ai')}>
+            <View style={styles.aiCardHeader}>
+              <Ionicons name="sparkles" size={15} color={Colors.primary} />
+              <Text style={styles.aiCardTitle}>AI Insight</Text>
+            </View>
+            <Text style={styles.aiCardText}>{aiInsight}</Text>
+            <Text style={styles.aiCardCta}>Ask more questions →</Text>
+          </Pressable>
+        )}
 
         {/* Low Stock Alert */}
         {(loading || lowStock.length > 0) && (
@@ -227,6 +242,11 @@ const styles = StyleSheet.create({
   stockSub: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
   stockBadge: { backgroundColor: Colors.dangerLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   stockBadgeText: { fontSize: 11, fontWeight: '600', color: Colors.danger },
+  aiCard: { backgroundColor: '#EEF4FF', borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#BFDBFE' },
+  aiCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  aiCardTitle: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+  aiCardText: { fontSize: 13, color: Colors.textDark, lineHeight: 19, marginBottom: 8 },
+  aiCardCta: { fontSize: 12, color: Colors.primary, fontWeight: '500' },
   chartContainer: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 90, paddingTop: 8 },
   barWrapper: { alignItems: 'center', gap: 4, flex: 1 },
   bar: { width: 22, backgroundColor: Colors.primary, borderRadius: 4, opacity: 0.8 },

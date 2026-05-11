@@ -19,7 +19,12 @@
       "Bash(Sort-Object FullName)",
       "Bash(dir \"C:\\\\Sanskar\\\\College\\\\FYP\\\\project\\\\smartBiz\\\\frontend\\\\web\")",
       "Bash(Get-ChildItem -Path \"C:\\\\Sanskar\\\\College\\\\FYP\\\\project\\\\smartBiz\\\\frontend\\\\web\\\\src\" -Recurse -File)",
-      "PowerShell(Get-ChildItem -Path \"C:\\\\Sanskar\\\\College\\\\FYP\\\\project\\\\smartBiz\\\\frontend\\\\web\" -Depth 3 | Where-Object { $_.PSIsContainer } | Select-Object FullName)"
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Sanskar\\\\College\\\\FYP\\\\project\\\\smartBiz\\\\frontend\\\\web\" -Depth 3 | Where-Object { $_.PSIsContainer } | Select-Object FullName)",
+      "Bash(Get-ChildItem *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Sanskar\\\\College\\\\FYP\\\\project\\\\smartBiz\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(grep -E \"\\\\.\\(java|sql|yml\\)$\")",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ]
   }
 }
