@@ -45,6 +45,9 @@ public class Product {
 
     private String supplier;
 
+    @Column(name = "cost_price", precision = 10, scale = 2)
+    private BigDecimal costPrice;
+
     @Column(unique = true)
     private String barcode;
 

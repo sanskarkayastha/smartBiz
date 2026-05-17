@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AddProductModal from '@/src/components/AddProductModal'
 
@@ -10,6 +10,7 @@ type Product = {
   sku: string | null
   category: string | null
   price: number
+  costPrice: number | null
   quantity: number
   reorderLevel: number | null
   supplier: string | null
@@ -26,6 +27,8 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
   const [products, setProducts] = useState<Product[]>(initialProducts)
   const [search, setSearch] = useState('')
   const [deleting, setDeleting] = useState<number | null>(null)
+
+  useEffect(() => { setProducts(initialProducts) }, [initialProducts])
 
   const filtered = products.filter((p) => {
     const term = search.toLowerCase()
@@ -82,7 +85,8 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Product</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">SKU</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Price</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cost Price</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Selling Price</th>
                 <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Qty</th>
                 <th className="text-center px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                 <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
@@ -99,6 +103,9 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
                     </td>
                     <td className="px-5 py-3 text-gray-500 font-mono text-xs">{p.sku ?? '—'}</td>
                     <td className="px-5 py-3 text-gray-600">{p.category ?? '—'}</td>
+                    <td className="px-5 py-3 text-right text-gray-500">
+                      {p.costPrice != null ? `NPR ${Number(p.costPrice).toLocaleString()}` : '—'}
+                    </td>
                     <td className="px-5 py-3 text-right font-medium text-gray-900">NPR {Number(p.price).toLocaleString()}</td>
                     <td className="px-5 py-3 text-right font-semibold text-gray-900">{p.quantity}</td>
                     <td className="px-5 py-3 text-center">

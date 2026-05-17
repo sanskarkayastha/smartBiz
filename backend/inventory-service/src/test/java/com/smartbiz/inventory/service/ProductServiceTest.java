@@ -51,7 +51,7 @@ class ProductServiceTest {
     void createProduct_success_returnsDTO() {
         CreateProductRequest request = new CreateProductRequest(
                 "Test Product", "TEST-001", "Groceries",
-                new BigDecimal("500.00"), 20, 5, null, null, null);
+                new BigDecimal("500.00"), 20, 5, null, null, null, null);
 
         when(productRepository.save(any(Product.class))).thenReturn(product);
         when(stockHistoryRepository.save(any(StockHistory.class))).thenReturn(new StockHistory());

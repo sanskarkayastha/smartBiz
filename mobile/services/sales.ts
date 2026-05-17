@@ -3,12 +3,14 @@ import { api } from './api';
 export type SaleItem = {
   productId: number;
   quantity: number;
+  unitPrice?: number;
 };
 
 export type SaleSummary = {
   totalRevenue: number;
   orderCount: number;
   avgOrderValue: number;
+  totalDue: number;
 };
 
 export type DailyRevenue = {

@@ -25,7 +25,9 @@
       "Bash(Select-Object Name)",
       "Bash(grep -E \"\\\\.\\(java|sql|yml\\)$\")",
       "Bash(Select-Object -ExpandProperty FullName)",
-      "PowerShell(Get-ChildItem -Path \"C:\\\\sanskar\\\\fyp\\\\smartBiz\\\\frontend\" -Recurse -Depth 3 | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\sanskar\\\\fyp\\\\smartBiz\\\\frontend\\\\\", \"\"\\) } | Sort-Object)"
+      "PowerShell(Get-ChildItem -Path \"C:\\\\sanskar\\\\fyp\\\\smartBiz\\\\frontend\" -Recurse -Depth 3 | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\sanskar\\\\fyp\\\\smartBiz\\\\frontend\\\\\", \"\"\\) } | Sort-Object)",
+      "PowerShell(head *)",
+      "Bash(npx next *)"
     ]
   }
 }

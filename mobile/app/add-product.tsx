@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
@@ -30,6 +30,8 @@ export default function AddProduct() {
       Alert.alert('Error', 'Enter a valid selling price');
       return;
     }
+    const costTrimmed = costPrice.trim();
+    const cost = costTrimmed !== '' ? parseFloat(costTrimmed) : undefined;
     setSaving(true);
     try {
       await inventoryService.createProduct({
@@ -37,11 +39,10 @@ export default function AddProduct() {
         category: category || undefined,
         supplier: supplier.trim() || undefined,
         price,
+        costPrice: cost !== undefined && !isNaN(cost) ? cost : undefined,
         quantity: stock,
       });
-      Alert.alert('Product Saved!', `${productName} has been added to inventory.`, [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      router.back();
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Failed to save product. Please try again.';
       Alert.alert('Save Failed', msg);
@@ -52,18 +53,26 @@ export default function AddProduct() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      {/* Header — always visible above keyboard */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconBtn}>
           <Ionicons name="close" size={22} color={Colors.textDark} />
         </Pressable>
         <Text style={styles.headerTitle}>Add Product</Text>
-        <Pressable onPress={handleSave}>
-          <Text style={styles.saveText}>Save</Text>
+        <Pressable onPress={handleSave} disabled={saving}>
+          {saving
+            ? <ActivityIndicator size="small" color={Colors.primary} />
+            : <Text style={styles.saveText}>Save</Text>}
         </Pressable>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      {/* All content + save button inside ScrollView so nothing is ever hidden */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Photo Upload */}
         <Text style={styles.sectionLabel}>Product Photo</Text>
         <Pressable style={styles.photoBox}>
@@ -119,7 +128,7 @@ export default function AddProduct() {
         </View>
 
         {/* Pricing & Inventory */}
-        <Text style={styles.sectionLabel}>Pricing &amp; Inventory</Text>
+        <Text style={styles.sectionLabel}>Pricing & Inventory</Text>
         <View style={styles.fieldsGroup}>
           <View style={styles.row}>
             <InputField
@@ -127,14 +136,14 @@ export default function AddProduct() {
               placeholder="Rs. 0"
               value={costPrice}
               onChangeText={setCostPrice}
-              keyboardType="numeric"
+              keyboardType="decimal-pad"
             />
             <InputField
-              label="Selling Price"
+              label="Selling Price *"
               placeholder="Rs. 0"
               value={sellingPrice}
               onChangeText={setSellingPrice}
-              keyboardType="numeric"
+              keyboardType="decimal-pad"
             />
           </View>
 
@@ -146,24 +155,27 @@ export default function AddProduct() {
               </Pressable>
               <Text style={styles.stockCount}>{stock}</Text>
               <Pressable style={[styles.stepBtn, styles.stepBtnActive]} onPress={() => setStock((s) => s + 1)}>
-                <Ionicons name="add" size={20} color="#fff" />
+                <Ionicons name="add" size={20} color={Colors.textOnPrimary} />
               </Pressable>
             </View>
           </View>
         </View>
-      </ScrollView>
 
-      {/* Save Button */}
-      <View style={styles.footer}>
-        <Pressable style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
+        {/* Save button inside scroll — always reachable */}
+        <Pressable
+          style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+          onPress={handleSave}
+          disabled={saving}
+        >
           {saving
-            ? <ActivityIndicator color="#fff" />
+            ? <ActivityIndicator color={Colors.textOnPrimary} />
             : <>
-                <Ionicons name="save-outline" size={18} color="#fff" />
+                <Ionicons name="save-outline" size={18} color={Colors.textOnPrimary} />
                 <Text style={styles.saveBtnText}>Save Product</Text>
               </>}
         </Pressable>
-      </View>
+      </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -183,7 +195,7 @@ const styles = StyleSheet.create({
   iconBtn: { padding: 4 },
   headerTitle: { fontSize: 17, fontWeight: '700', color: Colors.textDark },
   saveText: { fontSize: 15, fontWeight: '700', color: Colors.primary },
-  scroll: { padding: 16, paddingBottom: 100 },
+  scroll: { padding: 16, paddingBottom: 40 },
   sectionLabel: {
     fontSize: 15,
     fontWeight: '700',
@@ -264,16 +276,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   stockCount: { fontSize: 20, fontWeight: '700', color: Colors.textDark, minWidth: 30, textAlign: 'center' },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: Colors.background,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
   saveBtn: {
     backgroundColor: Colors.primary,
     borderRadius: 14,
@@ -282,6 +284,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
+    marginTop: 4,
   },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  saveBtnText: { color: Colors.textOnPrimary, fontSize: 16, fontWeight: '700' },
 });

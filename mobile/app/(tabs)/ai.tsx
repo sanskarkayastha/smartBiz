@@ -1,4 +1,4 @@
-import {
+﻿import {
   View,
   Text,
   ScrollView,
@@ -129,7 +129,7 @@ export default function AiScreen() {
             onPress={() => send(input)}
             disabled={!input.trim() || loading}
           >
-            <Ionicons name="send" size={18} color="#fff" />
+            <Ionicons name="send" size={18} color={Colors.textOnPrimary} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -156,12 +156,12 @@ const styles = StyleSheet.create({
   chips: { maxHeight: 44, backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border },
   chipsContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexDirection: 'row' },
   chip: {
-    backgroundColor: '#EEF4FF',
+    backgroundColor: Colors.primaryLight,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: Colors.primaryBorder,
   },
   chipText: { fontSize: 12, color: Colors.primary, fontWeight: '500' },
   messages: { flex: 1 },
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   },
   aiIcon: { marginTop: 1 },
   bubbleText: { fontSize: 14, color: Colors.textDark, lineHeight: 20, flex: 1 },
-  userBubbleText: { color: '#fff' },
+  userBubbleText: { color: Colors.textOnPrimary },
   inputRow: {
     flexDirection: 'row',
     padding: 12,
@@ -220,3 +220,4 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { opacity: 0.4 },
 });
+

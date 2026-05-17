@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-navy:       oklch(0.15 0.025 264);
+  --color-navy-up:    oklch(0.22 0.025 264);
+  --color-navy-edge:  oklch(0.30 0.020 264);
+  --color-brand:      oklch(0.49 0.220 264);
+  --color-fog:        oklch(0.985 0.005 264);
+  --color-fog-1:      oklch(0.970 0.006 264);
+  --color-fog-2:      oklch(0.930 0.008 264);
+  --color-ink:        oklch(0.18 0.010 264);
+  --color-ink-2:      oklch(0.42 0.010 264);
+  --color-ink-3:      oklch(0.62 0.008 264);
+  --color-snow:       oklch(0.96 0.008 264);
+  --color-snow-2:     oklch(0.70 0.015 264);
+  --font-display:     var(--font-bricolage, ui-sans-serif);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0);    }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.fade-up-0 { animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.fade-up-1 { animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.10s both; }
+.fade-up-2 { animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.20s both; }
+.fade-up-3 { animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.30s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-up-0, .fade-up-1, .fade-up-2, .fade-up-3 { animation: none; }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: oklch(0.985 0.005 264);
+  color: oklch(0.18 0.01 264);
+  font-family: var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
 }

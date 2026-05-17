@@ -1,7 +1,7 @@
-import { View, Text, FlatList, StyleSheet, Pressable, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Colors } from '@/components/ui/colors';
 import SearchBar from '@/components/ui/SearchBar';
@@ -39,10 +39,13 @@ export default function Inventory() {
   const [editSaving, setEditSaving] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CreateProductPayload>>({});
 
+  const hasLoaded = useRef(false);
+
   const load = useCallback(async () => {
     try {
       const data = await inventoryService.getProducts();
       setProducts(data);
+      hasLoaded.current = true;
     } catch {
       // keep previous data
     } finally {
@@ -51,7 +54,10 @@ export default function Inventory() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    if (hasLoaded.current) setRefreshing(true);
+    load();
+  }, [load]));
 
   const onRefresh = () => { setRefreshing(true); load(); };
 
@@ -62,6 +68,7 @@ export default function Inventory() {
       sku: product.sku,
       category: product.category,
       price: product.price,
+      costPrice: product.costPrice ?? undefined,
       quantity: product.quantity,
       reorderLevel: product.reorderLevel ?? undefined,
       supplier: product.supplier ?? undefined,
@@ -155,7 +162,7 @@ export default function Inventory() {
               const bgColor = PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.length];
               return (
                 <View style={styles.cardWrapper}>
-                  <Pressable style={styles.card} onPress={() => openEditModal(item)}>
+                  <Pressable style={({ pressed }) => [styles.card, pressed && { opacity: 0.82 }]} onPress={() => openEditModal(item)}>
                     <View style={[styles.productImage, { backgroundColor: bgColor }]}>
                       <Ionicons name="cube-outline" size={24} color={Colors.textMuted} />
                     </View>
@@ -166,12 +173,17 @@ export default function Inventory() {
                       </View>
                       <Text style={styles.productSku} numberOfLines={1}>{skuLine(item)}</Text>
                       <View style={styles.productBottomRow}>
-                        <Text style={styles.productPrice}>Rs. {item.price.toLocaleString()}</Text>
+                        <View>
+                          <Text style={styles.productPrice}>Rs. {item.price.toLocaleString()}</Text>
+                          {item.costPrice != null && (
+                            <Text style={styles.productCostPrice}>Cost: Rs. {item.costPrice.toLocaleString()}</Text>
+                          )}
+                        </View>
                         <Text style={styles.productQty}>{item.quantity} units</Text>
                       </View>
                     </View>
                   </Pressable>
-                  <Pressable style={styles.deleteBtn} onPress={() => handleDeleteProduct(item)}>
+                  <Pressable style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.72 }]} onPress={() => handleDeleteProduct(item)}>
                     <Ionicons name="trash-outline" size={18} color={Colors.danger} />
                   </Pressable>
                 </View>
@@ -180,12 +192,12 @@ export default function Inventory() {
           />
         )}
 
-      <Pressable style={styles.fab} onPress={() => router.push('/add-product')}>
-        <Ionicons name="add" size={28} color="#fff" />
+      <Pressable style={({ pressed }) => [styles.fab, pressed && { opacity: 0.82 }]} onPress={() => router.push('/add-product')}>
+        <Ionicons name="add" size={28} color={Colors.textOnPrimary} />
       </Pressable>
 
       <Modal visible={showEditModal} animationType="slide" transparent onRequestClose={() => setShowEditModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Product</Text>
@@ -193,6 +205,7 @@ export default function Inventory() {
                 <Ionicons name="close" size={22} color={Colors.textDark} />
               </Pressable>
             </View>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
             <Text style={styles.label}>Product Name *</Text>
             <TextInput
@@ -223,7 +236,18 @@ export default function Inventory() {
 
             <View style={styles.row}>
               <View style={styles.col}>
-                <Text style={styles.label}>Price (Rs) *</Text>
+                <Text style={styles.label}>Cost Price (Rs)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0"
+                  keyboardType="decimal-pad"
+                  value={String(editForm.costPrice ?? '')}
+                  onChangeText={(v) => setEditForm((f) => ({ ...f, costPrice: v ? parseFloat(v) : undefined }))}
+                  placeholderTextColor={Colors.textMuted}
+                />
+              </View>
+              <View style={styles.col}>
+                <Text style={styles.label}>Selling Price (Rs) *</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="0"
@@ -233,18 +257,17 @@ export default function Inventory() {
                   placeholderTextColor={Colors.textMuted}
                 />
               </View>
-              <View style={styles.col}>
-                <Text style={styles.label}>Quantity *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="0"
-                  keyboardType="number-pad"
-                  value={String(editForm.quantity ?? '')}
-                  onChangeText={(v) => setEditForm((f) => ({ ...f, quantity: v ? parseInt(v) : undefined }))}
-                  placeholderTextColor={Colors.textMuted}
-                />
-              </View>
             </View>
+
+            <Text style={styles.label}>Quantity *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0"
+              keyboardType="number-pad"
+              value={String(editForm.quantity ?? '')}
+              onChangeText={(v) => setEditForm((f) => ({ ...f, quantity: v ? parseInt(v) : undefined }))}
+              placeholderTextColor={Colors.textMuted}
+            />
 
             <Text style={styles.label}>Reorder Level</Text>
             <TextInput
@@ -265,9 +288,11 @@ export default function Inventory() {
               placeholderTextColor={Colors.textMuted}
             />
 
-            <Pressable style={[styles.saveBtn, editSaving && { opacity: 0.7 }]} onPress={handleUpdateProduct} disabled={editSaving}>
+            </ScrollView>
+
+            <Pressable style={({ pressed }) => [styles.saveBtn, editSaving && { opacity: 0.7 }, pressed && !editSaving && { opacity: 0.85 }]} onPress={handleUpdateProduct} disabled={editSaving}>
               {editSaving ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={Colors.textOnPrimary} />
               ) : (
                 <Text style={styles.saveBtnText}>Save Changes</Text>
               )}
@@ -298,10 +323,11 @@ const styles = StyleSheet.create({
   productSku: { fontSize: 11, color: Colors.textMuted, marginBottom: 6 },
   productBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   productPrice: { fontSize: 15, fontWeight: '700', color: Colors.primary },
+  productCostPrice: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
   productQty: { fontSize: 12, color: Colors.textMuted },
   fab: { position: 'absolute', bottom: 28, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
+  modalSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 16, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textDark },
   label: { fontSize: 13, fontWeight: '600', color: Colors.textDark, marginBottom: 4, marginTop: 10 },
@@ -309,5 +335,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 10 },
   col: { flex: 1 },
   saveBtn: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  saveBtnText: { color: Colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
 });

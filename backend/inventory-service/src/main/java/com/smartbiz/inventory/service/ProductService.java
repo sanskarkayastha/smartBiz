@@ -52,6 +52,7 @@ public class ProductService {
             .sku(request.sku())
             .category(request.category())
             .price(request.price())
+            .costPrice(request.costPrice())
             .quantity(request.quantity())
             .reorderLevel(request.reorderLevel())
             .supplier(request.supplier())
@@ -81,6 +82,7 @@ public class ProductService {
         if (request.name() != null) product.setName(request.name());
         if (request.category() != null) product.setCategory(request.category());
         if (request.price() != null) product.setPrice(request.price());
+        if (request.costPrice() != null) product.setCostPrice(request.costPrice());
         if (request.reorderLevel() != null) product.setReorderLevel(request.reorderLevel());
         if (request.supplier() != null) product.setSupplier(request.supplier());
         if (request.imageUrl() != null) product.setImageUrl(request.imageUrl());

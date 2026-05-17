@@ -1,4 +1,4 @@
-import {
+﻿import {
   View,
   Text,
   ScrollView,
@@ -120,7 +120,7 @@ export default function Customers() {
       <View style={styles.header}>
         <Text style={styles.title}>Customers</Text>
         <Pressable style={styles.addBtn} onPress={openAdd}>
-          <Ionicons name="add" size={20} color="#fff" />
+          <Ionicons name="add" size={20} color={Colors.textOnPrimary} />
           <Text style={styles.addBtnText}>Add</Text>
         </Pressable>
       </View>
@@ -238,7 +238,7 @@ export default function Customers() {
 
             <Pressable style={[styles.saveBtn, saving && { opacity: 0.7 }]} onPress={handleSave} disabled={saving}>
               {saving ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={Colors.textOnPrimary} />
               ) : (
                 <Text style={styles.saveBtnText}>{editTarget ? 'Save Changes' : 'Save Customer'}</Text>
               )}
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingBottom: 8 },
   title: { fontSize: 22, fontWeight: '700', color: Colors.textDark },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
-  addBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  addBtnText: { color: Colors.textOnPrimary, fontWeight: '600', fontSize: 14 },
   searchRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8, backgroundColor: Colors.card, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 10, paddingVertical: 8, gap: 8 },
   searchIcon: { flexShrink: 0 },
   searchInput: { flex: 1, fontSize: 14, color: Colors.textDark, padding: 0 },
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 16, fontWeight: '600', color: Colors.textMuted },
   emptySubText: { fontSize: 13, color: Colors.textMuted },
   retryBtn: { marginTop: 8, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: Colors.primary, borderRadius: 10 },
-  retryText: { color: '#fff', fontWeight: '600' },
+  retryText: { color: Colors.textOnPrimary, fontWeight: '600' },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   modalSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
@@ -285,5 +285,6 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', color: Colors.textDark, marginBottom: 4, marginTop: 10 },
   input: { backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.textDark },
   saveBtn: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  saveBtnText: { color: Colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
 });
+

@@ -13,6 +13,7 @@ export interface Product {
   sku: string
   category: string
   price: number
+  costPrice?: number | null
   quantity: number
   reorderLevel: number
   supplier: string
@@ -34,6 +35,7 @@ export interface CreateProductInput {
   name: string
   category?: string
   price: number
+  costPrice?: number | null
   quantity: number
   reorderLevel?: number
   supplier?: string

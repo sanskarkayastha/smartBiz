@@ -69,9 +69,9 @@ export default function Register() {
           />
         </View>
 
-        <Pressable style={[styles.btn, loading && styles.btnDisabled]} onPress={handleRegister} disabled={loading}>
+        <Pressable style={({ pressed }) => [styles.btn, loading && styles.btnDisabled, pressed && { opacity: 0.82 }]} onPress={handleRegister} disabled={loading}>
           {loading
-            ? <ActivityIndicator color="#fff" />
+            ? <ActivityIndicator color={Colors.textOnPrimary} />
             : <Text style={styles.btnText}>Create Account</Text>}
         </Pressable>
 
@@ -84,13 +84,13 @@ export default function Register() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
+  safe: { flex: 1, backgroundColor: Colors.card },
   container: { flex: 1, padding: 24, justifyContent: 'center' },
   back: { position: 'absolute', top: 16, left: 24 },
   backText: { fontSize: 15, color: Colors.primary },
   title: { fontSize: 28, fontWeight: 'bold', color: Colors.textDark, marginBottom: 6 },
   subtitle: { fontSize: 15, color: Colors.textMuted, marginBottom: 32 },
-  form: { height: 220, gap: 16, marginBottom: 24 },
+  form: { gap: 16, marginBottom: 24 },
   btn: {
     backgroundColor: Colors.primary,
     borderRadius: 14,
@@ -99,6 +99,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnText: { color: Colors.textOnPrimary, fontSize: 16, fontWeight: '700' },
   link: { textAlign: 'center', fontSize: 14, color: Colors.textMuted },
 });

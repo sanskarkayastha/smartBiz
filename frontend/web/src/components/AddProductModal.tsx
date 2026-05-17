@@ -9,6 +9,7 @@ type Product = {
   sku: string | null
   category: string | null
   price: number
+  costPrice: number | null
   quantity: number
   reorderLevel: number | null
   supplier: string | null
@@ -18,19 +19,21 @@ type Form = {
   name: string
   sku: string
   category: string
+  costPrice: string
   price: string
   quantity: string
   reorderLevel: string
   supplier: string
 }
 
-const EMPTY: Form = { name: '', sku: '', category: '', price: '', quantity: '', reorderLevel: '', supplier: '' }
+const EMPTY: Form = { name: '', sku: '', category: '', costPrice: '', price: '', quantity: '', reorderLevel: '', supplier: '' }
 
 function productToForm(p: Product): Form {
   return {
     name: p.name,
     sku: p.sku ?? '',
     category: p.category ?? '',
+    costPrice: p.costPrice != null ? String(p.costPrice) : '',
     price: String(p.price),
     quantity: String(p.quantity),
     reorderLevel: p.reorderLevel != null ? String(p.reorderLevel) : '',
@@ -81,6 +84,7 @@ export default function AddProductModal({ product, onClose, triggerLabel }: Prop
         name: form.name.trim(),
         sku: form.sku.trim() || null,
         category: form.category.trim() || null,
+        costPrice: form.costPrice ? parseFloat(form.costPrice) : null,
         price: parseFloat(form.price),
         quantity: parseInt(form.quantity),
         reorderLevel: form.reorderLevel ? parseInt(form.reorderLevel) : null,
@@ -150,13 +154,14 @@ export default function AddProductModal({ product, onClose, triggerLabel }: Prop
                 <Field label="Category" value={form.category} onChange={set('category')} placeholder="e.g. Grains" />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Price (NPR) *" value={form.price} onChange={set('price')} placeholder="0.00" type="number" min="0" step="0.01" />
-                <Field label="Quantity *" value={form.quantity} onChange={set('quantity')} placeholder="0" type="number" min="0" />
+                <Field label="Cost Price (NPR)" value={form.costPrice} onChange={set('costPrice')} placeholder="0.00" type="number" min="0" step="0.01" />
+                <Field label="Selling Price (NPR) *" value={form.price} onChange={set('price')} placeholder="0.00" type="number" min="0" step="0.01" />
               </div>
               <div className="grid grid-cols-2 gap-3">
+                <Field label="Quantity *" value={form.quantity} onChange={set('quantity')} placeholder="0" type="number" min="0" />
                 <Field label="Reorder Level" value={form.reorderLevel} onChange={set('reorderLevel')} placeholder="e.g. 10" type="number" min="0" />
-                <Field label="Supplier" value={form.supplier} onChange={set('supplier')} placeholder="e.g. ABC Store" />
               </div>
+              <Field label="Supplier" value={form.supplier} onChange={set('supplier')} placeholder="e.g. ABC Store" />
 
               {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 

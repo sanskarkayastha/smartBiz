@@ -25,5 +25,6 @@ public record CreateProductRequest(
     Integer reorderLevel,
     String supplier,
     String barcode,
-    String imageUrl
+    String imageUrl,
+    BigDecimal costPrice
 ) {}

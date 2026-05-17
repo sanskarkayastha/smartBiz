@@ -66,7 +66,7 @@ export default function Home() {
               <Text style={styles.userName}>{user?.fullName ?? 'User'}</Text>
             </View>
           </View>
-          <Pressable style={styles.notifBtn}>
+          <Pressable style={({ pressed }) => [styles.notifBtn, pressed && { opacity: 0.7 }]}>
             <Ionicons name="notifications-outline" size={22} color={Colors.textDark} />
           </Pressable>
         </View>
@@ -81,13 +81,23 @@ export default function Home() {
             </View>
           </View>
           {loading ? (
-            <ActivityIndicator color="#fff" style={{ marginVertical: 14 }} />
+            <ActivityIndicator color={Colors.textOnPrimary} style={{ marginVertical: 14 }} />
           ) : error ? (
             <Text style={styles.statsValue}>—</Text>
           ) : (
-            <Text style={styles.statsValue}>
-              NPR {(summary?.totalRevenue ?? 0).toLocaleString()}
-            </Text>
+            <>
+              <Text style={styles.statsValue}>
+                NPR {(summary?.totalRevenue ?? 0).toLocaleString()}
+              </Text>
+              {(summary?.totalDue ?? 0) > 0 && (
+                <View style={styles.dueRow}>
+                  <Ionicons name="time-outline" size={13} color="rgba(255,200,150,0.9)" />
+                  <Text style={styles.dueText}>
+                    NPR {(summary!.totalDue).toLocaleString()} due (uncollected)
+                  </Text>
+                </View>
+              )}
+            </>
           )}
           <View style={styles.statsRow}>
             <View>
@@ -102,7 +112,7 @@ export default function Home() {
               </Text>
             </View>
             <View style={styles.statsDivider} />
-            <Pressable onPress={load}>
+            <Pressable onPress={load} style={({ pressed }) => pressed && { opacity: 0.7 }}>
               <Ionicons name="refresh-outline" size={20} color="rgba(255,255,255,0.7)" />
             </Pressable>
           </View>
@@ -110,19 +120,19 @@ export default function Home() {
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <Pressable style={styles.actionBtn} onPress={() => router.push('/(tabs)/sales')}>
+          <Pressable style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.72 }]} onPress={() => router.push('/(tabs)/sales')}>
             <View style={styles.actionIcon}>
               <Ionicons name="receipt-outline" size={22} color={Colors.primary} />
             </View>
             <Text style={styles.actionLabel}>New Sale</Text>
           </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => router.push('/add-product')}>
+          <Pressable style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.72 }]} onPress={() => router.push('/add-product')}>
             <View style={styles.actionIcon}>
               <Ionicons name="cube-outline" size={22} color={Colors.primary} />
             </View>
             <Text style={styles.actionLabel}>Add Product</Text>
           </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => router.push('/(tabs)/inventory')}>
+          <Pressable style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.72 }]} onPress={() => router.push('/(tabs)/inventory')}>
             <View style={styles.actionIcon}>
               <Ionicons name="layers-outline" size={22} color={Colors.primary} />
             </View>
@@ -132,7 +142,7 @@ export default function Home() {
 
         {/* AI Insight Card */}
         {aiInsight && (
-          <Pressable style={styles.aiCard} onPress={() => router.push('/(tabs)/ai')}>
+          <Pressable style={({ pressed }) => [styles.aiCard, pressed && { opacity: 0.82 }]} onPress={() => router.push('/(tabs)/ai')}>
             <View style={styles.aiCardHeader}>
               <Ionicons name="sparkles" size={15} color={Colors.primary} />
               <Text style={styles.aiCardTitle}>AI Insight</Text>
@@ -150,7 +160,7 @@ export default function Home() {
                 <Ionicons name="warning-outline" size={16} color={Colors.warning} />
                 <Text style={styles.sectionTitle}>Low Stock Alert</Text>
               </View>
-              <Pressable onPress={() => router.push('/(tabs)/inventory')}>
+              <Pressable style={({ pressed }) => pressed && { opacity: 0.7 }} onPress={() => router.push('/(tabs)/inventory')}>
                 <Text style={styles.viewAll}>View all</Text>
               </Pressable>
             </View>
@@ -183,7 +193,7 @@ export default function Home() {
                 <Ionicons name="time-outline" size={16} color={Colors.danger} />
                 <Text style={styles.sectionTitle}>Customers with Due</Text>
               </View>
-              <Pressable onPress={() => router.push('/(tabs)/customers')}>
+              <Pressable style={({ pressed }) => pressed && { opacity: 0.7 }} onPress={() => router.push('/(tabs)/customers')}>
                 <Text style={styles.viewAll}>View all</Text>
               </Pressable>
             </View>
@@ -247,7 +257,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center' },
-  avatarText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+  avatarText: { color: Colors.textOnPrimary, fontWeight: 'bold', fontSize: 15 },
   welcomeText: { fontSize: 12, color: Colors.textMuted },
   userName: { fontSize: 15, fontWeight: '700', color: Colors.textDark },
   notifBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.card, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
@@ -255,12 +265,12 @@ const styles = StyleSheet.create({
   statsTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   statsLabel: { fontSize: 13, color: 'rgba(255,255,255,0.8)' },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4ADE80' },
-  liveBadgeText: { color: '#fff', fontSize: 11, fontWeight: '600' },
-  statsValue: { fontSize: 34, fontWeight: 'bold', color: '#fff', marginBottom: 16 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.success },
+  liveBadgeText: { color: Colors.textOnPrimary, fontSize: 11, fontWeight: '600' },
+  statsValue: { fontSize: 34, fontWeight: 'bold', color: Colors.textOnPrimary, marginBottom: 16 },
   statsRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   statsSubLabel: { fontSize: 11, color: 'rgba(255,255,255,0.7)' },
-  statsSubValue: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  statsSubValue: { fontSize: 16, fontWeight: '700', color: Colors.textOnPrimary },
   statsDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.25)' },
   quickActions: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, gap: 8 },
   actionBtn: { alignItems: 'center', gap: 6, flex: 1 },
@@ -271,7 +281,6 @@ const styles = StyleSheet.create({
   alertTitle: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: Colors.textDark },
   viewAll: { fontSize: 13, color: Colors.primary, fontWeight: '500' },
-  chartNote: { fontSize: 11, color: Colors.textMuted },
   stockRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: Colors.border },
   stockIcon: { width: 34, height: 34, borderRadius: 8, backgroundColor: Colors.warningLight, justifyContent: 'center', alignItems: 'center' },
   stockInfo: { flex: 1, minWidth: 0 },
@@ -282,13 +291,15 @@ const styles = StyleSheet.create({
   dueIcon: { width: 34, height: 34, borderRadius: 8, backgroundColor: Colors.dangerLight, justifyContent: 'center', alignItems: 'center' },
   dueBadge: { backgroundColor: Colors.dangerLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   dueBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.danger },
-  aiCard: { backgroundColor: '#EEF4FF', borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#BFDBFE' },
+  dueRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 14 },
+  dueText: { fontSize: 12, color: 'rgba(255,200,150,0.9)', fontWeight: '600' },
+  aiCard: { backgroundColor: Colors.primaryLight, borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: Colors.primaryBorder },
   aiCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   aiCardTitle: { fontSize: 13, fontWeight: '700', color: Colors.primary },
   aiCardText: { fontSize: 13, color: Colors.textDark, lineHeight: 19, marginBottom: 8 },
   aiCardCta: { fontSize: 12, color: Colors.primary, fontWeight: '500' },
   chartContainer: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 90, paddingTop: 8 },
   barWrapper: { alignItems: 'center', gap: 4, flex: 1 },
-  bar: { width: 22, backgroundColor: Colors.primary, borderRadius: 4, opacity: 0.8 },
+  bar: { width: 22, backgroundColor: Colors.primary, borderRadius: 4 },
   barLabel: { fontSize: 10, color: Colors.textMuted },
 });

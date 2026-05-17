@@ -24,7 +24,7 @@ export default function SearchBar({ placeholder = 'Search...', value, onChangeTe
         />
       </View>
       {showFilter && (
-        <Pressable onPress={onFilterPress} style={styles.filterBtn}>
+        <Pressable onPress={onFilterPress} style={({ pressed }) => [styles.filterBtn, pressed && { opacity: 0.7 }]}>
           <Ionicons name="options-outline" size={20} color={Colors.textDark} />
         </Pressable>
       )}

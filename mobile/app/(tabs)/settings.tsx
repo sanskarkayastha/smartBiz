@@ -1,4 +1,4 @@
-import {
+﻿import {
   View,
   Text,
   StyleSheet,
@@ -173,7 +173,7 @@ export default function Settings() {
               disabled={savingProfile}
             >
               {savingProfile ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={Colors.textOnPrimary} />
               ) : (
                 <Text style={styles.saveBtnText}>Save Changes</Text>
               )}
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: 'bold', color: Colors.textDark, paddingHorizontal: 16, paddingVertical: 14 },
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: Colors.card, borderRadius: 16, marginHorizontal: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: Colors.border },
   avatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center' },
-  avatarText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
+  avatarText: { color: Colors.textOnPrimary, fontWeight: 'bold', fontSize: 18 },
   profileInfo: { flex: 1 },
   name: { fontSize: 16, fontWeight: '700', color: Colors.textDark },
   email: { fontSize: 13, color: Colors.textMuted, marginTop: 2 },
@@ -211,5 +211,6 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', color: Colors.textDark, marginBottom: 4, marginTop: 10 },
   input: { backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.textDark },
   saveBtn: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  saveBtnText: { color: Colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
 });
+

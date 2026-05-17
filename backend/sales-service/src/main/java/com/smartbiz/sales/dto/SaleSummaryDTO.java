@@ -13,4 +13,5 @@ public class SaleSummaryDTO {
     private BigDecimal totalRevenue;
     private Long orderCount;
     private BigDecimal avgOrderValue;
+    private BigDecimal totalDue;
 }

@@ -1,4 +1,4 @@
-import {
+﻿import {
   View, Text, FlatList, StyleSheet, Pressable, ActivityIndicator,
   RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ScrollView,
 } from 'react-native';
@@ -133,7 +133,7 @@ export default function Suppliers() {
       <View style={styles.header}>
         <Text style={styles.title}>Suppliers</Text>
         <Pressable style={styles.addBtn} onPress={() => setCreateOpen(true)}>
-          <Ionicons name="add" size={20} color="#fff" />
+          <Ionicons name="add" size={20} color={Colors.textOnPrimary} />
           <Text style={styles.addBtnText}>Add</Text>
         </Pressable>
       </View>
@@ -230,7 +230,7 @@ export default function Suppliers() {
               multiline value={editForm.notes} onChangeText={(v) => setEditForm((f) => ({ ...f, notes: v }))}
               placeholderTextColor={Colors.textMuted} />
             <Pressable style={[styles.saveBtn, saving && { opacity: 0.7 }]} onPress={handleSave} disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
+              {saving ? <ActivityIndicator color={Colors.textOnPrimary} /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
             </Pressable>
           </View>
         </KeyboardAvoidingView>
@@ -267,7 +267,7 @@ export default function Suppliers() {
               multiline value={createForm.notes} onChangeText={(v) => setCreateForm((f) => ({ ...f, notes: v }))}
               placeholderTextColor={Colors.textMuted} />
             <Pressable style={[styles.saveBtn, creating && { opacity: 0.7 }]} onPress={handleCreate} disabled={creating}>
-              {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Add Supplier</Text>}
+              {creating ? <ActivityIndicator color={Colors.textOnPrimary} /> : <Text style={styles.saveBtnText}>Add Supplier</Text>}
             </Pressable>
           </View>
         </KeyboardAvoidingView>
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary, borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 7,
   },
-  addBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  addBtnText: { color: Colors.textOnPrimary, fontSize: 13, fontWeight: '700' },
   list: { paddingHorizontal: 16, paddingBottom: 32 },
   listEmpty: { flex: 1, paddingHorizontal: 16 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 8 },
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   balanceBadgeGreen: { backgroundColor: '#D1FAE5' },
   balanceLabel: { fontSize: 10, fontWeight: '600', marginBottom: 1 },
   balanceAmount: { fontSize: 13, fontWeight: '700' },
-  balanceLabelRed: { color: '#DC2626' },
+  balanceLabelRed: { color: Colors.danger },
   balanceLabelGreen: { color: '#059669' },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   modalSheet: {
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary, borderRadius: 12,
     paddingVertical: 14, alignItems: 'center', marginTop: 20,
   },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  saveBtnText: { color: Colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
   productsEmpty: { alignItems: 'center', paddingVertical: 32, gap: 8 },
   productsEmptyText: { fontSize: 14, color: Colors.textMuted },
   productRow: {
@@ -397,5 +397,6 @@ const styles = StyleSheet.create({
   qtyBadge: { backgroundColor: '#D1FAE5', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   qtyBadgeOut: { backgroundColor: '#FEE2E2' },
   qtyBadgeText: { fontSize: 11, fontWeight: '600', color: '#059669' },
-  qtyBadgeTextOut: { color: '#DC2626' },
+  qtyBadgeTextOut: { color: Colors.danger },
 });
+

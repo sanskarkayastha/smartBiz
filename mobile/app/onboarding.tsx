@@ -61,14 +61,14 @@ export default function OnBoarding() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
   },
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
   },
   langRow: {
     width: '100%',
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     textAlign: 'center',
-    color: '#666',
+    color: Colors.textMuted,
     marginBottom: 6,
     lineHeight: 21,
   },

@@ -68,13 +68,16 @@ public class SalesService {
         for (int i = 0; i < request.getItems().size(); i++) {
             SaleItemRequest itemReq = request.getItems().get(i);
             InventoryProductDTO product = products.get(i);
-            BigDecimal subtotal = product.getPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+            BigDecimal effectivePrice = (itemReq.getUnitPrice() != null)
+                    ? itemReq.getUnitPrice()
+                    : product.getPrice();
+            BigDecimal subtotal = effectivePrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
 
             SaleItem item = new SaleItem();
             item.setProductId(itemReq.getProductId());
             item.setProductName(product.getName());
             item.setQuantity(itemReq.getQuantity());
-            item.setUnitPrice(product.getPrice());
+            item.setUnitPrice(effectivePrice);
             item.setSubtotal(subtotal);
             saleItems.add(item);
             total = total.add(subtotal);
@@ -140,13 +143,17 @@ public class SalesService {
 
         BigDecimal revenue = saleRepository.sumRevenueByUserIdAndDateRange(userId, start, end);
         revenue = revenue != null ? revenue : BigDecimal.ZERO;
+
+        BigDecimal due = saleRepository.sumDueByUserIdAndDateRange(userId, start, end);
+        due = due != null ? due : BigDecimal.ZERO;
+
         Long count = saleRepository.countByUserIdAndDateRange(userId, start, end);
 
         BigDecimal avg = count > 0
                 ? revenue.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
 
-        return new SaleSummaryDTO(revenue, count, avg);
+        return new SaleSummaryDTO(revenue, count, avg, due);
     }
 
     private InventoryProductDTO fetchProduct(Long userId, Long productId) {

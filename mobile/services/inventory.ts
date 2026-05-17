@@ -6,6 +6,7 @@ export type Product = {
   sku: string;
   category: string;
   price: number;
+  costPrice: number | null;
   quantity: number;
   reorderLevel: number | null;
   supplier: string | null;
@@ -17,6 +18,7 @@ export type CreateProductPayload = {
   sku?: string;
   category?: string;
   price: number;
+  costPrice?: number;
   quantity: number;
   reorderLevel?: number;
   supplier?: string;

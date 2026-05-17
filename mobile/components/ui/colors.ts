@@ -1,9 +1,12 @@
 export const Colors = {
   primary: '#135BEC',
+  primaryLight: '#EEF4FF',
+  primaryBorder: '#BFDBFE',
   background: '#F6F6F8',
   card: '#FFFFFF',
   textDark: '#334155',
   textMuted: '#94A3B8',
+  textOnPrimary: '#FFFFFF',
   border: '#E2E8F0',
   success: '#22C55E',
   successLight: '#DCFCE7',
@@ -11,4 +14,5 @@ export const Colors = {
   warningLight: '#FEF3C7',
   danger: '#EF4444',
   dangerLight: '#FEE2E2',
+  dangerBorder: '#FECACA',
 };

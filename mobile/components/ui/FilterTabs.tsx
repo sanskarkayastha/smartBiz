@@ -1,4 +1,4 @@
-import { ScrollView, Pressable, Text, StyleSheet } from 'react-native';
+import { View, Pressable, Text, StyleSheet } from 'react-native';
 import { Colors } from './colors';
 
 type Props = {
@@ -9,47 +9,49 @@ type Props = {
 
 export default function FilterTabs({ tabs, active, onSelect }: Props) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.container}>
+    <View style={styles.container}>
       {tabs.map((tab) => {
         const isActive = tab === active;
         return (
           <Pressable
             key={tab}
             onPress={() => onSelect(tab)}
-            style={[styles.tab, isActive && styles.activeTab]}
+            style={({ pressed }) => [styles.tab, isActive && styles.activeTab, pressed && { opacity: 0.78 }]}
           >
-            <Text style={[styles.label, isActive && styles.activeLabel]}>{tab}</Text>
+            <Text style={[styles.label, isActive && styles.activeLabel]} numberOfLines={1}>
+              {tab}
+            </Text>
           </Pressable>
         );
       })}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flexDirection: 'row',
     paddingHorizontal: 16,
     gap: 8,
     marginBottom: 12,
   },
   tab: {
-    paddingHorizontal: 16,
+    flex: 1,
     paddingVertical: 8,
     borderRadius: 20,
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.border,
+    alignItems: 'center',
   },
   activeTab: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
     color: Colors.textDark,
   },
-  activeLabel: {
-    color: '#fff',
-  },
+  activeLabel: { color: Colors.textOnPrimary },
 });

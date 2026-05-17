@@ -1,38 +1,45 @@
 import {
   View, Text, StyleSheet, Pressable, Alert, ScrollView, ActivityIndicator,
-  FlatList, RefreshControl, TextInput,
+  FlatList, RefreshControl, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { Colors } from '@/components/ui/colors';
-import SearchBar from '@/components/ui/SearchBar';
 import { inventoryService, Product } from '@/services/inventory';
 import { salesService, Sale } from '@/services/sales';
 import { customersService, Customer } from '@/services/customers';
 
 type PaymentMethod = 'CASH' | 'CARD' | 'DIGITAL' | 'DUE';
 
-const PLACEHOLDER_COLORS = ['#FEF3C7', '#DCFCE7', '#FEE2E2', '#F3E8FF'];
+type CartItem = {
+  product: Product;
+  quantity: number;
+  unitPrice: number;
+};
 
 export default function Sales() {
   const [tab, setTab] = useState<'pos' | 'history'>('pos');
-  const [products, setProducts] = useState<Product[]>([]);
-  const [quantities, setQuantities] = useState<Record<number, number>>({});
-  const [search, setSearch] = useState('');
+
+  // POS state
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [productSearch, setProductSearch] = useState('');
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(true);
-  const [refreshingHistory, setRefreshingHistory] = useState(false);
 
   // Customer
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+
+  // History state
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [refreshingHistory, setRefreshingHistory] = useState(false);
 
   const loadPOS = useCallback(async () => {
     try {
@@ -40,7 +47,7 @@ export default function Sales() {
         inventoryService.getProducts(),
         customersService.getCustomers(),
       ]);
-      setProducts(prods.filter((p) => p.quantity > 0));
+      setAllProducts(prods.filter((p) => p.quantity > 0));
       setCustomers(custs);
     } catch {}
     finally { setLoading(false); }
@@ -55,35 +62,63 @@ export default function Sales() {
     finally { setLoadingHistory(false); setRefreshingHistory(false); }
   }, []);
 
-  useEffect(() => { loadPOS(); }, [loadPOS]);
-
   useFocusEffect(useCallback(() => {
+    loadPOS();
     if (tab === 'history') loadHistory();
-  }, [tab, loadHistory]));
+  }, [loadPOS, loadHistory, tab]));
 
-  const updateQty = (id: number, delta: number) => {
-    setQuantities((prev) => {
-      const next = Math.max(0, (prev[id] ?? 0) + delta);
-      return { ...prev, [id]: next };
+  const searchResults = productSearch.trim()
+    ? allProducts.filter((p) =>
+        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+        p.sku?.toLowerCase().includes(productSearch.toLowerCase())
+      )
+    : [];
+
+  const addToCart = (product: Product) => {
+    setCart((prev) => {
+      const existing = prev.find((i) => i.product.id === product.id);
+      if (existing) {
+        return prev.map((i) =>
+          i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i
+        );
+      }
+      return [...prev, { product, quantity: 1, unitPrice: product.price }];
     });
+    setProductSearch('');
+  };
+
+  const updateCartQty = (productId: number, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((i) => i.product.id === productId ? { ...i, quantity: i.quantity + delta } : i)
+        .filter((i) => i.quantity > 0)
+    );
+  };
+
+  const updateCartPrice = (productId: number, value: string) => {
+    const parsed = parseFloat(value);
+    setCart((prev) =>
+      prev.map((i) =>
+        i.product.id === productId ? { ...i, unitPrice: isNaN(parsed) ? i.unitPrice : parsed } : i
+      )
+    );
+  };
+
+  const removeFromCart = (productId: number) => {
+    setCart((prev) => prev.filter((i) => i.product.id !== productId));
   };
 
   const clearCart = () => {
-    setQuantities({});
+    setCart([]);
+    setProductSearch('');
     setCustomerSearch('');
     setSelectedCustomer(null);
     setPaymentMethod('CASH');
-    setShowDropdown(false);
+    setShowCustomerDropdown(false);
   };
 
-  const cartItems = products.filter((p) => (quantities[p.id] ?? 0) > 0);
-  const totalItems = cartItems.reduce((s, p) => s + (quantities[p.id] ?? 0), 0);
-  const totalAmount = cartItems.reduce((s, p) => s + p.price * (quantities[p.id] ?? 0), 0);
-
-  const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.sku?.toLowerCase().includes(search.toLowerCase())
-  );
+  const totalAmount = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+  const totalItems = cart.reduce((s, i) => s + i.quantity, 0);
 
   const filteredCustomers = customerSearch.trim()
     ? customers.filter((c) =>
@@ -95,11 +130,11 @@ export default function Sales() {
   const handleSelectCustomer = (c: Customer) => {
     setSelectedCustomer(c);
     setCustomerSearch(c.name);
-    setShowDropdown(false);
+    setShowCustomerDropdown(false);
   };
 
   const handleCompleteSale = async () => {
-    if (cartItems.length === 0) return;
+    if (cart.length === 0) return;
 
     const resolvedName = selectedCustomer?.name ?? (customerSearch.trim() || undefined);
     if (paymentMethod === 'DUE' && !resolvedName) {
@@ -118,7 +153,12 @@ export default function Sales() {
         customerName = newCustomer.name;
       }
 
-      const items = cartItems.map((p) => ({ productId: p.id, quantity: quantities[p.id] }));
+      const items = cart.map((i) => ({
+        productId: i.product.id,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+      }));
+
       await salesService.createSale(items, paymentMethod, customerId, customerName);
 
       const customerMsg = customerName ? ` · ${customerName}` : '';
@@ -156,149 +196,202 @@ export default function Sales() {
             <Text style={[styles.tabText, tab === 'history' && styles.tabTextActive]}>History</Text>
           </Pressable>
         </View>
-        {tab === 'pos' && (
-          <SearchBar placeholder="Search products..." value={search} onChangeText={setSearch} />
-        )}
       </View>
 
       {tab === 'pos' ? (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
         >
-          <Text style={styles.sectionLabel}>PRODUCTS</Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scroll}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Product Search */}
+            <View style={styles.searchSection}>
+              <View style={styles.searchBox}>
+                <Ionicons name="search-outline" size={18} color={Colors.textMuted} style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search product by name or SKU..."
+                  placeholderTextColor={Colors.textMuted}
+                  value={productSearch}
+                  onChangeText={setProductSearch}
+                />
+                {productSearch.length > 0 && (
+                  <Pressable onPress={() => setProductSearch('')}>
+                    <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+                  </Pressable>
+                )}
+              </View>
 
-          {loading ? (
-            <ActivityIndicator color={Colors.primary} style={{ marginTop: 20 }} />
-          ) : filteredProducts.length === 0 ? (
-            <View style={styles.empty}>
-              <Ionicons name="search-outline" size={40} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>
-                {search ? `No products matching "${search}"` : 'No products in stock'}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.grid}>
-              {filteredProducts.map((product, index) => {
-                const qty = quantities[product.id] ?? 0;
-                return (
-                  <View key={product.id} style={styles.productCard}>
-                    <View style={[styles.productImage, { backgroundColor: PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.length] }]}>
-                      <Text style={styles.priceOverlay}>NPR {product.price}</Text>
+              {/* Search Results Dropdown */}
+              {productSearch.trim().length > 0 && (
+                <View style={styles.searchResults}>
+                  {loading ? (
+                    <ActivityIndicator color={Colors.primary} style={{ padding: 12 }} />
+                  ) : searchResults.length === 0 ? (
+                    <View style={styles.searchEmpty}>
+                      <Text style={styles.searchEmptyText}>No products found for "{productSearch}"</Text>
                     </View>
-                    <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
-                    <View style={styles.stepper}>
-                      <Pressable
-                        style={[styles.stepBtn, qty === 0 && styles.stepBtnDisabled]}
-                        onPress={() => updateQty(product.id, -1)}
-                        disabled={qty === 0}
-                      >
-                        <Ionicons name="remove" size={16} color={qty === 0 ? Colors.textMuted : Colors.textDark} />
+                  ) : (
+                    searchResults.map((p) => (
+                      <Pressable key={p.id} style={({ pressed }) => [styles.searchResultItem, pressed && { backgroundColor: Colors.background }]} onPress={() => addToCart(p)}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.searchResultName}>{p.name}</Text>
+                          {p.sku && <Text style={styles.searchResultSub}>{p.sku}</Text>}
+                        </View>
+                        <View style={styles.searchResultRight}>
+                          <Text style={styles.searchResultPrice}>Rs. {p.price.toLocaleString()}</Text>
+                          <Text style={styles.searchResultStock}>{p.quantity} in stock</Text>
+                        </View>
+                        <Ionicons name="add-circle" size={22} color={Colors.primary} style={{ marginLeft: 8 }} />
                       </Pressable>
-                      <Text style={styles.stepCount}>{qty}</Text>
-                      <Pressable style={[styles.stepBtn, styles.stepBtnActive]} onPress={() => updateQty(product.id, 1)}>
-                        <Ionicons name="add" size={16} color="#fff" />
-                      </Pressable>
-                    </View>
-                  </View>
-                );
-              })}
+                    ))
+                  )}
+                </View>
+              )}
             </View>
-          )}
 
-          {cartItems.length > 0 && (
-            <View style={styles.cartSection}>
-              <View style={styles.cartHeader}>
+            {/* Cart */}
+            {cart.length > 0 ? (
+              <View style={styles.cartSection}>
                 <Text style={styles.cartTitle}>CART ({totalItems} items)</Text>
-              </View>
-              {cartItems.map((item) => (
-                <View key={item.id} style={styles.cartRow}>
-                  <Text style={styles.cartQty}>{quantities[item.id]}×</Text>
-                  <Text style={styles.cartName}>{item.name}</Text>
-                  <Text style={styles.cartPrice}>NPR {(item.price * (quantities[item.id] ?? 0)).toLocaleString()}</Text>
-                </View>
-              ))}
-              <View style={styles.divider} />
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalValue}>NPR {totalAmount.toLocaleString()}</Text>
-              </View>
-              <View style={styles.divider} />
 
-              {/* Customer */}
-              <Text style={styles.paymentLabel}>CUSTOMER (OPTIONAL)</Text>
-              {selectedCustomer ? (
-                <View style={styles.selectedCustomerRow}>
-                  <View style={styles.selectedCustomerAvatar}>
-                    <Text style={styles.selectedCustomerAvatarText}>
-                      {selectedCustomer.name.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                  <Text style={styles.selectedCustomerName} numberOfLines={1}>{selectedCustomer.name}</Text>
-                  <Pressable onPress={() => { setSelectedCustomer(null); setCustomerSearch(''); }}>
-                    <Ionicons name="close-circle" size={20} color={Colors.textMuted} />
-                  </Pressable>
-                </View>
-              ) : (
-                <View>
-                  <TextInput
-                    style={styles.customerInput}
-                    placeholder="Search or enter customer name..."
-                    placeholderTextColor={Colors.textMuted}
-                    value={customerSearch}
-                    onChangeText={(t) => { setCustomerSearch(t); setShowDropdown(true); }}
-                    onFocus={() => setShowDropdown(true)}
-                  />
-                  {showDropdown && filteredCustomers.length > 0 && (
-                    <View style={styles.dropdown}>
-                      {filteredCustomers.slice(0, 4).map((c) => (
-                        <Pressable key={c.id} style={styles.dropdownItem} onPress={() => handleSelectCustomer(c)}>
-                          <Text style={styles.dropdownName}>{c.name}</Text>
-                          {c.phone && <Text style={styles.dropdownSub}>{c.phone}</Text>}
-                        </Pressable>
-                      ))}
+                {cart.map((item) => (
+                  <View key={item.product.id} style={styles.cartRow}>
+                    <View style={styles.cartInfo}>
+                      <Text style={styles.cartName} numberOfLines={1}>{item.product.name}</Text>
+                      <View style={styles.cartPriceRow}>
+                        <Text style={styles.cartPriceLabel}>Price:</Text>
+                        <TextInput
+                          style={styles.cartPriceInput}
+                          keyboardType="decimal-pad"
+                          value={String(item.unitPrice)}
+                          onChangeText={(v) => updateCartPrice(item.product.id, v)}
+                          selectTextOnFocus
+                        />
+                        <Text style={styles.cartSubtotal}>
+                          = Rs. {(item.unitPrice * item.quantity).toLocaleString()}
+                        </Text>
+                      </View>
                     </View>
-                  )}
-                  {customerSearch.trim() && filteredCustomers.length === 0 && (
-                    <Text style={styles.newCustomerHint}>
-                      New customer will be created: "{customerSearch.trim()}"
-                    </Text>
-                  )}
-                </View>
-              )}
-
-              <View style={styles.divider} />
-              <Text style={styles.paymentLabel}>PAYMENT METHOD</Text>
-              <View style={styles.paymentRow}>
-                {(['CASH', 'CARD', 'DIGITAL', 'DUE'] as PaymentMethod[]).map((method) => (
-                  <Pressable
-                    key={method}
-                    style={[
-                      styles.paymentBtn,
-                      paymentMethod === method && styles.paymentBtnActive,
-                      method === 'DUE' && styles.paymentBtnDue,
-                      method === 'DUE' && paymentMethod === method && styles.paymentBtnDueActive,
-                    ]}
-                    onPress={() => setPaymentMethod(method)}
-                  >
-                    <Text style={[
-                      styles.paymentBtnText,
-                      paymentMethod === method && styles.paymentBtnTextActive,
-                    ]}>
-                      {method}
-                    </Text>
-                  </Pressable>
+                    <View style={styles.cartControls}>
+                      <Pressable
+                        style={styles.stepBtn}
+                        onPress={() => updateCartQty(item.product.id, -1)}
+                      >
+                        <Ionicons name="remove" size={14} color={Colors.textDark} />
+                      </Pressable>
+                      <Text style={styles.stepCount}>{item.quantity}</Text>
+                      <Pressable
+                        style={[styles.stepBtn, styles.stepBtnActive]}
+                        onPress={() => updateCartQty(item.product.id, 1)}
+                      >
+                        <Ionicons name="add" size={14} color={Colors.textOnPrimary} />
+                      </Pressable>
+                      <Pressable
+                        style={styles.removeBtn}
+                        onPress={() => removeFromCart(item.product.id)}
+                      >
+                        <Ionicons name="trash-outline" size={14} color={Colors.danger} />
+                      </Pressable>
+                    </View>
+                  </View>
                 ))}
+
+                <View style={styles.divider} />
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Total</Text>
+                  <Text style={styles.totalValue}>NPR {totalAmount.toLocaleString()}</Text>
+                </View>
+                <View style={styles.divider} />
+
+                {/* Customer */}
+                <Text style={styles.paymentLabel}>CUSTOMER (OPTIONAL)</Text>
+                {selectedCustomer ? (
+                  <View style={styles.selectedCustomerRow}>
+                    <View style={styles.selectedCustomerAvatar}>
+                      <Text style={styles.selectedCustomerAvatarText}>
+                    {selectedCustomer.name.charAt(0).toUpperCase()}
+                  </Text>
+                    </View>
+                    <Text style={styles.selectedCustomerName} numberOfLines={1}>{selectedCustomer.name}</Text>
+                    <Pressable onPress={() => { setSelectedCustomer(null); setCustomerSearch(''); }}>
+                      <Ionicons name="close-circle" size={20} color={Colors.textMuted} />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <View>
+                    <TextInput
+                      style={styles.customerInput}
+                      placeholder="Search or enter customer name..."
+                      placeholderTextColor={Colors.textMuted}
+                      value={customerSearch}
+                      onChangeText={(t) => { setCustomerSearch(t); setShowCustomerDropdown(true); }}
+                      onFocus={() => setShowCustomerDropdown(true)}
+                    />
+                    {showCustomerDropdown && filteredCustomers.length > 0 && (
+                      <View style={styles.dropdown}>
+                        {filteredCustomers.slice(0, 4).map((c) => (
+                          <Pressable key={c.id} style={styles.dropdownItem} onPress={() => handleSelectCustomer(c)}>
+                            <Text style={styles.dropdownName}>{c.name}</Text>
+                            {c.phone && <Text style={styles.dropdownSub}>{c.phone}</Text>}
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                    {customerSearch.trim() && filteredCustomers.length === 0 && (
+                      <Text style={styles.newCustomerHint}>
+                        New customer will be created: "{customerSearch.trim()}"
+                      </Text>
+                    )}
+                  </View>
+                )}
+
+                <View style={styles.divider} />
+
+                {/* Payment method */}
+                <Text style={styles.paymentLabel}>PAYMENT METHOD</Text>
+                <View style={styles.paymentRow}>
+                  {(['CASH', 'CARD', 'DIGITAL', 'DUE'] as PaymentMethod[]).map((method) => (
+                    <Pressable
+                      key={method}
+                      style={({ pressed }) => [
+                        styles.paymentBtn,
+                        paymentMethod === method && styles.paymentBtnActive,
+                        method === 'DUE' && styles.paymentBtnDue,
+                        method === 'DUE' && paymentMethod === method && styles.paymentBtnDueActive,
+                        pressed && { opacity: 0.78 },
+                      ]}
+                      onPress={() => setPaymentMethod(method)}
+                    >
+                      <Text style={[
+                        styles.paymentBtnText,
+                        paymentMethod === method && styles.paymentBtnTextActive,
+                      ]}>
+                        {method}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {paymentMethod === 'DUE' && !selectedCustomer && !customerSearch.trim() && (
+                  <Text style={styles.dueWarning}>
+                    ⚠ Select or enter a customer to use DUE payment
+                  </Text>
+                )}
               </View>
-              {paymentMethod === 'DUE' && !selectedCustomer && !customerSearch.trim() && (
-                <Text style={styles.dueWarning}>
-                  ⚠ Select or enter a customer to use DUE payment
-                </Text>
-              )}
-            </View>
-          )}
-        </ScrollView>
+            ) : (
+              <View style={styles.emptyCart}>
+                <Ionicons name="cart-outline" size={48} color={Colors.textMuted} />
+                <Text style={styles.emptyCartTitle}>Cart is empty</Text>
+                <Text style={styles.emptyCartText}>Search for a product above to add it</Text>
+              </View>
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
       ) : (
         <FlatList
           data={sales}
@@ -368,15 +461,17 @@ export default function Sales() {
       {tab === 'pos' && (
         <View style={styles.footer}>
           <Pressable
-            style={[styles.completeBtn, (cartItems.length === 0 || submitting) && styles.completeBtnDisabled]}
+            style={({ pressed }) => [styles.completeBtn, (cart.length === 0 || submitting) && styles.completeBtnDisabled, pressed && !submitting && cart.length > 0 && { opacity: 0.85 }]}
             onPress={handleCompleteSale}
-            disabled={cartItems.length === 0 || submitting}
+            disabled={cart.length === 0 || submitting}
           >
             {submitting
-              ? <ActivityIndicator color="#fff" />
+              ? <ActivityIndicator color={Colors.textOnPrimary} />
               : (
                 <Text style={styles.completeBtnText}>
-                  {cartItems.length === 0 ? 'Add items to complete sale' : `Complete Sale · NPR ${totalAmount.toLocaleString()}`}
+                  {cart.length === 0
+                    ? 'Add items to complete sale'
+                    : `Complete Sale · NPR ${totalAmount.toLocaleString()}`}
                 </Text>
               )}
           </Pressable>
@@ -397,31 +492,70 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
   tabTextActive: { color: Colors.primary },
   scroll: { paddingBottom: 100 },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: Colors.textMuted, letterSpacing: 0.8, marginHorizontal: 16, marginBottom: 10 },
-  empty: { alignItems: 'center', marginTop: 40, gap: 10, paddingHorizontal: 32 },
-  emptyText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 8, marginBottom: 16 },
-  productCard: { width: '47%', backgroundColor: Colors.card, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border },
-  productImage: { height: 100, justifyContent: 'flex-end', padding: 8 },
-  priceOverlay: { backgroundColor: 'rgba(0,0,0,0.45)', color: '#fff', fontSize: 12, fontWeight: '700', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start' },
-  productName: { fontSize: 13, fontWeight: '600', color: Colors.textDark, padding: 8, paddingBottom: 4, minHeight: 44 },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, paddingBottom: 10 },
-  stepBtn: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
+
+  // Search
+  searchSection: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
+  searchBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: Colors.card, borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  searchIcon: { marginRight: 2 },
+  searchInput: { flex: 1, fontSize: 14, color: Colors.textDark },
+  searchResults: {
+    backgroundColor: Colors.card, borderRadius: 12, borderWidth: 1,
+    borderColor: Colors.border, marginTop: 6, overflow: 'hidden',
+  },
+  searchResultItem: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11,
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
+  },
+  searchResultName: { fontSize: 14, fontWeight: '600', color: Colors.textDark },
+  searchResultSub: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
+  searchResultRight: { alignItems: 'flex-end' },
+  searchResultPrice: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+  searchResultStock: { fontSize: 11, color: Colors.textMuted },
+  searchEmpty: { padding: 16, alignItems: 'center' },
+  searchEmptyText: { fontSize: 13, color: Colors.textMuted },
+
+  // Cart
+  cartSection: {
+    backgroundColor: Colors.card, borderRadius: 16, marginHorizontal: 16, marginTop: 12,
+    padding: 14, borderWidth: 1, borderColor: Colors.border, marginBottom: 8,
+  },
+  cartTitle: { fontSize: 12, fontWeight: '700', color: Colors.textMuted, letterSpacing: 0.6, marginBottom: 10 },
+  cartRow: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 8,
+    borderBottomWidth: 1, borderBottomColor: Colors.border, gap: 8,
+  },
+  cartInfo: { flex: 1, minWidth: 0 },
+  cartName: { fontSize: 13, fontWeight: '600', color: Colors.textDark, marginBottom: 4 },
+  cartPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  cartPriceLabel: { fontSize: 11, color: Colors.textMuted },
+  cartPriceInput: {
+    fontSize: 13, fontWeight: '600', color: Colors.primary,
+    borderBottomWidth: 1, borderBottomColor: Colors.primary,
+    paddingVertical: 0, paddingHorizontal: 2, minWidth: 50,
+  },
+  cartSubtotal: { fontSize: 11, color: Colors.textMuted },
+  cartControls: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  stepBtn: {
+    width: 26, height: 26, borderRadius: 7, borderWidth: 1, borderColor: Colors.border,
+    justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background,
+  },
   stepBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  stepBtnDisabled: { opacity: 0.4 },
-  stepCount: { fontSize: 15, fontWeight: '700', color: Colors.textDark, minWidth: 24, textAlign: 'center' },
-  cartSection: { backgroundColor: Colors.card, borderRadius: 16, marginHorizontal: 16, padding: 14, borderWidth: 1, borderColor: Colors.border, marginBottom: 8 },
-  cartHeader: { marginBottom: 10 },
-  cartTitle: { fontSize: 12, fontWeight: '700', color: Colors.textMuted, letterSpacing: 0.6 },
-  cartRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, gap: 8 },
-  cartQty: { fontSize: 13, fontWeight: '600', color: Colors.textMuted, width: 28 },
-  cartName: { flex: 1, fontSize: 13, color: Colors.textDark },
-  cartPrice: { fontSize: 13, fontWeight: '600', color: Colors.textDark },
+  stepCount: { fontSize: 13, fontWeight: '700', color: Colors.textDark, minWidth: 20, textAlign: 'center' },
+  removeBtn: {
+    width: 26, height: 26, borderRadius: 7, backgroundColor: Colors.dangerLight,
+    justifyContent: 'center', alignItems: 'center',
+  },
+
   divider: { height: 1, backgroundColor: Colors.border, marginVertical: 10 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   totalLabel: { fontSize: 14, color: Colors.textMuted },
   totalValue: { fontSize: 20, fontWeight: 'bold', color: Colors.textDark },
   paymentLabel: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, letterSpacing: 0.6, marginBottom: 8 },
+
   customerInput: {
     backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border,
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9,
@@ -446,20 +580,31 @@ const styles = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center',
   },
-  selectedCustomerAvatarText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  selectedCustomerAvatarText: { color: Colors.textOnPrimary, fontSize: 12, fontWeight: '700' },
   selectedCustomerName: { flex: 1, fontSize: 13, fontWeight: '600', color: Colors.textDark },
   paymentRow: { flexDirection: 'row', gap: 6 },
   paymentBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', backgroundColor: Colors.background },
   paymentBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  paymentBtnDue: { borderColor: '#DC2626' },
-  paymentBtnDueActive: { backgroundColor: '#DC2626', borderColor: '#DC2626' },
+  paymentBtnDue: { borderColor: Colors.danger },
+  paymentBtnDueActive: { backgroundColor: Colors.danger, borderColor: Colors.danger },
   paymentBtnText: { fontSize: 11, fontWeight: '600', color: Colors.textMuted },
-  paymentBtnTextActive: { color: '#fff' },
-  dueWarning: { fontSize: 11, color: '#DC2626', marginTop: 6, fontWeight: '500' },
+  paymentBtnTextActive: { color: Colors.textOnPrimary },
+  dueWarning: { fontSize: 11, color: Colors.danger, marginTop: 6, fontWeight: '500' },
+
+  // Empty cart
+  emptyCart: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 10 },
+  emptyCartTitle: { fontSize: 16, fontWeight: '600', color: Colors.textDark },
+  emptyCartText: { fontSize: 13, color: Colors.textMuted },
+
+  // Footer
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: Colors.background, borderTopWidth: 1, borderTopColor: Colors.border },
   completeBtn: { backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   completeBtnDisabled: { backgroundColor: Colors.textMuted },
-  completeBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  completeBtnText: { color: Colors.textOnPrimary, fontSize: 15, fontWeight: '700' },
+
+  // History
+  empty: { alignItems: 'center', marginTop: 40, gap: 10, paddingHorizontal: 32 },
+  emptyText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
   historyList: { paddingHorizontal: 16, paddingVertical: 10, paddingBottom: 100 },
   historyCard: { backgroundColor: Colors.card, borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: Colors.border },
   historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
@@ -469,9 +614,9 @@ const styles = StyleSheet.create({
   historyTotal: { alignItems: 'flex-end', gap: 4 },
   historyTotalValue: { fontSize: 16, fontWeight: 'bold', color: Colors.primary },
   historyMethodBadge: { backgroundColor: Colors.background, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: Colors.border },
-  historyMethodDue: { backgroundColor: '#FEE2E2', borderColor: '#FECACA' },
+  historyMethodDue: { backgroundColor: '#FEE2E2', borderColor: Colors.dangerBorder },
   historyMethodText: { fontSize: 10, fontWeight: '600', color: Colors.textMuted },
-  historyMethodDueText: { color: '#DC2626' },
+  historyMethodDueText: { color: Colors.danger },
   historyItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 6 },
   historyItemName: { fontSize: 12, color: Colors.textDark, flex: 1 },
   historyItemQty: { fontSize: 11, color: Colors.textMuted, marginLeft: 8 },
