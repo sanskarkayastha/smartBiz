@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { salesService, SaleSummary, DailyRevenue } from '@/services/sales';
 import { inventoryService, Product } from '@/services/inventory';
 import { getDailyInsight } from '@/services/ai';
+import { customersService, Customer } from '@/services/customers';
 
 export default function Home() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function Home() {
   const [summary, setSummary] = useState<SaleSummary | null>(null);
   const [lowStock, setLowStock] = useState<Product[]>([]);
   const [weeklyData, setWeeklyData] = useState<DailyRevenue[]>([]);
+  const [dueCustomers, setDueCustomers] = useState<Customer[]>([]);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -22,14 +24,16 @@ export default function Home() {
   const load = useCallback(async () => {
     setError(false);
     try {
-      const [sum, ls, weekly] = await Promise.all([
+      const [sum, ls, weekly, due] = await Promise.all([
         salesService.getDailySummary(),
         inventoryService.getLowStockProducts(),
         salesService.getWeeklySummary(),
+        customersService.getCustomersWithDue().catch(() => []),
       ]);
       setSummary(sum);
       setLowStock(ls);
       setWeeklyData(weekly);
+      setDueCustomers(due);
       getDailyInsight().then(setAiInsight).catch(() => {});
     } catch {
       setError(true);
@@ -171,6 +175,39 @@ export default function Home() {
           </View>
         )}
 
+        {/* Customers with Due */}
+        {(loading || dueCustomers.length > 0) && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.alertTitle}>
+                <Ionicons name="time-outline" size={16} color={Colors.danger} />
+                <Text style={styles.sectionTitle}>Customers with Due</Text>
+              </View>
+              <Pressable onPress={() => router.push('/(tabs)/customers')}>
+                <Text style={styles.viewAll}>View all</Text>
+              </Pressable>
+            </View>
+            {loading ? (
+              <ActivityIndicator color={Colors.primary} style={{ marginTop: 8 }} />
+            ) : (
+              dueCustomers.slice(0, 4).map((c) => (
+                <View key={c.id} style={styles.stockRow}>
+                  <View style={styles.dueIcon}>
+                    <Ionicons name="person-outline" size={16} color={Colors.danger} />
+                  </View>
+                  <View style={styles.stockInfo}>
+                    <Text style={styles.stockName} numberOfLines={1}>{c.name}</Text>
+                    {c.phone ? <Text style={styles.stockSub}>{c.phone}</Text> : null}
+                  </View>
+                  <View style={styles.dueBadge}>
+                    <Text style={styles.dueBadgeText}>NPR {Number(c.dueAmount).toLocaleString()}</Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
         {/* Weekly Revenue Chart */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -242,6 +279,9 @@ const styles = StyleSheet.create({
   stockSub: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
   stockBadge: { backgroundColor: Colors.dangerLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   stockBadgeText: { fontSize: 11, fontWeight: '600', color: Colors.danger },
+  dueIcon: { width: 34, height: 34, borderRadius: 8, backgroundColor: Colors.dangerLight, justifyContent: 'center', alignItems: 'center' },
+  dueBadge: { backgroundColor: Colors.dangerLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  dueBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.danger },
   aiCard: { backgroundColor: '#EEF4FF', borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#BFDBFE' },
   aiCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   aiCardTitle: { fontSize: 13, fontWeight: '700', color: Colors.primary },

@@ -1,7 +1,8 @@
-package com.smartbiz.crm.model;
+package com.smartbiz.inventory.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
@@ -11,12 +12,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "customers")
+@Table(name = "suppliers")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Customer {
-
+@Builder
+public class Supplier {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -29,27 +30,17 @@ public class Customer {
 
     private String phone;
     private String email;
-    private String address;
 
-    @Column(name = "lead_status")
-    private String leadStatus;
+    @Column(name = "balance_owed", nullable = false, precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal balanceOwed = BigDecimal.ZERO;
 
+    @Column(columnDefinition = "TEXT")
     private String notes;
 
-    @Column(name = "total_purchases", precision = 12, scale = 2)
-    private BigDecimal totalPurchases = BigDecimal.ZERO;
-
-    @Column(name = "due_amount", precision = 12, scale = 2)
-    private BigDecimal dueAmount = BigDecimal.ZERO;
-
-    @Column(name = "last_purchase_date")
-    private LocalDateTime lastPurchaseDate;
-
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 }

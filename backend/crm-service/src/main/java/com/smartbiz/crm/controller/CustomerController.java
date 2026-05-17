@@ -55,6 +55,20 @@ public class CustomerController {
         return ResponseEntity.ok().build();
     }
 
+    @PutMapping("/{id}/due")
+    public ResponseEntity<Void> addDueAmount(
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long id,
+            @RequestBody BigDecimal amount) {
+        crmService.addDueAmount(userId, id, amount);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/with-due")
+    public ResponseEntity<List<CustomerDTO>> getCustomersWithDue(@RequestHeader("X-User-Id") Long userId) {
+        return ResponseEntity.ok(crmService.getCustomersWithDue(userId));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCustomer(
             @RequestHeader("X-User-Id") Long userId,

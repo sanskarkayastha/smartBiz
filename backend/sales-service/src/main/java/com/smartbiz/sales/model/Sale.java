@@ -26,6 +26,9 @@ public class Sale {
     @Column(name = "customer_id")
     private Long customerId;
 
+    @Column(name = "customer_name")
+    private String customerName;
+
     @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalAmount;
 

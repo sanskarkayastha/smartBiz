@@ -20,6 +20,7 @@ import java.util.List;
 public class ProductService {
     private final ProductRepository productRepository;
     private final StockHistoryRepository stockHistoryRepository;
+    private final SupplierService supplierService;
 
     public List<ProductDTO> findAll(Long userId) {
         return productRepository.findAllByUserId(userId)
@@ -65,6 +66,10 @@ public class ProductService {
             recordStockHistory(product.getId(), request.quantity(), "INITIAL_STOCK", "Initial stock on creation", userId);
         }
 
+        if (request.supplier() != null && !request.supplier().isBlank()) {
+            supplierService.findOrCreate(userId, request.supplier());
+        }
+
         return ProductDTO.from(product);
     }
 
@@ -84,6 +89,10 @@ public class ProductService {
             int change = request.quantity() - product.getQuantity();
             product.setQuantity(request.quantity());
             recordStockHistory(productId, change, "MANUAL_ADJUSTMENT", "Manual quantity update", userId);
+        }
+
+        if (request.supplier() != null && !request.supplier().isBlank()) {
+            supplierService.findOrCreate(userId, request.supplier());
         }
 
         return ProductDTO.from(productRepository.save(product));

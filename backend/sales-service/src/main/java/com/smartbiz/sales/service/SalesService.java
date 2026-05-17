@@ -48,11 +48,17 @@ public class SalesService {
             products.add(product);
         }
 
+        String paymentMethod = request.getPaymentMethod() != null ? request.getPaymentMethod() : "CASH";
+        if ("DUE".equals(paymentMethod) && request.getCustomerId() == null) {
+            throw new IllegalArgumentException("DUE payment requires a customer to be selected");
+        }
+
         // 2. Build and save sale record
         Sale sale = new Sale();
         sale.setUserId(userId);
         sale.setCustomerId(request.getCustomerId());
-        sale.setPaymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : "CASH");
+        sale.setCustomerName(request.getCustomerName());
+        sale.setPaymentMethod(paymentMethod);
         sale.setStatus("COMPLETED");
         sale.setSaleDate(LocalDateTime.now());
         sale.setCreatedBy(userId);
@@ -88,9 +94,12 @@ public class SalesService {
             deductStock(userId, itemReq.getProductId(), itemReq.getQuantity(), savedSale.getId());
         }
 
-        // 4. Update CRM customer total if customerId provided
+        // 4. Update CRM customer total + due amount if applicable
         if (request.getCustomerId() != null) {
             updateCustomerTotal(userId, request.getCustomerId(), total);
+            if ("DUE".equals(paymentMethod)) {
+                addCustomerDue(userId, request.getCustomerId(), total);
+            }
         }
 
         log.info("Sale created: id={}, userId={}, total={}", savedSale.getId(), userId, total);
@@ -166,6 +175,18 @@ public class SalesService {
         }
     }
 
+    private void addCustomerDue(Long userId, Long customerId, BigDecimal amount) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-User-Id", userId.toString());
+            HttpEntity<BigDecimal> entity = new HttpEntity<>(amount, headers);
+            restTemplate.exchange(CRM_BASE + "/" + customerId + "/due", HttpMethod.PUT, entity, Object.class);
+        } catch (Exception e) {
+            log.warn("Failed to update CRM due amount for customerId={}: {}", customerId, e.getMessage());
+        }
+    }
+
     private void updateCustomerTotal(Long userId, Long customerId, BigDecimal amount) {
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -183,6 +204,7 @@ public class SalesService {
         dto.setId(sale.getId());
         dto.setUserId(sale.getUserId());
         dto.setCustomerId(sale.getCustomerId());
+        dto.setCustomerName(sale.getCustomerName());
         dto.setTotalAmount(sale.getTotalAmount());
         dto.setPaymentMethod(sale.getPaymentMethod());
         dto.setStatus(sale.getStatus());

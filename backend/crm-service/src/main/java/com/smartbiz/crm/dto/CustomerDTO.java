@@ -16,6 +16,7 @@ public class CustomerDTO {
     private String leadStatus;
     private String notes;
     private BigDecimal totalPurchases;
+    private BigDecimal dueAmount;
     private LocalDateTime lastPurchaseDate;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

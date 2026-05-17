@@ -18,6 +18,8 @@ export type DailyRevenue = {
 
 export type Sale = {
   id: number;
+  customerId: number | null;
+  customerName: string | null;
   totalAmount: number;
   paymentMethod: string;
   status: string;
@@ -32,8 +34,13 @@ export type Sale = {
 };
 
 export const salesService = {
-  async createSale(items: SaleItem[], paymentMethod = 'CASH', customerId?: number): Promise<Sale> {
-    const { data } = await api.post<Sale>('/sales', { items, paymentMethod, customerId });
+  async createSale(
+    items: SaleItem[],
+    paymentMethod = 'CASH',
+    customerId?: number,
+    customerName?: string,
+  ): Promise<Sale> {
+    const { data } = await api.post<Sale>('/sales', { items, paymentMethod, customerId, customerName });
     return data;
   },
 

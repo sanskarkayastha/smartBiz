@@ -3,6 +3,17 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+type Product = {
+  id: number
+  name: string
+  sku: string | null
+  category: string | null
+  price: number
+  quantity: number
+  reorderLevel: number | null
+  supplier: string | null
+}
+
 type Form = {
   name: string
   sku: string
@@ -15,12 +26,42 @@ type Form = {
 
 const EMPTY: Form = { name: '', sku: '', category: '', price: '', quantity: '', reorderLevel: '', supplier: '' }
 
-export default function AddProductModal() {
+function productToForm(p: Product): Form {
+  return {
+    name: p.name,
+    sku: p.sku ?? '',
+    category: p.category ?? '',
+    price: String(p.price),
+    quantity: String(p.quantity),
+    reorderLevel: p.reorderLevel != null ? String(p.reorderLevel) : '',
+    supplier: p.supplier ?? '',
+  }
+}
+
+type Props = {
+  product?: Product
+  onClose?: () => void
+  triggerLabel?: string
+}
+
+export default function AddProductModal({ product, onClose, triggerLabel }: Props) {
   const router = useRouter()
+  const isEdit = !!product
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState<Form>(EMPTY)
+  const [form, setForm] = useState<Form>(isEdit ? productToForm(product) : EMPTY)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  function openModal() {
+    setForm(isEdit ? productToForm(product) : EMPTY)
+    setError('')
+    setOpen(true)
+  }
+
+  function closeModal() {
+    setOpen(false)
+    onClose?.()
+  }
 
   function set(field: keyof Form) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -36,26 +77,30 @@ export default function AddProductModal() {
     setError('')
     setLoading(true)
     try {
-      const res = await fetch('/api/products', {
-        method: 'POST',
+      const body = {
+        name: form.name.trim(),
+        sku: form.sku.trim() || null,
+        category: form.category.trim() || null,
+        price: parseFloat(form.price),
+        quantity: parseInt(form.quantity),
+        reorderLevel: form.reorderLevel ? parseInt(form.reorderLevel) : null,
+        supplier: form.supplier.trim() || null,
+      }
+
+      const url = isEdit ? `/api/products/${product.id}` : '/api/products'
+      const method = isEdit ? 'PUT' : 'POST'
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name.trim(),
-          sku: form.sku.trim() || null,
-          category: form.category.trim() || null,
-          price: parseFloat(form.price),
-          quantity: parseInt(form.quantity),
-          reorderLevel: form.reorderLevel ? parseInt(form.reorderLevel) : null,
-          supplier: form.supplier.trim() || null,
-        }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
-        setError(d.message ?? 'Failed to create product.')
+        setError(d.message ?? `Failed to ${isEdit ? 'update' : 'create'} product.`)
         return
       }
-      setForm(EMPTY)
-      setOpen(false)
+      closeModal()
       router.refresh()
     } catch {
       setError('Network error. Please try again.')
@@ -67,20 +112,33 @@ export default function AddProductModal() {
   return (
     <>
       <button
-        onClick={() => { setOpen(true); setError('') }}
-        className="flex items-center gap-2 px-4 py-2 bg-[#135BEC] text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+        onClick={openModal}
+        className={
+          isEdit
+            ? 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#135BEC] border border-[#135BEC]/30 rounded-lg hover:bg-[#135BEC]/5 transition-colors'
+            : 'flex items-center gap-2 px-4 py-2 bg-[#135BEC] text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors'
+        }
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add Product
+        {isEdit ? (
+          <>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            {triggerLabel ?? 'Edit'}
+          </>
+        ) : (
+          <>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            {triggerLabel ?? 'Add Product'}
+          </>
+        )}
       </button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-black/40" onClick={closeModal} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-gray-900">Add Product</h2>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <h2 className="text-lg font-bold text-gray-900">{isEdit ? 'Edit Product' : 'Add Product'}</h2>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -103,11 +161,11 @@ export default function AddProductModal() {
               {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 
               <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setOpen(false)} className="flex-1 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
                   Cancel
                 </button>
                 <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-[#135BEC] text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors">
-                  {loading ? 'Saving…' : 'Save Product'}
+                  {loading ? 'Saving…' : isEdit ? 'Update Product' : 'Save Product'}
                 </button>
               </div>
             </form>

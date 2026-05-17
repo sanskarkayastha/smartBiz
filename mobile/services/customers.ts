@@ -6,6 +6,7 @@ export type Customer = {
   phone: string | null;
   email: string | null;
   totalPurchases: number;
+  dueAmount: number;
   lastPurchaseDate: string | null;
 };
 
@@ -19,6 +20,11 @@ export type CreateCustomerPayload = {
 export const customersService = {
   async getCustomers(): Promise<Customer[]> {
     const { data } = await api.get<Customer[]>('/customers');
+    return data;
+  },
+
+  async getCustomersWithDue(): Promise<Customer[]> {
+    const { data } = await api.get<Customer[]>('/customers/with-due');
     return data;
   },
 

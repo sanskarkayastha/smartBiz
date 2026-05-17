@@ -11,6 +11,7 @@ public class SaleDTO {
     private Long id;
     private Long userId;
     private Long customerId;
+    private String customerName;
     private BigDecimal totalAmount;
     private String paymentMethod;
     private String status;

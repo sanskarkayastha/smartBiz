@@ -81,6 +81,21 @@ public class CrmService {
         });
     }
 
+    @Transactional
+    public void addDueAmount(Long userId, Long customerId, BigDecimal amount) {
+        customerRepository.findByIdAndUserId(customerId, userId).ifPresent(customer -> {
+            BigDecimal current = customer.getDueAmount() != null ? customer.getDueAmount() : BigDecimal.ZERO;
+            customer.setDueAmount(current.add(amount));
+            customerRepository.save(customer);
+            log.info("Added due amount {} for customerId={}", amount, customerId);
+        });
+    }
+
+    public List<CustomerDTO> getCustomersWithDue(Long userId) {
+        return customerRepository.findByUserIdAndDueAmountGreaterThan(userId, BigDecimal.ZERO)
+                .stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
     private CustomerDTO toDTO(Customer c) {
         CustomerDTO dto = new CustomerDTO();
         dto.setId(c.getId());
@@ -92,6 +107,7 @@ public class CrmService {
         dto.setLeadStatus(c.getLeadStatus());
         dto.setNotes(c.getNotes());
         dto.setTotalPurchases(c.getTotalPurchases());
+        dto.setDueAmount(c.getDueAmount() != null ? c.getDueAmount() : BigDecimal.ZERO);
         dto.setLastPurchaseDate(c.getLastPurchaseDate());
         dto.setCreatedAt(c.getCreatedAt());
         dto.setUpdatedAt(c.getUpdatedAt());

@@ -64,6 +64,7 @@ export default function Inventory() {
       price: product.price,
       quantity: product.quantity,
       reorderLevel: product.reorderLevel ?? undefined,
+      supplier: product.supplier ?? undefined,
     });
     setShowEditModal(true);
   };
@@ -252,6 +253,15 @@ export default function Inventory() {
               keyboardType="number-pad"
               value={String(editForm.reorderLevel ?? '')}
               onChangeText={(v) => setEditForm((f) => ({ ...f, reorderLevel: v ? parseInt(v) : undefined }))}
+              placeholderTextColor={Colors.textMuted}
+            />
+
+            <Text style={styles.label}>Supplier</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. ABC Traders"
+              value={editForm.supplier ?? ''}
+              onChangeText={(v) => setEditForm((f) => ({ ...f, supplier: v || undefined }))}
               placeholderTextColor={Colors.textMuted}
             />
 

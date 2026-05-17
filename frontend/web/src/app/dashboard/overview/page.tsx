@@ -4,6 +4,7 @@ import AiInsightCard from '@/src/components/AiInsightCard'
 type SaleSummary = { totalRevenue: number; orderCount: number; avgOrderValue: number }
 type Product = { id: number; name: string; category: string | null; quantity: number; reorderLevel: number | null }
 type DailyRevenue = { date: string; revenue: number }
+type Customer = { id: number; name: string; phone: string | null; dueAmount: number }
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -18,11 +19,12 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
 export default async function OverviewPage() {
   const session = await requireSession()
 
-  const [summary, lowStock, weekly, aiData] = await Promise.all([
+  const [summary, lowStock, weekly, aiData, dueCustomers] = await Promise.all([
     apiFetch<SaleSummary>('/sales/analytics/today', session),
     apiFetch<Product[]>('/inventory/products/low-stock', session),
     apiFetch<DailyRevenue[]>('/sales/analytics/weekly', session),
     apiFetch<{ insight: string }>('/ai/insights', session).catch(() => null),
+    apiFetch<Customer[]>('/customers/with-due', session).catch(() => null),
   ])
 
   const maxRevenue = Math.max(...(weekly ?? []).map((d) => d.revenue), 1)
@@ -107,6 +109,33 @@ export default async function OverviewPage() {
           )}
         </div>
       </div>
+
+      {/* Customers with Due */}
+      {dueCustomers && dueCustomers.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              Customers with Due
+              <span className="px-1.5 py-0.5 bg-red-50 text-red-600 text-xs rounded-md font-medium">
+                {dueCustomers.length}
+              </span>
+            </h2>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {dueCustomers.slice(0, 6).map((c) => (
+              <div key={c.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">{c.name}</p>
+                  {c.phone && <p className="text-xs text-gray-400">{c.phone}</p>}
+                </div>
+                <span className="text-xs font-semibold text-red-600 bg-red-50 px-2.5 py-1 rounded-full">
+                  NPR {Number(c.dueAmount).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

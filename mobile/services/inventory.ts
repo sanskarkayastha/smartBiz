@@ -8,6 +8,7 @@ export type Product = {
   price: number;
   quantity: number;
   reorderLevel: number | null;
+  supplier: string | null;
   imageUrl: string | null;
 };
 
@@ -18,6 +19,7 @@ export type CreateProductPayload = {
   price: number;
   quantity: number;
   reorderLevel?: number;
+  supplier?: string;
 };
 
 export const inventoryService = {

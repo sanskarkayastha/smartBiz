@@ -13,6 +13,7 @@ export default function AddProduct() {
   const router = useRouter();
   const [productName, setProductName] = useState('');
   const [category, setCategory] = useState('');
+  const [supplier, setSupplier] = useState('');
   const [costPrice, setCostPrice] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [stock, setStock] = useState(1);
@@ -34,6 +35,7 @@ export default function AddProduct() {
       await inventoryService.createProduct({
         name: productName.trim(),
         category: category || undefined,
+        supplier: supplier.trim() || undefined,
         price,
         quantity: stock,
       });
@@ -107,6 +109,13 @@ export default function AddProduct() {
               </View>
             )}
           </View>
+
+          <InputField
+            label="Supplier"
+            placeholder="e.g. ABC Traders"
+            value={supplier}
+            onChangeText={setSupplier}
+          />
         </View>
 
         {/* Pricing & Inventory */}

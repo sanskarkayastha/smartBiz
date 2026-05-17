@@ -53,6 +53,28 @@
 | 20 | AuthContext: expose updateUser() | ✅ | Updates SecureStore + in-memory user state |
 | 21 | Sales History: pull-to-refresh | ✅ | RefreshControl on FlatList in History tab |
 
+## Batch 7 — Supplier Management + Product Edit/Search
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 27 | Backend: Flyway V2 migration — `suppliers` table | ✅ | `V2__Add_Suppliers.sql` |
+| 28 | Backend: Supplier entity, DTO, repository | ✅ | `Supplier.java`, `SupplierDTO.java`, `SupplierRepository.java` |
+| 29 | Backend: SupplierService with findOrCreate + update | ✅ | Auto-creates supplier on product create/edit |
+| 30 | Backend: SupplierController (`GET /inventory/suppliers`, `PUT /inventory/suppliers/{id}`) | ✅ | User-scoped |
+| 31 | Backend: Hook supplier auto-create into ProductService | ✅ | createProduct + updateProduct both call findOrCreate |
+| 32 | Mobile: Add `supplier` field to Product type and CreateProductPayload | ✅ | `mobile/services/inventory.ts` |
+| 33 | Mobile: Add supplier input to Add Product screen | ✅ | `mobile/app/add-product.tsx` |
+| 34 | Mobile: Add supplier field to inventory edit modal | ✅ | `mobile/app/(tabs)/inventory.tsx` |
+| 35 | Mobile: New Suppliers tab screen with search + edit modal | ✅ | `mobile/app/(tabs)/suppliers.tsx` |
+| 36 | Mobile: Add Suppliers tab to tab layout | ✅ | `mobile/app/(tabs)/_layout.tsx` |
+| 37 | Web: AddProductModal supports edit mode (PUT /api/products/{id}) | ✅ | `frontend/web/src/components/AddProductModal.tsx` |
+| 38 | Web: Inventory page — edit/delete per row + client-side search | ✅ | `InventoryClient.tsx` + updated `page.tsx` |
+| 39 | Web: New API routes — PUT/DELETE `/api/products/[id]` | ✅ | `frontend/web/src/app/api/products/[id]/route.ts` |
+| 40 | Web: New Suppliers page with balance summary | ✅ | `frontend/web/src/app/dashboard/suppliers/page.tsx` |
+| 41 | Web: EditSupplierModal component | ✅ | `frontend/web/src/components/EditSupplierModal.tsx` |
+| 42 | Web: New API routes — GET/PUT `/api/suppliers` | ✅ | `frontend/web/src/app/api/suppliers/route.ts` + `[id]/route.ts` |
+| 43 | Web: Add Suppliers nav item to Sidebar | ✅ | `frontend/web/src/components/Sidebar.tsx` |
+
 ## Batch 6 — Nice-to-Have (Post-MVP)
 
 | # | Task | Status | Notes |
@@ -80,6 +102,13 @@
   - ✅ Inventory edit/delete UI
   - ✅ Sales history tab
   - ✅ Docker infrastructure (compose + 6 Dockerfiles)
+
+### Session 3 — 2026-05-12
+- **Supplier management:** Built end-to-end — backend entity/service/controller, mobile tab, web page
+- **Auto-create flow:** Creating/editing a product with a supplier name auto-creates supplier record
+- **Mobile:** New Suppliers tab (search, balance badge, edit modal); supplier field added to add-product + edit modal
+- **Web:** Inventory page refactored to client component — search, edit (reuses AddProductModal in edit mode), delete; new Suppliers page with total-owed summary; Sidebar updated
+- **Search note:** Mobile inventory search was already working; added search to web inventory page
 
 ### Session 2 — 2026-05-03
 - **Full audit:** All 6 MVP services + all mobile screens reviewed
@@ -122,6 +151,35 @@
 - ✅ `mobile/app/(tabs)/_layout.tsx` (added customers tab)
 - ✅ `mobile/app/(tabs)/inventory.tsx` (edit/delete UI)
 - ✅ `mobile/app/(tabs)/sales.tsx` (history tab)
+
+**Backend — Session 3**
+- ✅ `backend/inventory-service/src/main/resources/db/migration/V2__Add_Suppliers.sql` (NEW)
+- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/model/Supplier.java` (NEW)
+- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/dto/SupplierDTO.java` (NEW)
+- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/dto/UpdateSupplierRequest.java` (NEW)
+- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/repository/SupplierRepository.java` (NEW)
+- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/service/SupplierService.java` (NEW)
+- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/controller/SupplierController.java` (NEW)
+- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/service/ProductService.java` (supplier hook)
+
+**Mobile — Session 3**
+- ✅ `mobile/services/inventory.ts` (added supplier to Product + CreateProductPayload types)
+- ✅ `mobile/services/suppliers.ts` (NEW)
+- ✅ `mobile/app/add-product.tsx` (supplier input field)
+- ✅ `mobile/app/(tabs)/inventory.tsx` (supplier field in edit modal)
+- ✅ `mobile/app/(tabs)/suppliers.tsx` (NEW)
+- ✅ `mobile/app/(tabs)/_layout.tsx` (Suppliers tab added)
+
+**Web — Session 3**
+- ✅ `frontend/web/src/components/AddProductModal.tsx` (edit mode support)
+- ✅ `frontend/web/src/components/EditSupplierModal.tsx` (NEW)
+- ✅ `frontend/web/src/app/dashboard/inventory/page.tsx` (delegates to InventoryClient)
+- ✅ `frontend/web/src/app/dashboard/inventory/InventoryClient.tsx` (NEW — search, edit, delete)
+- ✅ `frontend/web/src/app/dashboard/suppliers/page.tsx` (NEW)
+- ✅ `frontend/web/src/app/api/products/[id]/route.ts` (NEW — PUT/DELETE)
+- ✅ `frontend/web/src/app/api/suppliers/route.ts` (NEW — GET)
+- ✅ `frontend/web/src/app/api/suppliers/[id]/route.ts` (NEW — PUT)
+- ✅ `frontend/web/src/components/Sidebar.tsx` (Suppliers nav item)
 
 **Mobile — Session 2**
 - ✅ `mobile/services/customers.ts` (updateCustomer, deleteCustomer)

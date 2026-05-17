@@ -10,6 +10,7 @@ import java.util.List;
 public class CreateSaleRequest {
 
     private Long customerId;
+    private String customerName;
 
     private String paymentMethod = "CASH";
 

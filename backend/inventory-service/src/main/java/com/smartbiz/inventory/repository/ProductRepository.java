@@ -15,6 +15,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Optional<Product> findByBarcodeAndUserId(String barcode, Long userId);
     boolean existsBySkuAndUserId(String sku, Long userId);
 
+    List<Product> findByUserIdAndSupplierIgnoreCase(Long userId, String supplier);
+
     @Query("SELECT p FROM Product p WHERE p.userId = :userId AND p.reorderLevel IS NOT NULL AND p.quantity <= p.reorderLevel")
     List<Product> findLowStockByUserId(Long userId);
 }
