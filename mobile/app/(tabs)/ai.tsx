@@ -1,4 +1,4 @@
-﻿import {
+import {
   View,
   Text,
   ScrollView,
@@ -8,14 +8,16 @@
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { Colors } from '@/components/ui/colors';
-import { queryAi, getDailyInsight } from '@/services/ai';
+import { queryAi, getDailyInsight, type ChatMessage } from '@/services/ai';
 
-type Message = { role: 'user' | 'ai'; text: string };
+type Message = ChatMessage;
 
 const QUICK_PROMPTS = [
   'Top selling products',
@@ -25,27 +27,59 @@ const QUICK_PROMPTS = [
 ];
 
 export default function AiScreen() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'ai', text: 'Hi! Ask me anything about your business — sales, stock, customers, or anything else.' },
+  ]);
   const [input, setInput] = useState('');
+  const [inputKey, setInputKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
+  // Android-only: manually track keyboard height to avoid edge-to-edge KAV issues
+  const keyboardPad = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    getDailyInsight()
-      .then((insight) => setMessages([{ role: 'ai', text: insight }]))
-      .catch(() => {
-        setMessages([{ role: 'ai', text: 'Hi! Ask me anything about your business.' }]);
-      });
+    if (Platform.OS !== 'android') return;
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      Animated.timing(keyboardPad, {
+        toValue: e.endCoordinates.height,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      Animated.timing(keyboardPad, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    });
+    return () => { show.remove(); hide.remove(); };
   }, []);
+
+  const fetchInsight = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const insight = await getDailyInsight();
+      setMessages((prev) => [...prev, { role: 'ai', text: insight }]);
+    } catch {
+      setMessages((prev) => [...prev, { role: 'ai', text: 'Could not load insight. Please try again.' }]);
+    } finally {
+      setLoading(false);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  };
 
   const send = async (text: string) => {
     const question = text.trim();
     if (!question || loading) return;
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', text: question }]);
+    setInputKey((k) => k + 1); // remount TextInput to reset its height
+    const updatedMessages: Message[] = [...messages, { role: 'user', text: question }];
+    setMessages(updatedMessages);
     setLoading(true);
     try {
-      const response = await queryAi(question);
+      const response = await queryAi(updatedMessages);
       setMessages((prev) => [...prev, { role: 'ai', text: response }]);
     } catch {
       setMessages((prev) => [
@@ -58,81 +92,93 @@ export default function AiScreen() {
     }
   };
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={80}
+  const content = (
+    <>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Ionicons name="sparkles" size={20} color={Colors.primary} />
+          <Text style={styles.headerTitle}>AI Assistant</Text>
+        </View>
+        <Text style={styles.headerSub}>Powered by Gemini</Text>
+      </View>
+
+      {/* Quick prompts */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.chips}
+        contentContainerStyle={styles.chipsContent}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Ionicons name="sparkles" size={20} color={Colors.primary} />
-            <Text style={styles.headerTitle}>AI Assistant</Text>
-          </View>
-          <Text style={styles.headerSub}>Powered by Gemini</Text>
-        </View>
-
-        {/* Quick prompts */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chips}
-          contentContainerStyle={styles.chipsContent}
-        >
-          {QUICK_PROMPTS.map((q) => (
-            <Pressable key={q} style={styles.chip} onPress={() => send(q)}>
-              <Text style={styles.chipText}>{q}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        {/* Messages */}
-        <ScrollView
-          ref={scrollRef}
-          style={styles.messages}
-          contentContainerStyle={styles.messagesContent}
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
-        >
-          {messages.map((m, i) => (
-            <View key={i} style={[styles.bubble, m.role === 'user' ? styles.userBubble : styles.aiBubble]}>
-              {m.role === 'ai' && (
-                <Ionicons name="sparkles" size={13} color={Colors.primary} style={styles.aiIcon} />
-              )}
-              <Text style={[styles.bubbleText, m.role === 'user' && styles.userBubbleText]}>
-                {m.text}
-              </Text>
-            </View>
-          ))}
-          {loading && (
-            <View style={[styles.bubble, styles.aiBubble]}>
-              <ActivityIndicator size="small" color={Colors.primary} />
-            </View>
-          )}
-        </ScrollView>
-
-        {/* Input */}
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Ask about your business..."
-            placeholderTextColor={Colors.textMuted}
-            value={input}
-            onChangeText={setInput}
-            onSubmitEditing={() => send(input)}
-            returnKeyType="send"
-            multiline
-          />
-          <Pressable
-            style={[styles.sendBtn, (!input.trim() || loading) && styles.sendBtnDisabled]}
-            onPress={() => send(input)}
-            disabled={!input.trim() || loading}
-          >
-            <Ionicons name="send" size={18} color={Colors.textOnPrimary} />
+        <Pressable style={[styles.chip, styles.insightChip]} onPress={fetchInsight} disabled={loading}>
+          <Ionicons name="sparkles" size={12} color={Colors.primary} />
+          <Text style={styles.chipText}>Daily Insight</Text>
+        </Pressable>
+        {QUICK_PROMPTS.map((q) => (
+          <Pressable key={q} style={styles.chip} onPress={() => send(q)}>
+            <Text style={styles.chipText}>{q}</Text>
           </Pressable>
-        </View>
-      </KeyboardAvoidingView>
+        ))}
+      </ScrollView>
+
+      {/* Messages */}
+      <ScrollView
+        ref={scrollRef}
+        style={styles.messages}
+        contentContainerStyle={styles.messagesContent}
+        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+        keyboardShouldPersistTaps="handled"
+      >
+        {messages.map((m, i) => (
+          <View key={i} style={[styles.bubble, m.role === 'user' ? styles.userBubble : styles.aiBubble]}>
+            {m.role === 'ai' && (
+              <Ionicons name="sparkles" size={13} color={Colors.primary} style={styles.aiIcon} />
+            )}
+            <Text style={[styles.bubbleText, m.role === 'user' ? styles.userBubbleText : styles.aiBubbleText]}>
+              {m.text}
+            </Text>
+          </View>
+        ))}
+        {loading && (
+          <View style={[styles.bubble, styles.aiBubble]}>
+            <ActivityIndicator size="small" color={Colors.primary} />
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Input */}
+      <View style={styles.inputRow}>
+        <TextInput
+          key={inputKey}
+          style={styles.input}
+          placeholder="Ask about your business..."
+          placeholderTextColor={Colors.textMuted}
+          value={input}
+          onChangeText={setInput}
+          multiline
+        />
+        <Pressable
+          style={[styles.sendBtn, (!input.trim() || loading) && styles.sendBtnDisabled]}
+          onPress={() => send(input)}
+          disabled={!input.trim() || loading}
+        >
+          <Ionicons name="send" size={18} color={Colors.textOnPrimary} />
+        </Pressable>
+      </View>
+    </>
+  );
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      {Platform.OS === 'ios' ? (
+        <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={80}>
+          {content}
+        </KeyboardAvoidingView>
+      ) : (
+        <Animated.View style={[styles.flex, { paddingBottom: keyboardPad }]}>
+          {content}
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
@@ -163,6 +209,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
   },
+  insightChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   chipText: { fontSize: 12, color: Colors.primary, fontWeight: '500' },
   messages: { flex: 1 },
   messagesContent: { padding: 16, gap: 10 },
@@ -187,7 +238,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   aiIcon: { marginTop: 1 },
-  bubbleText: { fontSize: 14, color: Colors.textDark, lineHeight: 20, flex: 1 },
+  bubbleText: { fontSize: 14, lineHeight: 20 },
+  aiBubbleText: { flex: 1, color: Colors.textDark },
   userBubbleText: { color: Colors.textOnPrimary },
   inputRow: {
     flexDirection: 'row',
@@ -206,7 +258,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     color: Colors.textDark,
-    maxHeight: 100,
+    maxHeight: 120,
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -220,4 +272,3 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { opacity: 0.4 },
 });
-

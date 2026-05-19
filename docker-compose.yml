@@ -106,22 +106,28 @@ services:
     networks:
       - smartbiz-network
 
+  # ===== AI SERVICE =====
+  ai-service:
+    build:
+      context: ./backend
+      dockerfile: ai-service/Dockerfile
+    container_name: smartbiz-ai
+    ports:
+      - "8887:8085"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      INVENTORY_SERVICE_URL: http://inventory-service:8082
+      SALES_SERVICE_URL: http://sales-service:8084
+    depends_on:
+      - eureka-server
+      - inventory-service
+      - sales-service
+    networks:
+      - smartbiz-network
+
   # ===== OPTIONAL SERVICES (Phase 2) =====
-  # Uncomment to enable AI and Messaging services
-  # ai-service:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: ai-service/Dockerfile
-  #   ports:
-  #     - "8085:8085"
-  #   environment:
-  #     SPRING_PROFILES_ACTIVE: docker
-  #     EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
-  #     OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-  #   depends_on:
-  #     - eureka-server
-  #   networks:
-  #     - smartbiz-network
   #
   # messaging-service:
   #   build:

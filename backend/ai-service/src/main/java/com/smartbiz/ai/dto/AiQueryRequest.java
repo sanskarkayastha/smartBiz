@@ -1,3 +1,7 @@
 package com.smartbiz.ai.dto;
 
-public record AiQueryRequest(String question) {}
+import java.util.List;
+
+public record AiQueryRequest(List<ChatMessage> messages) {
+    public record ChatMessage(String role, String text) {}
+}

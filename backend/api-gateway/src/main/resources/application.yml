@@ -41,7 +41,7 @@ spring:
         - id: crm-service
           uri: lb://CRM-SERVICE
           predicates:
-            - Path=/customers/**
+            - Path=/customers/**,/leads/**
           filters:
             - StripPrefix=0
 

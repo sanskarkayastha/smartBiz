@@ -9,32 +9,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **SmartBiz** is a mobile-first business management system for small businesses in Nepal. It's a college project (12 weeks, solo) with a strict constraint: **must use Java Spring Boot + PostgreSQL**.
 
 **Stack:**
-- Backend: Java Spring Boot 3.4.5 Microservices with Java 21 (8 services)
-- Mobile: React Native (Expo) with TypeScript
-- Web Dashboard: React.js (Phase 2)
-- Database: PostgreSQL 15+ with Flyway migrations
+- Backend: Java Spring Boot 3.4.5 Microservices with Java 21 (6 active services)
+- Mobile: React Native (Expo) with TypeScript — 8 tabs, fully connected to backend
+- Web Dashboard: React.js (Next.js) — Phase 2, partially built
+- Database: PostgreSQL 15+ (Neon cloud) with Flyway migrations
 - Service Discovery: Eureka + Spring Cloud Gateway
+- Deployment: Docker Compose (multi-stage builds)
 
-**Current Status:** Mobile app scaffolded (onboarding + tab layout). Backend microservices not yet started.
+**Current Status:** MVP fully built and running. All 6 core backend services are live via Docker. Mobile app has 8 tabs all connected to the backend. Web dashboard has inventory + suppliers pages.
+
+---
+
+## What's Built (Session Summary)
+
+| Feature | Backend | Mobile | Web |
+|---------|---------|--------|-----|
+| Auth (login/signup/profile) | ✅ | ✅ | ✅ |
+| Inventory (CRUD + stock) | ✅ | ✅ | ✅ |
+| Suppliers | ✅ | ✅ | ✅ |
+| Sales (POS + analytics) | ✅ | ✅ | — |
+| Customers (CRM) | ✅ | ✅ | — |
+| Leads (pipeline tracking) | ✅ | ✅ | — |
+| AI Insights | ✅ (Gemini) | ✅ | — |
+| Messaging | Phase 2 | — | — |
 
 ---
 
 ## MVP Scope
 
-The viable MVP prioritizes these 3 core services + mobile + infrastructure:
-1. **Auth Service** - JWT login/signup (gates everything)
-2. **Inventory Service** - Product CRUD + stock management
-3. **Sales Service** - Record sales, deduct stock atomically, basic analytics
-4. **CRM Service** - Customer management (nice-to-have but important)
-5. **Mobile App** - Login → Inventory → POS → Customer screens
-6. **Infrastructure** - Eureka, API Gateway, Docker Compose, PostgreSQL
+Core services delivered:
+1. **Auth Service** — JWT login/signup/profile update
+2. **Inventory Service** — Product CRUD + stock + supplier auto-create
+3. **Sales Service** — POS, atomic stock deduction, weekly analytics
+4. **CRM Service** — Customer management + Lead pipeline tracking
+5. **AI Service** — Gemini API chatbot (sales insights, reorder suggestions)
+6. **Mobile App** — 8-tab fully connected app
+7. **Infrastructure** — Eureka, API Gateway, Docker Compose, Neon PostgreSQL
 
-**Out of scope for MVP (Phase 2):**
-- AI Insights (complex)
-- Unified Inbox/Messaging (requires external APIs)
-- Web Dashboard
-- Barcode scanning (nice-to-have)
-- Firebase notifications
+**Phase 2 (not yet built):**
+- Messaging / Unified Inbox
+- Full Web Dashboard
+- Firebase push notifications
+- Barcode scanning
+- Refresh token flow
 
 See `PROJECT_CONTEXT.md` for full architecture details.
 
@@ -50,14 +67,48 @@ Mobile App → API Gateway → Sales Service
   → Return success or rollback if stock insufficient
 ```
 
+### Lead-to-Customer Conversion Flow
+```
+Mobile App → API Gateway → CRM Service (/leads/{id}/convert)
+  → Creates Customer from Lead data
+  → Deletes Lead record
+  → Returns CustomerDTO
+```
+
 **Non-Negotiables:**
 - ✅ JWT auth on all endpoints (except /auth/**)
 - ✅ User ID in request header (X-User-Id) for multi-tenancy
-- ✅ **Atomic transactions** when stock deducted (rollback on failure) — this is critical
+- ✅ **Atomic transactions** when stock deducted (rollback on failure)
 - ✅ Database-per-service (no direct cross-service DB access)
 - ✅ All inter-service calls via REST APIs
 - ✅ Flyway migrations for all schema changes
 - ✅ DTOs for all API responses (never expose JPA entities)
+
+---
+
+## Environment Variables
+
+All services read from environment variables. For local development, load the `.env` file in the project root before running services:
+
+```powershell
+# PowerShell — load .env into current session
+Get-Content .env | ForEach-Object { if ($_ -match '^([^#=]+)=(.*)$') { [System.Environment]::SetEnvironmentVariable($matches[1].Trim(), $matches[2].Trim(), 'Process') } }
+```
+
+Key variables in `.env`:
+```
+CRM_DB_URL=jdbc:postgresql://...neon.tech/crm_db?sslmode=require
+AUTH_DB_URL=...
+INVENTORY_DB_URL=...
+SALES_DB_URL=...
+DB_USERNAME=neondb_owner
+DB_PASSWORD=...
+JWT_SECRET=...
+GEMINI_API_KEY=...
+EUREKA_URL=http://localhost:8761/eureka/
+```
+
+Docker Compose reads `.env` automatically — no manual loading needed when using Docker.
 
 ---
 
@@ -67,31 +118,55 @@ Mobile App → API Gateway → Sales Service
 smartbiz/
 ├── PROJECT_CONTEXT.md          # Full architecture + schema docs
 ├── CLAUDE.md                   # This file
+├── PROGRESS.md                 # Session-by-session change log
+├── .env                        # Local environment variables (not committed)
+├── docker-compose.yml          # All 6 services + networking
 ├── mobile/                     # Expo/React Native app
-│   ├── app/                    # File-based routing (expo-router)
-│   │   ├── (tabs)/             # Main tab screens
-│   │   │   ├── index.tsx       # Home screen
-│   │   │   ├── inventory.tsx   # Inventory management
-│   │   │   ├── sales.tsx       # POS screen
-│   │   │   ├── settings.tsx    # Settings
-│   │   │   └── _layout.tsx     # Tab navigator
-│   │   ├── onboarding.tsx      # Login/signup (entry point)
-│   │   └── _layout.tsx         # Root layout
-│   ├── components/             # Reusable UI components
-│   ├── assets/                 # Images, fonts
-│   ├── package.json            # Dependencies
-│   └── README.md               # Expo setup guide
-├── backend/                    # [To be built] Microservices
-│   ├── eureka-server/          # Service discovery
-│   ├── api-gateway/            # Spring Cloud Gateway
-│   ├── auth-service/           # JWT + user management
-│   ├── inventory-service/      # Products + stock
-│   ├── crm-service/            # Customers
-│   ├── sales-service/          # Transactions + analytics
-│   ├── ai-service/             # [Phase 2] Claude API integration
-│   └── messaging-service/      # [Phase 2] Unified inbox
-└── frontend/                   # [Phase 2] React.js dashboard
-    └── web/
+│   ├── app/
+│   │   ├── (tabs)/
+│   │   │   ├── index.tsx       # Home — real weekly chart
+│   │   │   ├── inventory.tsx   # Inventory CRUD + edit/delete
+│   │   │   ├── suppliers.tsx   # Supplier list + edit
+│   │   │   ├── sales.tsx       # POS + history tabs
+│   │   │   ├── customers.tsx   # Expandable customer cards + history
+│   │   │   ├── leads.tsx       # Lead pipeline (NEW)
+│   │   │   ├── ai.tsx          # AI chatbot
+│   │   │   ├── settings.tsx    # Profile edit
+│   │   │   └── _layout.tsx     # 8-tab navigator
+│   │   ├── onboarding.tsx      # Landing page
+│   │   ├── login.tsx           # Login screen
+│   │   ├── register.tsx        # Register screen
+│   │   └── add-product.tsx     # Add product screen
+│   ├── components/
+│   │   └── ui/
+│   │       ├── InputField.tsx  # Reusable text input (no flex:1 on wrapper)
+│   │       ├── SearchBar.tsx
+│   │       ├── FilterTabs.tsx
+│   │       ├── StatusBadge.tsx
+│   │       └── colors.ts       # Design tokens
+│   ├── services/               # API service layer
+│   │   ├── api.ts              # Axios base (base URL + JWT interceptor)
+│   │   ├── auth.ts
+│   │   ├── inventory.ts
+│   │   ├── suppliers.ts
+│   │   ├── sales.ts
+│   │   ├── customers.ts
+│   │   ├── leads.ts            # NEW — Lead CRUD + convertToCustomer
+│   │   └── ai.ts
+│   ├── contexts/
+│   │   └── AuthContext.tsx
+│   └── package.json
+├── backend/
+│   ├── eureka-server/
+│   ├── api-gateway/            # Routes: /auth, /inventory, /customers, /leads, /sales, /ai
+│   ├── auth-service/           # Port 8081
+│   ├── inventory-service/      # Port 8082 — products + suppliers
+│   ├── crm-service/            # Port 8083 — customers + leads
+│   ├── sales-service/          # Port 8084
+│   ├── ai-service/             # Port 8085 — Gemini API
+│   └── messaging-service/      # Phase 2
+└── frontend/
+    └── web/                    # Next.js — inventory + suppliers pages
 ```
 
 ---
@@ -105,64 +180,85 @@ npm install
 npx expo start
 ```
 
-### Run Commands
-```bash
-npx expo start                  # Start dev server
-npx expo start --android        # Android emulator
-npx expo start --ios            # iOS simulator
-npx expo start --web            # Web browser
-npm run lint                    # ESLint check
+### Tab Navigation (8 tabs)
+`app/(tabs)/_layout.tsx` defines all tabs in order:
+1. Home (`index`) — dashboard + weekly revenue chart
+2. Inventory — product list, add/edit/delete, search
+3. Suppliers — supplier list, edit, balance badge
+4. Sales — POS cart + history tab
+5. Customers — expandable accordion cards, purchase history modal
+6. Leads — pipeline with stage filter tabs, expandable cards, stage stepper
+7. AI — Gemini chatbot
+8. Settings — profile edit
+
+### API Base URL
+Set in `mobile/.env` or `app.json`:
 ```
+EXPO_PUBLIC_API_URL=http://<your-ip>:8080
+```
+Currently hardcoded fallback in `services/api.ts`: `http://10.247.23.13:8080`
 
-### Navigation Structure
-- **Expo Router** (file-based routing)
-- Entry: `app/_layout.tsx` → `app/onboarding.tsx` (login) or `app/(tabs)/_layout.tsx` (main)
-- Tab navigation: `app/(tabs)/_layout.tsx` manages the 4 tabs
-
-### Key Dependencies
-- `expo-router` - File-based routing
-- `@react-navigation/*` - Navigation primitives
-- `@expo/vector-icons` - Icon library
-- `expo-image` - Optimized image component
-- TypeScript for type safety
-
-### Development Notes
-- **No backend connected yet** - screens are UI-only placeholders
-- When implementing screens, add API calls via REST client (fetch or axios)
-- All API calls must include `X-User-Id` header and JWT token in Authorization header
-- Use environment variables (via app.json) for API Gateway URL
+### All API calls automatically include:
+- `Authorization: Bearer <jwt>` — from SecureStore
+- `X-User-Id: <id>` — from SecureStore
 
 ---
 
 ## Backend Microservices
 
-### Setup & Build
+### Running via Docker (preferred)
 ```bash
-cd backend/{service-name}
-mvn clean install              # Build service + run tests
-mvn spring-boot:run            # Run service locally
+# Load .env then start all services
+docker-compose up -d --build
+
+# Rebuild specific services only
+docker-compose up -d --build api-gateway crm-service
+
+# View logs
+docker-compose logs -f crm-service
+docker-compose logs -f api-gateway
+```
+
+### Running locally (for development)
+```bash
+# 1. Load .env into shell
+Get-Content .env | ForEach-Object { ... }  # see above
+
+# 2. Start Eureka first
+cd backend/eureka-server && mvn spring-boot:run
+
+# 3. Start other services
+cd backend/crm-service && mvn spring-boot:run
 ```
 
 ### Service Architecture
 Each service follows this structure:
 ```
-auth-service/
-├── src/main/java/com/smartbiz/auth/
-│   ├── controller/             # REST endpoints
-│   ├── service/                # Business logic
-│   ├── repository/             # JPA repositories (Spring Data)
-│   ├── model/                  # JPA entities
-│   ├── dto/                    # Request/response DTOs
-│   ├── config/                 # Security, JWT config
-│   └── AuthServiceApplication.java
+crm-service/
+├── src/main/java/com/smartbiz/crm/
+│   ├── controller/         # REST endpoints
+│   ├── service/            # Business logic
+│   ├── repository/         # JPA repositories
+│   ├── model/              # JPA entities
+│   ├── dto/                # Request/response DTOs
+│   ├── config/             # SecurityConfig
+│   └── exception/          # GlobalExceptionHandler + custom exceptions
 ├── src/main/resources/
-│   ├── application.yml         # Spring config (port, DB, Eureka)
-│   └── db/migration/           # Flyway SQL migration scripts
-├── src/test/                   # Unit + integration tests
-└── pom.xml                     # Maven dependencies
+│   ├── application.yml     # Port, DB (env vars with fallbacks), Eureka
+│   └── db/migration/       # Flyway SQL scripts
+└── pom.xml
 ```
 
-### Ports (Reference)
+### application.yml pattern (with local fallbacks)
+```yaml
+spring:
+  datasource:
+    url: ${CRM_DB_URL:jdbc:postgresql://localhost:5432/crm_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
+```
+
+### Ports
 | Service | Port |
 |---------|------|
 | API Gateway | 8080 |
@@ -174,288 +270,144 @@ auth-service/
 | AI | 8085 |
 | Messaging | 8086 |
 
-### Database Setup
-```bash
-# Start PostgreSQL (requires Docker)
-docker-compose up -d postgres
+---
 
-# Each service has its own database:
-# auth_db, inventory_db, crm_db, sales_db, messaging_db
-# Migrations run automatically via Flyway on service startup
+## API Gateway Routes
+
+All routes in `backend/api-gateway/src/main/resources/application.yml`:
+
+```yaml
+routes:
+  - id: auth-service
+    uri: lb://AUTH-SERVICE
+    predicates: [Path=/auth/**]
+  - id: inventory-service
+    uri: lb://INVENTORY-SERVICE
+    predicates: [Path=/inventory/**]
+  - id: crm-service
+    uri: lb://CRM-SERVICE
+    predicates: [Path=/customers/**,/leads/**]   # both customers + leads
+  - id: sales-service
+    uri: lb://SALES-SERVICE
+    predicates: [Path=/sales/**]
+  - id: ai-service
+    uri: lb://AI-SERVICE
+    predicates: [Path=/ai/**]
 ```
 
-### Building a New Service
-1. **Create pom.xml** with standard dependencies (Spring Boot, JPA, PostgreSQL, Flyway, JWT)
-2. **Create application.yml** with port, database config, Eureka client config
-3. **Create Flyway migration** in `src/main/resources/db/migration/V1__Init.sql`
-4. **Create JPA entities** in `model/` package
-5. **Create DTOs** (request/response objects) in `dto/` package
-6. **Create repositories** (Spring Data JPA) in `repository/` package
-7. **Create service layer** (business logic) in `service/` package
-8. **Create REST controllers** in `controller/` package
-9. **Add exception handling** via `@ControllerAdvice` (global error handler)
-10. **Write tests** (unit tests for services, integration tests for controllers)
+**Important:** When adding a new endpoint path to an existing service, update BOTH:
+1. The gateway `application.yml` predicate
+2. The service's `SecurityConfig.java` permitAll list
 
-### Common Maven Commands
-```bash
-mvn clean install              # Build + run tests
-mvn spring-boot:run            # Run service
-mvn test                       # Run tests only
-mvn test -Dtest=UserServiceTest  # Run single test class
-mvn test -Dtest=UserServiceTest#testCreateUser  # Run single test method
+---
+
+## CRM Service — Leads Feature
+
+The CRM service now manages both customers and leads.
+
+### Lead pipeline stages
+`NEW → CONTACTED → INTERESTED → PROPOSAL → WON → LOST`
+
+### Lead endpoints
+```
+GET    /leads              — list all leads for user
+GET    /leads/{id}         — get single lead
+POST   /leads              — create lead
+PUT    /leads/{id}         — update lead (partial)
+DELETE /leads/{id}         — delete lead
+POST   /leads/{id}/convert — convert WON lead to Customer (deletes lead)
 ```
 
-### Key Dependencies
-```xml
-<!-- Spring Boot -->
-spring-boot-starter-web         # REST APIs
-spring-boot-starter-data-jpa    # Database access
-spring-boot-starter-security    # Security
-spring-boot-starter-validation  # @Valid annotations
+### Lead fields
+`name`, `phone`, `email`, `stage`, `source` (WALK_IN/REFERRAL/SOCIAL_MEDIA/PHONE_CALL/ONLINE/OTHER), `estimatedValue`, `notes`, `followUpDate`
 
-<!-- Microservices -->
-spring-cloud-starter-netflix-eureka-client   # Service discovery
-spring-cloud-starter-config                  # External config
-
-<!-- Database -->
-postgresql (driver)
-flyway-core (schema migrations)
-
-<!-- Security -->
-jjwt (JWT tokens)
-spring-security-crypto (BCrypt hashing)
-
-<!-- Utils -->
-lombok (reduce boilerplate)
-```
+### Flyway migrations in crm-service
+- `V1__Init.sql` — customers + customer_interactions tables
+- `V2__Add_Due_Amount.sql` — due_amount column on customers
+- `V3__Create_Leads_Table.sql` — leads table with indexes
 
 ---
 
 ## Key Patterns & Guidelines
 
 ### Authentication & User Isolation
-- **Entry point:** API Gateway extracts JWT token, passes `X-User-Id` header to all services
-- **Each service validates** `X-User-Id` header exists and matches JWT subject
-- **Every query** must filter by userId: `findByUserIdAndProductId(userId, productId)`
-- **No cross-user data leaks** — this is critical for multi-tenancy
+- API Gateway passes `X-User-Id` header extracted from JWT to all downstream services
+- Every query must filter by userId: `findByUserIdAndProductId(userId, productId)`
+- No cross-user data leaks
+
+### SecurityConfig pattern (CRM service example)
+```java
+.authorizeHttpRequests(authz -> authz
+    .requestMatchers("/customers/**", "/leads/**").permitAll()
+    .anyRequest().authenticated()
+)
+.csrf(csrf -> csrf.disable())
+.httpBasic(basic -> basic.disable());
+```
+
+### Adding a new service route (checklist)
+1. Add `Path=/newpath/**` to API Gateway `application.yml` predicate for the correct service
+2. Add `.requestMatchers("/newpath/**").permitAll()` to the service's `SecurityConfig.java`
+3. Rebuild affected Docker containers: `docker-compose up -d --build api-gateway <service-name>`
 
 ### Inter-Service Communication
 ```java
-// Example: Sales Service calls Inventory Service to check stock
 RestTemplate restTemplate = new RestTemplate();
-String inventoryUrl = "http://INVENTORY-SERVICE:8082/inventory/products/{id}";
-ProductDTO product = restTemplate.getForObject(inventoryUrl, ProductDTO.class, productId);
+String url = "http://INVENTORY-SERVICE:8082/inventory/products/{id}";
+ProductDTO product = restTemplate.getForObject(url, ProductDTO.class, productId);
 ```
 
-- Use Eureka service names (e.g., `INVENTORY-SERVICE`) not hardcoded IPs
-- Always wrap in try-catch; handle service unavailability gracefully
-- Timeout after 5s to avoid cascading failures
-
-### Database Transactions
-- Use `@Transactional` for operations that need atomicity
-- When Sales Service deducts stock, entire operation (update sales + update inventory) must roll back if either fails
-- Test with `@DataJpaTest` + `@Transactional` for unit tests
-
-### Testing
-```bash
-# Unit tests (test service layer)
-mvn test -Dtest=ProductServiceTest
-
-# Integration tests (test controllers + full flow)
-mvn test -Dtest=ProductControllerTest
-
-# Run all tests
-mvn test
-```
-
-Write tests for:
-1. **Service layer** - business logic (unit tests)
-2. **Controllers** - API endpoints (integration tests with `@SpringBootTest`)
-3. **Critical workflows** - record sale, stock deduction (integration tests)
+### InputField component
+`components/ui/InputField.tsx` — wrapper has NO `flex: 1` (was causing smudged layouts). Do not re-add it.
 
 ### Error Handling
-Use `@ControllerAdvice` for global exception handler:
 ```java
-@ControllerAdvice
+@RestControllerAdvice
 public class GlobalExceptionHandler {
-    @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(EntityNotFoundException e) {
-        return ResponseEntity.status(404).body(new ErrorResponse(e.getMessage()));
+    @ExceptionHandler({CustomerNotFoundException.class, LeadNotFoundException.class})
+    public ResponseEntity<Map<String, String>> handleNotFound(RuntimeException e) {
+        return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
     }
 }
-```
-
-### Logging
-Use SLF4J with Logback (auto-configured by Spring Boot):
-```java
-private static final Logger log = LoggerFactory.getLogger(ProductService.class);
-log.info("Creating product: {}", productName);
-log.error("Failed to create product", e);
 ```
 
 ---
 
 ## Database Schema Strategy
 
-- **Flyway migrations** in `src/main/resources/db/migration/`
-- Naming: `V1__Init.sql`, `V2__AddUserConstraint.sql`
+- Flyway migrations in `src/main/resources/db/migration/`
+- Naming: `V1__Init.sql`, `V2__Add_Feature.sql`, `V3__Create_X_Table.sql`
 - Run automatically on service startup
-- **Never modify** old migration files; create new ones for changes
-- Example migration:
-```sql
--- V1__Init.sql
-CREATE TABLE products (
-  id SERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  sku VARCHAR(100) UNIQUE,
-  price DECIMAL(10, 2) NOT NULL,
-  quantity INTEGER NOT NULL,
-  reorder_level INTEGER,
-  barcode VARCHAR(100) UNIQUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
----
-
-## Docker & Local Development
-
-### Docker Compose
-```bash
-# Start all services locally
-docker-compose up -d
-
-# Stop all
-docker-compose down
-
-# View logs
-docker-compose logs -f postgres
-docker-compose logs -f eureka-server
-```
-
-Expected `docker-compose.yml`:
-```yaml
-version: '3.8'
-services:
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
-```
-
----
-
-## Workflow: Adding a New Feature
-
-### Example: Add "Reorder Now" button for low-stock products
-
-1. **Backend:**
-   - Inventory Service: Add `POST /inventory/products/{id}/reorder` endpoint
-   - Flyway migration (if needed for schema)
-   - Unit test for service logic
-   - Integration test for controller
-
-2. **Mobile:**
-   - Add button to inventory screen
-   - Call API with `X-User-Id` + JWT token
-   - Handle success/error responses
-   - Add loading state
-
-3. **Test:**
-   - Start backend: `cd backend/inventory-service && mvn spring-boot:run`
-   - Start mobile: `cd mobile && npx expo start`
-   - Test on Android/iOS emulator
-
-4. **Commit:**
-   ```bash
-   git add .
-   git commit -m "Add reorder feature for low-stock products"
-   ```
-
----
-
-## Development Checklist for Each Service
-
-Before marking a service "done":
-- [ ] Flyway migrations in place
-- [ ] JPA entities created
-- [ ] DTOs for all API responses (no entity exposure)
-- [ ] REST controllers with endpoints documented
-- [ ] Service layer with business logic
-- [ ] `@ControllerAdvice` global exception handler
-- [ ] User isolation (all queries filtered by userId)
-- [ ] Unit tests for service layer
-- [ ] Integration tests for controllers
-- [ ] Registers with Eureka (`spring.application.name`, `eureka.client.service-url`)
-- [ ] application.yml configured (port, DB, JWT secret)
-- [ ] README.md with curl examples for endpoints
-
----
-
-## Next Steps (MVP Priority)
-
-1. **Backend Setup** (Week 1-2)
-   - Create Eureka Server, API Gateway, Auth Service
-   - Implement JWT token generation
-   - Test with curl before mobile integration
-
-2. **Core Services** (Week 3-5)
-   - Inventory Service (products, stock)
-   - Sales Service (record sale, deduct stock)
-   - CRM Service (customers)
-
-3. **Mobile Integration** (Week 6-8)
-   - Connect login screen to Auth Service
-   - Implement inventory screens (list, add, edit)
-   - Implement POS screen (record sale)
-   - Implement customer screens
-
-4. **Testing & Polish** (Week 9-12)
-   - Integration tests for critical workflows
-   - Docker Compose setup
-   - Bug fixes and performance tuning
+- **Never modify** existing migration files — create new ones
+- `baseline-on-migrate: true` in all services
 
 ---
 
 ## Debugging Tips
 
-### Backend Service Won't Start
-```bash
-# Check logs
-mvn spring-boot:run 2>&1 | grep -i "error\|exception"
+### "Failed to load leads" / endpoint returns 404 from gateway
+Check both:
+1. API Gateway `application.yml` — does the predicate include the path?
+2. Service `SecurityConfig.java` — is the path in `permitAll()`?
+3. Rebuild Docker: `docker-compose up -d --build api-gateway <service>`
 
-# Common issues:
-# - Port already in use: lsof -i :8081 (or use different port in application.yml)
-# - DB not running: docker-compose up -d postgres
-# - Eureka not available: start eureka-server first
-```
+### Backend service env vars not loading
+Spring Boot does NOT auto-load `.env` files. Load manually in PowerShell session before `mvn spring-boot:run`, or use Docker Compose which reads `.env` automatically.
 
-### Mobile App Not Connecting to Backend
-- Check `X-User-Id` header is sent
-- Check JWT token is in `Authorization: Bearer {token}` header
-- Check API Gateway is running on port 8080
-- Check mobile app is configured with correct API URL (via environment variable)
+### application.yml variable not resolving
+Use `${VAR_NAME:fallback_value}` syntax. Without a fallback, an unset env var crashes the service at startup.
 
-### Flyway Migration Failed
-- Migrations run on startup; clear DB if schema corrupted
-- Avoid modifying existing migration files; create new ones
-- Run migrations manually: `mvn clean install` (forces re-run)
+### Mobile app not connecting
+- Verify `EXPO_PUBLIC_API_URL` matches your machine's IP (not `localhost`)
+- Check API Gateway is running: `curl http://<ip>:8080/auth/health`
+- Ensure `.env` is loaded when running Docker: `docker-compose up` reads `.env` automatically
 
 ---
 
 ## References
 
-- **PROJECT_CONTEXT.md** - Full architecture, database schema, REST examples
-- **Mobile README.md** - Expo-specific setup guide
-- **Spring Boot Docs** - https://spring.io/projects/spring-boot
-- **Expo Docs** - https://docs.expo.dev
-- **Flyway Docs** - https://flywaydb.org
+- **PROJECT_CONTEXT.md** — Full architecture, database schema, REST examples
+- **PROGRESS.md** — Session-by-session change log
+- **Spring Boot Docs** — https://spring.io/projects/spring-boot
+- **Expo Docs** — https://docs.expo.dev
+- **Flyway Docs** — https://flywaydb.org

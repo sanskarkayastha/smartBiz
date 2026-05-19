@@ -21,7 +21,6 @@ export default function InputField({ label, style, ...rest }: Props) {
 const styles = StyleSheet.create({
   wrapper: {
     gap: 6,
-    flex: 1,
   },
   label: {
     fontSize: 13,

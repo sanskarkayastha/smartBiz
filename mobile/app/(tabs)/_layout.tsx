@@ -56,6 +56,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="leads"
+        options={{
+          tabBarLabel: 'Leads',
+          tabBarIcon: ({ color }) => <Ionicons name="funnel-outline" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="ai"
         options={{
           tabBarLabel: 'AI',

@@ -16,7 +16,9 @@ eureka:
 
 app:
   gemini-api-key: ${GEMINI_API_KEY:}
-  gemini-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent
+  gemini-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent
+  inventory-url: ${INVENTORY_SERVICE_URL:http://localhost:8082}
+  sales-url: ${SALES_SERVICE_URL:http://localhost:8084}
 
 logging:
   level:

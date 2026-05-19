@@ -27,7 +27,16 @@
       "Bash(Select-Object -ExpandProperty FullName)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\sanskar\\\\fyp\\\\smartBiz\\\\frontend\" -Recurse -Depth 3 | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\sanskar\\\\fyp\\\\smartBiz\\\\frontend\\\\\", \"\"\\) } | Sort-Object)",
       "PowerShell(head *)",
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "Bash(Select-Object -Property FullName, PSIsContainer)",
+      "Bash(ConvertTo-Json -Depth 100)",
+      "Bash(Out-String)",
+      "Bash(docker-compose up *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :8085)",
+      "Bash(tasklist *)",
+      "Bash(docker-compose logs *)",
+      "Bash(docker-compose ps *)"
     ]
   }
 }

@@ -19,7 +19,7 @@ public class AiController {
     public ResponseEntity<AiQueryResponse> query(
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody AiQueryRequest request) {
-        String response = aiService.answerQuery(userId, request.question());
+        String response = aiService.answerQuery(userId, request.messages());
         return ResponseEntity.ok(new AiQueryResponse(response));
     }
 

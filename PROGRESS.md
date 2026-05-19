@@ -1,4 +1,4 @@
-# SmartBiz Fix Progress
+# SmartBiz — Progress Log
 
 ## Status Legend
 - ✅ Done
@@ -7,186 +7,246 @@
 
 ---
 
-## Batch 1 — Critical Backend Fixes (Gateway Broken)
+## Session 1 — 2026-04-27 — Critical Backend Fixes
+
+### Batch 1 — Gateway & Auth
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
-| 1 | Add `GatewaySecurityConfig.java` to API Gateway | ✅ | NEW FILE: permits all exchanges, disables Spring Security defaults |
+| 1 | Add `GatewaySecurityConfig.java` to API Gateway | ✅ | Permits all exchanges, disables Spring Security defaults |
 | 2 | Exclude `spring-boot-starter-web` from API Gateway pom.xml | ✅ | Added exclusions for tomcat + webmvc |
-| 3 | Add `SessionCreationPolicy.STATELESS` to Auth Service SecurityConfig | ✅ | Added import + config |
-| 4 | Fix CRM `updatePurchaseTotal` — add X-User-Id + user ownership check | ✅ | Controller + Service updated with user scoping |
+| 3 | Add `SessionCreationPolicy.STATELESS` to Auth Service SecurityConfig | ✅ | |
+| 4 | Fix CRM `updatePurchaseTotal` — add X-User-Id + user ownership check | ✅ | Controller + Service updated |
+| 5 | Add CORS `globalcors` block to API Gateway application.yml | ✅ | |
 
-## Batch 2 — API Gateway CORS
-
-| # | Task | Status | Notes |
-|---|------|--------|-------|
-| 5 | Add CORS `globalcors` block to API Gateway application.yml | ✅ | Added spring.cloud.gateway.globalcors config |
-
-## Batch 3 — Mobile Missing Screens (MVP Completion)
+### Batch 2 — Mobile MVP Screens
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
-| 6 | Add Customers tab to mobile app | ✅ | NEW FILE: customers.tsx with list + create modal |
-| 7 | Add Edit + Delete product to Inventory screen | ✅ | Added modal, edit/delete buttons, handlers |
-| 8 | Add Sales History section | ✅ | Added POS/History tabs, history card list |
+| 6 | Add Customers tab to mobile app | ✅ | customers.tsx — list + create modal |
+| 7 | Add Edit + Delete to Inventory screen | ✅ | modal, edit/delete buttons, handlers |
+| 8 | Add Sales History section | ✅ | POS/History tabs, history card list |
 
-## Batch 4 — Infrastructure
-
-| # | Task | Status | Notes |
-|---|------|--------|-------|
-| 9 | Dockerize all Spring Boot services in docker-compose.yml | ✅ | Created docker-compose.yml + 6 Dockerfiles (multi-stage builds) |
-
-## Batch 5 — Backend Completion + Frontend Polish
+### Batch 3 — Infrastructure
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
-| 10 | Add `DELETE /customers/{id}` to CRM service | ✅ | CustomerController + CrmService.deleteCustomer() |
-| 11 | Add `GET /sales/analytics/weekly` to Sales service | ✅ | SalesController + SalesService.getWeeklySummary() + DailyRevenueDTO |
-| 12 | Add `PUT /auth/profile` to Auth service | ✅ | AuthController + UserService.updateProfile() + UpdateProfileRequest DTO |
-| 13 | Customers screen: search + edit + delete | ✅ | Search bar, edit modal, delete with confirm, pull-to-refresh |
-| 14 | Customers service: updateCustomer + deleteCustomer | ✅ | Added PUT /customers/{id} and DELETE /customers/{id} calls |
-| 15 | Sales POS: payment method selector (CASH/CARD/DIGITAL) | ✅ | Toggle buttons in cart, passed to createSale API |
-| 16 | Home: replace hardcoded weekly chart with real API data | ✅ | Calls /sales/analytics/weekly, proportional bar heights, real day labels |
-| 17 | Sales service: getWeeklySummary() + DailyRevenue type | ✅ | Added to mobile/services/sales.ts |
-| 18 | Settings: Edit Profile modal wired to PUT /auth/profile | ✅ | Modal with fullName/phone fields, updates AuthContext on save |
-| 19 | Auth service: updateProfile() | ✅ | Added to mobile/services/auth.ts |
-| 20 | AuthContext: expose updateUser() | ✅ | Updates SecureStore + in-memory user state |
-| 21 | Sales History: pull-to-refresh | ✅ | RefreshControl on FlatList in History tab |
-
-## Batch 7 — Supplier Management + Product Edit/Search
-
-| # | Task | Status | Notes |
-|---|------|--------|-------|
-| 27 | Backend: Flyway V2 migration — `suppliers` table | ✅ | `V2__Add_Suppliers.sql` |
-| 28 | Backend: Supplier entity, DTO, repository | ✅ | `Supplier.java`, `SupplierDTO.java`, `SupplierRepository.java` |
-| 29 | Backend: SupplierService with findOrCreate + update | ✅ | Auto-creates supplier on product create/edit |
-| 30 | Backend: SupplierController (`GET /inventory/suppliers`, `PUT /inventory/suppliers/{id}`) | ✅ | User-scoped |
-| 31 | Backend: Hook supplier auto-create into ProductService | ✅ | createProduct + updateProduct both call findOrCreate |
-| 32 | Mobile: Add `supplier` field to Product type and CreateProductPayload | ✅ | `mobile/services/inventory.ts` |
-| 33 | Mobile: Add supplier input to Add Product screen | ✅ | `mobile/app/add-product.tsx` |
-| 34 | Mobile: Add supplier field to inventory edit modal | ✅ | `mobile/app/(tabs)/inventory.tsx` |
-| 35 | Mobile: New Suppliers tab screen with search + edit modal | ✅ | `mobile/app/(tabs)/suppliers.tsx` |
-| 36 | Mobile: Add Suppliers tab to tab layout | ✅ | `mobile/app/(tabs)/_layout.tsx` |
-| 37 | Web: AddProductModal supports edit mode (PUT /api/products/{id}) | ✅ | `frontend/web/src/components/AddProductModal.tsx` |
-| 38 | Web: Inventory page — edit/delete per row + client-side search | ✅ | `InventoryClient.tsx` + updated `page.tsx` |
-| 39 | Web: New API routes — PUT/DELETE `/api/products/[id]` | ✅ | `frontend/web/src/app/api/products/[id]/route.ts` |
-| 40 | Web: New Suppliers page with balance summary | ✅ | `frontend/web/src/app/dashboard/suppliers/page.tsx` |
-| 41 | Web: EditSupplierModal component | ✅ | `frontend/web/src/components/EditSupplierModal.tsx` |
-| 42 | Web: New API routes — GET/PUT `/api/suppliers` | ✅ | `frontend/web/src/app/api/suppliers/route.ts` + `[id]/route.ts` |
-| 43 | Web: Add Suppliers nav item to Sidebar | ✅ | `frontend/web/src/components/Sidebar.tsx` |
-
-## Batch 6 — Nice-to-Have (Post-MVP)
-
-| # | Task | Status | Notes |
-|---|------|--------|-------|
-| 22 | Externalize JWT secret to env variable | ⬜ | docker-compose.yml has env var, but services still need application-docker.yml |
-| 23 | Implement refresh token flow in mobile | ⬜ | Out of scope for now |
-| 24 | Change Password flow (backend + mobile) | ⬜ | Needs PUT /auth/password endpoint + mobile modal |
-| 25 | Language support (i18n) | ⬜ | Phase 2 |
-| 26 | Push notifications | ⬜ | Phase 2 — Firebase integration |
+| 9 | Dockerize all Spring Boot services | ✅ | docker-compose.yml + 6 Dockerfiles (multi-stage) |
 
 ---
 
-## Session Log
+## Session 2 — 2026-05-03 — Backend Completion + Mobile Polish
 
-### Session 1 — 2026-04-27
-- **Arch Review:** Analyzed mobile app, backend microservices, API Gateway
-- **Root Cause Found:** API Gateway missing Spring Security config — Spring Boot default requires HTTP Basic auth on ALL routes before JWT GlobalFilter runs
-- **Status:** Completed Batch 1-4 (9 of 11 fixes):
-  - ✅ Gateway security config (GatewaySecurityConfig.java)
-  - ✅ Api-gateway pom exclusions
-  - ✅ Auth service stateless session
-  - ✅ CRM user scoping
-  - ✅ CORS config
-  - ✅ Customers mobile screen (new tab)
-  - ✅ Inventory edit/delete UI
-  - ✅ Sales history tab
-  - ✅ Docker infrastructure (compose + 6 Dockerfiles)
-
-### Session 3 — 2026-05-12
-- **Supplier management:** Built end-to-end — backend entity/service/controller, mobile tab, web page
-- **Auto-create flow:** Creating/editing a product with a supplier name auto-creates supplier record
-- **Mobile:** New Suppliers tab (search, balance badge, edit modal); supplier field added to add-product + edit modal
-- **Web:** Inventory page refactored to client component — search, edit (reuses AddProductModal in edit mode), delete; new Suppliers page with total-owed summary; Sidebar updated
-- **Search note:** Mobile inventory search was already working; added search to web inventory page
-
-### Session 2 — 2026-05-03
-- **Full audit:** All 6 MVP services + all mobile screens reviewed
-- **Backend finding:** Route ordering in SalesController is NOT a bug (Spring MVC prefers literal paths over variables)
-- **Status:** Completed Batch 5 (12 items, #10–21):
-  - ✅ CRM DELETE endpoint
-  - ✅ Sales weekly analytics endpoint + DTO
-  - ✅ Auth profile update endpoint + DTO
-  - ✅ Customers: search, edit, delete, pull-to-refresh
-  - ✅ Sales POS: payment method selector + history pull-to-refresh
-  - ✅ Home: real weekly chart data
-  - ✅ Settings: Edit Profile modal
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 10 | Add `DELETE /customers/{id}` to CRM service | ✅ | |
+| 11 | Add `GET /sales/analytics/weekly` to Sales service | ✅ | DailyRevenueDTO added |
+| 12 | Add `PUT /auth/profile` to Auth service | ✅ | UpdateProfileRequest DTO |
+| 13 | Customers screen: search + edit + delete + pull-to-refresh | ✅ | |
+| 14 | Customers service: updateCustomer + deleteCustomer | ✅ | |
+| 15 | Sales POS: payment method selector (CASH/CARD/DIGITAL) | ✅ | |
+| 16 | Home: real weekly chart data from `/sales/analytics/weekly` | ✅ | |
+| 17 | Settings: Edit Profile modal wired to `PUT /auth/profile` | ✅ | |
+| 18 | AuthContext: expose `updateUser()` | ✅ | Updates SecureStore + state |
+| 19 | Sales History: pull-to-refresh | ✅ | |
 
 ---
 
-## Files Changed
+## Session 3 — 2026-05-12 — Supplier Management + Web Dashboard
 
-**Backend — Session 1**
-- ✅ `backend/api-gateway/src/main/java/com/smartbiz/gateway/config/GatewaySecurityConfig.java` (NEW)
-- ✅ `backend/api-gateway/pom.xml` (exclusions)
-- ✅ `backend/api-gateway/src/main/resources/application.yml` (CORS)
-- ✅ `backend/auth-service/src/main/java/com/smartbiz/auth/config/SecurityConfig.java` (stateless)
-- ✅ `backend/crm-service/src/main/java/com/smartbiz/crm/controller/CustomerController.java` (user scoping)
-- ✅ `backend/crm-service/src/main/java/com/smartbiz/crm/service/CrmService.java` (user scoping)
-- ✅ `docker-compose.yml` (expanded)
-- ✅ 6× Dockerfiles (eureka, gateway, auth, inventory, crm, sales)
+### Backend — Inventory Service
 
-**Backend — Session 2**
-- ✅ `backend/crm-service/src/main/java/com/smartbiz/crm/controller/CustomerController.java` (DELETE endpoint)
-- ✅ `backend/crm-service/src/main/java/com/smartbiz/crm/service/CrmService.java` (deleteCustomer)
-- ✅ `backend/sales-service/src/main/java/com/smartbiz/sales/controller/SalesController.java` (weekly analytics)
-- ✅ `backend/sales-service/src/main/java/com/smartbiz/sales/service/SalesService.java` (getWeeklySummary)
-- ✅ `backend/sales-service/src/main/java/com/smartbiz/sales/dto/DailyRevenueDTO.java` (NEW)
-- ✅ `backend/auth-service/src/main/java/com/smartbiz/auth/controller/AuthController.java` (PUT /profile)
-- ✅ `backend/auth-service/src/main/java/com/smartbiz/auth/service/UserService.java` (updateProfile)
-- ✅ `backend/auth-service/src/main/java/com/smartbiz/auth/dto/UpdateProfileRequest.java` (NEW)
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 20 | Flyway V2 migration — `suppliers` table | ✅ | `V2__Add_Suppliers.sql` |
+| 21 | Supplier entity, DTO, repository | ✅ | |
+| 22 | SupplierService with findOrCreate + update | ✅ | Auto-creates on product create/edit |
+| 23 | SupplierController (`GET /inventory/suppliers`, `PUT /inventory/suppliers/{id}`) | ✅ | |
+| 24 | Hook supplier auto-create into ProductService | ✅ | createProduct + updateProduct |
 
-**Mobile — Session 1**
-- ✅ `mobile/app/(tabs)/customers.tsx` (NEW)
-- ✅ `mobile/app/(tabs)/_layout.tsx` (added customers tab)
-- ✅ `mobile/app/(tabs)/inventory.tsx` (edit/delete UI)
-- ✅ `mobile/app/(tabs)/sales.tsx` (history tab)
+### Mobile
 
-**Backend — Session 3**
-- ✅ `backend/inventory-service/src/main/resources/db/migration/V2__Add_Suppliers.sql` (NEW)
-- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/model/Supplier.java` (NEW)
-- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/dto/SupplierDTO.java` (NEW)
-- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/dto/UpdateSupplierRequest.java` (NEW)
-- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/repository/SupplierRepository.java` (NEW)
-- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/service/SupplierService.java` (NEW)
-- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/controller/SupplierController.java` (NEW)
-- ✅ `backend/inventory-service/src/main/java/com/smartbiz/inventory/service/ProductService.java` (supplier hook)
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 25 | Add `supplier` field to Product type + CreateProductPayload | ✅ | |
+| 26 | Add supplier input to Add Product screen | ✅ | |
+| 27 | Add supplier field to inventory edit modal | ✅ | |
+| 28 | New Suppliers tab screen (search + edit modal) | ✅ | |
+| 29 | Add Suppliers tab to `_layout.tsx` | ✅ | |
 
-**Mobile — Session 3**
-- ✅ `mobile/services/inventory.ts` (added supplier to Product + CreateProductPayload types)
-- ✅ `mobile/services/suppliers.ts` (NEW)
-- ✅ `mobile/app/add-product.tsx` (supplier input field)
-- ✅ `mobile/app/(tabs)/inventory.tsx` (supplier field in edit modal)
-- ✅ `mobile/app/(tabs)/suppliers.tsx` (NEW)
-- ✅ `mobile/app/(tabs)/_layout.tsx` (Suppliers tab added)
+### Web Dashboard
 
-**Web — Session 3**
-- ✅ `frontend/web/src/components/AddProductModal.tsx` (edit mode support)
-- ✅ `frontend/web/src/components/EditSupplierModal.tsx` (NEW)
-- ✅ `frontend/web/src/app/dashboard/inventory/page.tsx` (delegates to InventoryClient)
-- ✅ `frontend/web/src/app/dashboard/inventory/InventoryClient.tsx` (NEW — search, edit, delete)
-- ✅ `frontend/web/src/app/dashboard/suppliers/page.tsx` (NEW)
-- ✅ `frontend/web/src/app/api/products/[id]/route.ts` (NEW — PUT/DELETE)
-- ✅ `frontend/web/src/app/api/suppliers/route.ts` (NEW — GET)
-- ✅ `frontend/web/src/app/api/suppliers/[id]/route.ts` (NEW — PUT)
-- ✅ `frontend/web/src/components/Sidebar.tsx` (Suppliers nav item)
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 30 | AddProductModal — edit mode (PUT /api/products/{id}) | ✅ | |
+| 31 | Inventory page — edit/delete per row + search (InventoryClient.tsx) | ✅ | |
+| 32 | API routes — PUT/DELETE `/api/products/[id]` | ✅ | |
+| 33 | New Suppliers page with balance summary | ✅ | |
+| 34 | EditSupplierModal component | ✅ | |
+| 35 | API routes — GET/PUT `/api/suppliers` | ✅ | |
+| 36 | Add Suppliers nav item to Sidebar | ✅ | |
 
-**Mobile — Session 2**
-- ✅ `mobile/services/customers.ts` (updateCustomer, deleteCustomer)
-- ✅ `mobile/services/sales.ts` (getWeeklySummary, DailyRevenue type)
-- ✅ `mobile/services/auth.ts` (updateProfile)
-- ✅ `mobile/contexts/AuthContext.tsx` (updateUser)
-- ✅ `mobile/app/(tabs)/customers.tsx` (search, edit, delete, pull-to-refresh)
-- ✅ `mobile/app/(tabs)/sales.tsx` (payment method selector, history pull-to-refresh)
-- ✅ `mobile/app/(tabs)/index.tsx` (real weekly chart)
-- ✅ `mobile/app/(tabs)/settings.tsx` (Edit Profile modal)
+---
+
+## Session 4 — 2026-05-19 — Lead Tracking + Customer UI Redesign
+
+### CRM Service — Lead Feature (Backend)
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 37 | Flyway V3 migration — `leads` table | ✅ | stage, source, estimated_value, follow_up_date |
+| 38 | `Lead.java` entity | ✅ | Uses LocalDate for followUpDate |
+| 39 | `LeadDTO.java`, `CreateLeadRequest.java`, `UpdateLeadRequest.java` | ✅ | |
+| 40 | `LeadRepository.java` | ✅ | findByUserId, findByIdAndUserId, findByUserIdAndStage |
+| 41 | `LeadService.java` — CRUD + convertToCustomer() | ✅ | convertToCustomer: creates Customer, deletes Lead, @Transactional |
+| 42 | `LeadController.java` — 6 endpoints at `/leads` | ✅ | GET, POST, PUT, DELETE, POST /convert |
+| 43 | `LeadNotFoundException.java` | ✅ | |
+| 44 | Update `GlobalExceptionHandler` to handle LeadNotFoundException | ✅ | Combined handler for both not-found types |
+| 45 | Update `SecurityConfig` — add `/leads/**` to permitAll | ✅ | |
+
+### API Gateway Fix
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 46 | Add `/leads/**` to CRM service route predicate | ✅ | `Path=/customers/**,/leads/**` |
+
+### Mobile — Leads Screen
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 47 | `mobile/services/leads.ts` — full API service | ✅ | getLeads, createLead, updateLead, deleteLead, convertToCustomer |
+| 48 | `mobile/app/(tabs)/leads.tsx` — full leads screen | ✅ | Stage filter tabs, expandable accordion cards, stage stepper arrows, overdue follow-up warning, convert flow |
+| 49 | Add Leads tab to `_layout.tsx` (funnel-outline icon) | ✅ | Between Customers and AI |
+
+### Mobile — Customer Screen Redesign
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 50 | Remove "Total" from collapsed customer card | ✅ | Cleaner card header |
+| 51 | Expandable accordion customer cards | ✅ | LayoutAnimation, one card open at a time |
+| 52 | Expanded view: full details + Edit/History/Delete action buttons | ✅ | |
+| 53 | Purchase History modal | ✅ | Fetches all sales, filters by customerId, shows per-sale rows |
+
+### Bug Fixes
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 54 | Fix `InputField.tsx` — remove `flex: 1` from wrapper | ✅ | Was causing smudged login/register input fields |
+| 55 | Fix `application.yml` (crm-service) — add fallback defaults for env vars | ✅ | `${CRM_DB_URL:jdbc:postgresql://localhost:5432/crm_db}` |
+| 56 | Fix gateway route — `/leads/**` not routed to CRM service | ✅ | Was blocking all lead API calls |
+| 57 | Fix CRM SecurityConfig — `/leads/**` not in permitAll | ✅ | Was returning 401 for lead endpoints |
+
+---
+
+## Session 5 — 2026-05-19 — AI Fix + Multi-Turn Conversation
+
+### AI Service — Backend
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 58 | Create `backend/ai-service/Dockerfile` | ✅ | Was missing — service was never dockerized |
+| 59 | Uncomment & fix `ai-service` in `docker-compose.yml` | ✅ | Was commented out; fixed `OPENAI_API_KEY` → `GEMINI_API_KEY`; added `INVENTORY_SERVICE_URL` + `SALES_SERVICE_URL` env vars; remapped host port to 8887 (8085 was taken) |
+| 60 | Fix `AiService.java` — replace hardcoded `localhost` URLs | ✅ | Now reads from `@Value("${app.inventory-url}")` + `@Value("${app.sales-url}")` — works in both Docker and local |
+| 61 | Add multi-turn conversation to `AiService.java` | ✅ | Builds Gemini `contents` array from full message history; `"ai"` role mapped to `"model"` for Gemini; context injected into first user turn |
+| 62 | Update `AiQueryRequest.java` — accept message list | ✅ | Changed from `String question` to `List<ChatMessage> messages` (nested record) |
+| 63 | Update `application.yml` (ai-service) | ✅ | Added `inventory-url` and `sales-url` with localhost fallbacks for local dev |
+
+### Mobile — AI Screen
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 64 | Fix `KeyboardAvoidingView` for Android | ✅ | Changed `undefined` → `'height'`; added `keyboardShouldPersistTaps="handled"` |
+| 65 | Pass full conversation history in `send()` | ✅ | `queryAi(updatedMessages)` sends all messages including current one |
+| 66 | Update `mobile/services/ai.ts` | ✅ | `queryAi` now accepts `ChatMessage[]`; exported `ChatMessage` type |
+
+---
+
+## Phase 2 Backlog (Post-MVP)
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| B1 | Messaging Service / Unified Inbox | ⬜ | WhatsApp/Instagram Business API |
+| B2 | Firebase push notifications | ⬜ | Low stock alerts, follow-up reminders |
+| B3 | Refresh token flow in mobile | ⬜ | Auto re-login on token expiry |
+| B4 | Change Password endpoint + mobile flow | ⬜ | PUT /auth/password |
+| B5 | Language support (Nepali i18n) | ⬜ | |
+| B6 | Barcode scanning in inventory | ⬜ | Expo Camera integration |
+| B7 | Web dashboard — CRM + Sales pages | ⬜ | |
+| B8 | Web dashboard — Leads pipeline view | ⬜ | Kanban board |
+
+---
+
+## Files Changed — Complete List
+
+### Session 1
+- `backend/api-gateway/src/main/java/com/smartbiz/gateway/config/GatewaySecurityConfig.java` (NEW)
+- `backend/api-gateway/pom.xml`
+- `backend/api-gateway/src/main/resources/application.yml`
+- `backend/auth-service/src/main/java/com/smartbiz/auth/config/SecurityConfig.java`
+- `backend/crm-service/src/main/java/com/smartbiz/crm/controller/CustomerController.java`
+- `backend/crm-service/src/main/java/com/smartbiz/crm/service/CrmService.java`
+- `docker-compose.yml`
+- 6× Dockerfiles (eureka, gateway, auth, inventory, crm, sales)
+
+### Session 2
+- `backend/crm-service/…/controller/CustomerController.java`
+- `backend/crm-service/…/service/CrmService.java`
+- `backend/sales-service/…/controller/SalesController.java`
+- `backend/sales-service/…/service/SalesService.java`
+- `backend/sales-service/…/dto/DailyRevenueDTO.java` (NEW)
+- `backend/auth-service/…/controller/AuthController.java`
+- `backend/auth-service/…/service/UserService.java`
+- `backend/auth-service/…/dto/UpdateProfileRequest.java` (NEW)
+- `mobile/services/customers.ts`
+- `mobile/services/sales.ts`
+- `mobile/services/auth.ts`
+- `mobile/contexts/AuthContext.tsx`
+- `mobile/app/(tabs)/customers.tsx`
+- `mobile/app/(tabs)/sales.tsx`
+- `mobile/app/(tabs)/index.tsx`
+- `mobile/app/(tabs)/settings.tsx`
+
+### Session 3
+- `backend/inventory-service/…/db/migration/V2__Add_Suppliers.sql` (NEW)
+- `backend/inventory-service/…/model/Supplier.java` (NEW)
+- `backend/inventory-service/…/dto/SupplierDTO.java` (NEW)
+- `backend/inventory-service/…/dto/UpdateSupplierRequest.java` (NEW)
+- `backend/inventory-service/…/repository/SupplierRepository.java` (NEW)
+- `backend/inventory-service/…/service/SupplierService.java` (NEW)
+- `backend/inventory-service/…/controller/SupplierController.java` (NEW)
+- `backend/inventory-service/…/service/ProductService.java`
+- `mobile/services/inventory.ts`
+- `mobile/services/suppliers.ts` (NEW)
+- `mobile/app/add-product.tsx`
+- `mobile/app/(tabs)/inventory.tsx`
+- `mobile/app/(tabs)/suppliers.tsx` (NEW)
+- `mobile/app/(tabs)/_layout.tsx`
+- `frontend/web/src/components/AddProductModal.tsx`
+- `frontend/web/src/components/EditSupplierModal.tsx` (NEW)
+- `frontend/web/src/app/dashboard/inventory/page.tsx`
+- `frontend/web/src/app/dashboard/inventory/InventoryClient.tsx` (NEW)
+- `frontend/web/src/app/dashboard/suppliers/page.tsx` (NEW)
+- `frontend/web/src/app/api/products/[id]/route.ts` (NEW)
+- `frontend/web/src/app/api/suppliers/route.ts` (NEW)
+- `frontend/web/src/app/api/suppliers/[id]/route.ts` (NEW)
+- `frontend/web/src/components/Sidebar.tsx`
+
+### Session 4
+- `backend/crm-service/…/db/migration/V3__Create_Leads_Table.sql` (NEW)
+- `backend/crm-service/…/model/Lead.java` (NEW)
+- `backend/crm-service/…/dto/LeadDTO.java` (NEW)
+- `backend/crm-service/…/dto/CreateLeadRequest.java` (NEW)
+- `backend/crm-service/…/dto/UpdateLeadRequest.java` (NEW)
+- `backend/crm-service/…/repository/LeadRepository.java` (NEW)
+- `backend/crm-service/…/service/LeadService.java` (NEW)
+- `backend/crm-service/…/controller/LeadController.java` (NEW)
+- `backend/crm-service/…/exception/LeadNotFoundException.java` (NEW)
+- `backend/crm-service/…/exception/GlobalExceptionHandler.java`
+- `backend/crm-service/…/config/SecurityConfig.java`
+- `backend/crm-service/src/main/resources/application.yml`
+- `backend/api-gateway/src/main/resources/application.yml`
+- `mobile/services/leads.ts` (NEW)
+- `mobile/app/(tabs)/leads.tsx` (NEW)
+- `mobile/app/(tabs)/customers.tsx` (redesigned — expandable cards + history modal)
+- `mobile/app/(tabs)/_layout.tsx`
+- `mobile/components/ui/InputField.tsx`

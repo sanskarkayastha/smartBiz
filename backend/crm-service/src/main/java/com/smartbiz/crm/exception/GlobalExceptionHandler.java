@@ -14,8 +14,8 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ExceptionHandler(CustomerNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleNotFound(CustomerNotFoundException e) {
+    @ExceptionHandler({CustomerNotFoundException.class, LeadNotFoundException.class})
+    public ResponseEntity<Map<String, String>> handleNotFound(RuntimeException e) {
         return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
     }
 
