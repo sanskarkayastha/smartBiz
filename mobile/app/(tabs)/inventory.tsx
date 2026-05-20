@@ -7,7 +7,10 @@ import { Colors } from '@/components/ui/colors';
 import SearchBar from '@/components/ui/SearchBar';
 import FilterTabs from '@/components/ui/FilterTabs';
 import StatusBadge from '@/components/ui/StatusBadge';
+import VoiceButton from '@/components/ui/VoiceButton';
+import InvoiceScanModal from '@/components/ui/InvoiceScanModal';
 import { inventoryService, Product, CreateProductPayload } from '@/services/inventory';
+import { parseVoiceForProducts, ParsedProduct } from '@/services/ai';
 
 type StockStatus = 'In Stock' | 'Low Stock' | 'Out of Stock';
 
@@ -38,6 +41,8 @@ export default function Inventory() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CreateProductPayload>>({});
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [voiceProducts, setVoiceProducts] = useState<ParsedProduct[] | undefined>(undefined);
 
   const hasLoaded = useRef(false);
 
@@ -116,6 +121,16 @@ export default function Inventory() {
     ]);
   };
 
+  const handleVoiceResult = async (text: string) => {
+    try {
+      const parsed = await parseVoiceForProducts(text);
+      setVoiceProducts(parsed.length > 0 ? parsed : [{ name: '', quantity: 1, rate: 0 }]);
+      setShowScanModal(true);
+    } catch {
+      Alert.alert('Error', 'Could not parse voice input. Please try again.');
+    }
+  };
+
   const filtered = products.filter((p) => {
     const status = getStatus(p);
     const term = search.toLowerCase();
@@ -192,9 +207,28 @@ export default function Inventory() {
           />
         )}
 
-      <Pressable style={({ pressed }) => [styles.fab, pressed && { opacity: 0.82 }]} onPress={() => router.push('/add-product')}>
-        <Ionicons name="add" size={28} color={Colors.textOnPrimary} />
-      </Pressable>
+      {/* FAB stack */}
+      <View style={styles.fabStack}>
+        <VoiceButton
+          onResult={handleVoiceResult}
+          size={22}
+          style={styles.fabSecondary}
+          color={Colors.textOnPrimary}
+        />
+        <Pressable style={({ pressed }) => [styles.fabSecondary, pressed && { opacity: 0.82 }]} onPress={() => { setVoiceProducts(undefined); setShowScanModal(true); }}>
+          <Ionicons name="camera-outline" size={22} color={Colors.textOnPrimary} />
+        </Pressable>
+        <Pressable style={({ pressed }) => [styles.fab, pressed && { opacity: 0.82 }]} onPress={() => router.push('/add-product')}>
+          <Ionicons name="add" size={28} color={Colors.textOnPrimary} />
+        </Pressable>
+      </View>
+
+      <InvoiceScanModal
+        visible={showScanModal}
+        onClose={() => { setShowScanModal(false); setVoiceProducts(undefined); }}
+        onSaved={() => load()}
+        initialProducts={voiceProducts}
+      />
 
       <Modal visible={showEditModal} animationType="slide" transparent onRequestClose={() => setShowEditModal(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
@@ -325,7 +359,9 @@ const styles = StyleSheet.create({
   productPrice: { fontSize: 15, fontWeight: '700', color: Colors.primary },
   productCostPrice: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
   productQty: { fontSize: 12, color: Colors.textMuted },
-  fab: { position: 'absolute', bottom: 28, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
+  fabStack: { position: 'absolute', bottom: 28, right: 20, alignItems: 'center', gap: 10 },
+  fab: { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
+  fabSecondary: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', opacity: 0.85, elevation: 4 },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   modalSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 16, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

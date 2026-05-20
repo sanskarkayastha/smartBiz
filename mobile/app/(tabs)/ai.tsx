@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { Colors } from '@/components/ui/colors';
+import VoiceButton from '@/components/ui/VoiceButton';
+import InvoiceScanModal from '@/components/ui/InvoiceScanModal';
 import { queryAi, getDailyInsight, type ChatMessage } from '@/services/ai';
 
 type Message = ChatMessage;
@@ -33,6 +35,7 @@ export default function AiScreen() {
   const [input, setInput] = useState('');
   const [inputKey, setInputKey] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   // Android-only: manually track keyboard height to avoid edge-to-edge KAV issues
@@ -148,6 +151,10 @@ export default function AiScreen() {
 
       {/* Input */}
       <View style={styles.inputRow}>
+        <Pressable style={styles.inputIconBtn} onPress={() => setShowScanModal(true)}>
+          <Ionicons name="camera-outline" size={20} color={Colors.textMuted} />
+        </Pressable>
+        <VoiceButton onResult={(text) => setInput((prev) => prev ? prev + ' ' + text : text)} size={18} />
         <TextInput
           key={inputKey}
           style={styles.input}
@@ -165,6 +172,12 @@ export default function AiScreen() {
           <Ionicons name="send" size={18} color={Colors.textOnPrimary} />
         </Pressable>
       </View>
+
+      <InvoiceScanModal
+        visible={showScanModal}
+        onClose={() => setShowScanModal(false)}
+        onSaved={() => {}}
+      />
     </>
   );
 
@@ -249,6 +262,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.border,
     alignItems: 'flex-end',
+  },
+  inputIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   input: {
     flex: 1,

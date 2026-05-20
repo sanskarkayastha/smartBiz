@@ -18,6 +18,7 @@ export default function Home() {
   const [weeklyData, setWeeklyData] = useState<DailyRevenue[]>([]);
   const [dueCustomers, setDueCustomers] = useState<Customer[]>([]);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -34,7 +35,7 @@ export default function Home() {
       setLowStock(ls);
       setWeeklyData(weekly);
       setDueCustomers(due);
-      getDailyInsight().then(setAiInsight).catch(() => {});
+      // AI insight is loaded on demand (tap) to avoid burning API quota on every open
     } catch {
       setError(true);
     } finally {
@@ -43,6 +44,19 @@ export default function Home() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const fetchInsight = async () => {
+    if (insightLoading) return;
+    setInsightLoading(true);
+    try {
+      const insight = await getDailyInsight();
+      setAiInsight(insight);
+    } catch {
+      setAiInsight('Could not load insight. Please try again.');
+    } finally {
+      setInsightLoading(false);
+    }
+  };
 
   const firstName = user?.fullName?.split(' ')[0] ?? 'there';
   const initials = user?.fullName
@@ -141,16 +155,26 @@ export default function Home() {
         </View>
 
         {/* AI Insight Card */}
-        {aiInsight && (
-          <Pressable style={({ pressed }) => [styles.aiCard, pressed && { opacity: 0.82 }]} onPress={() => router.push('/(tabs)/ai')}>
-            <View style={styles.aiCardHeader}>
-              <Ionicons name="sparkles" size={15} color={Colors.primary} />
-              <Text style={styles.aiCardTitle}>AI Insight</Text>
-            </View>
-            <Text style={styles.aiCardText}>{aiInsight}</Text>
-            <Text style={styles.aiCardCta}>Ask more questions →</Text>
-          </Pressable>
-        )}
+        <Pressable
+          style={({ pressed }) => [styles.aiCard, pressed && { opacity: 0.82 }]}
+          onPress={aiInsight ? () => router.push('/(tabs)/ai') : fetchInsight}
+          disabled={insightLoading}
+        >
+          <View style={styles.aiCardHeader}>
+            <Ionicons name="sparkles" size={15} color={Colors.primary} />
+            <Text style={styles.aiCardTitle}>AI Insight</Text>
+          </View>
+          {insightLoading ? (
+            <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 6 }} />
+          ) : aiInsight ? (
+            <>
+              <Text style={styles.aiCardText}>{aiInsight}</Text>
+              <Text style={styles.aiCardCta}>Ask more questions →</Text>
+            </>
+          ) : (
+            <Text style={styles.aiCardText}>Tap to get today's business insight</Text>
+          )}
+        </Pressable>
 
         {/* Low Stock Alert */}
         {(loading || lowStock.length > 0) && (

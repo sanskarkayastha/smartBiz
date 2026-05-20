@@ -120,10 +120,12 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       INVENTORY_SERVICE_URL: http://inventory-service:8082
       SALES_SERVICE_URL: http://sales-service:8084
+      CRM_SERVICE_URL: http://crm-service:8083
     depends_on:
       - eureka-server
       - inventory-service
       - sales-service
+      - crm-service
     networks:
       - smartbiz-network
 

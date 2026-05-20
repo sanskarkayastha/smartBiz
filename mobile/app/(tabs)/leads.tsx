@@ -17,7 +17,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState, useCallback } from 'react';
 import { Colors } from '@/components/ui/colors';
+import VoiceButton from '@/components/ui/VoiceButton';
 import { leadsService, Lead, LeadStage, LeadSource, CreateLeadPayload } from '@/services/leads';
+import { parseVoiceForLead } from '@/services/ai';
 
 // ─── Stage config ────────────────────────────────────────────────────────────
 
@@ -132,6 +134,26 @@ export default function Leads() {
     setShowModal(true);
   };
 
+  const openVoiceLead = async (text: string) => {
+    try {
+      const parsed = await parseVoiceForLead(text);
+      setEditTarget(null);
+      setForm({
+        name: parsed.name ?? '',
+        phone: parsed.phone ?? '',
+        email: parsed.email ?? '',
+        stage: (parsed.stage as LeadStage) ?? 'NEW',
+        source: (parsed.source as LeadSource) ?? '',
+        estimatedValue: parsed.estimatedValue != null ? String(parsed.estimatedValue) : '',
+        notes: parsed.notes ?? text,
+        followUpDate: parsed.followUpDate ?? '',
+      });
+      setShowModal(true);
+    } catch {
+      Alert.alert('Error', 'Could not parse voice input. Please try again.');
+    }
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) {
       Alert.alert('Validation', 'Lead name is required');
@@ -232,10 +254,13 @@ export default function Leads() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Leads</Text>
-        <Pressable style={styles.addBtn} onPress={openAdd}>
-          <Ionicons name="add" size={20} color={Colors.textOnPrimary} />
-          <Text style={styles.addBtnText}>Add</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <VoiceButton onResult={openVoiceLead} size={18} />
+          <Pressable style={styles.addBtn} onPress={openAdd}>
+            <Ionicons name="add" size={20} color={Colors.textOnPrimary} />
+            <Text style={styles.addBtnText}>Add</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Search */}
@@ -598,6 +623,7 @@ const styles = StyleSheet.create({
 
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingBottom: 8 },
   title: { fontSize: 22, fontWeight: '700', color: Colors.textDark },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
   addBtnText: { color: Colors.textOnPrimary, fontWeight: '600', fontSize: 14 },
 

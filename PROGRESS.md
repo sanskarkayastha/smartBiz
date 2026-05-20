@@ -161,6 +161,37 @@
 
 ---
 
+## Session 6 — 2026-05-19 — Invoice Scanner + Voice Input
+
+### AI Service — Backend
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 67 | `ParsedProduct.java`, `ParsedLead.java` DTOs | ✅ | Shared extraction result types |
+| 68 | `ScanInvoiceRequest/Response.java` DTOs | ✅ | base64 image in, product list out |
+| 69 | `ParseVoiceRequest/Response.java` DTOs | ✅ | text + intent in, lead or products out |
+| 70 | `AiController` — `POST /ai/scan-invoice` endpoint | ✅ | |
+| 71 | `AiController` — `POST /ai/parse-voice` endpoint | ✅ | |
+| 72 | `AiService.scanInvoice()` — Gemini Vision multimodal call | ✅ | inline_data parts format |
+| 73 | `AiService.parseVoice()` — structured JSON extraction for lead/product | ✅ | includes today's date for relative date resolution |
+| 74 | `AiService.callGeminiWithParts()` / `callGeminiTextOnly()` / `callGeminiRaw()` helpers | ✅ | Refactored to share raw call logic |
+| 75 | `AiService.parseProductJson()` / `parseLeadJson()` — Jackson ObjectMapper parsing | ✅ | Strips markdown fences before parse; graceful fallback on error |
+
+### Mobile
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 76 | Install `expo-image-picker` + `expo-speech-recognition` | ✅ | |
+| 77 | Update `app.json` — RECORD_AUDIO permission + expo-speech-recognition plugin + expo-image-picker plugin | ✅ | |
+| 78 | `services/ai.ts` — `ParsedProduct`, `ParsedLead` types + `scanInvoice()`, `parseVoiceForLead()`, `parseVoiceForProducts()` | ✅ | |
+| 79 | `components/ui/VoiceButton.tsx` — reusable mic button with pulse animation | ✅ | Expo Go fallback: text input modal; dev build: native SpeechRecognizer |
+| 80 | `components/ui/InvoiceScanModal.tsx` — 4-step flow: camera → processing → review → save | ✅ | Match detection (green chip) vs new product (amber chip); addRow/deleteRow; stock top-up for matches |
+| 81 | `inventory.tsx` — camera FAB + voice FAB above existing add FAB | ✅ | Voice → parseVoiceForProducts → InvoiceScanModal pre-loaded |
+| 82 | `leads.tsx` — voice button in header | ✅ | Voice → parseVoiceForLead → pre-filled create modal |
+| 83 | `ai.tsx` — camera icon + mic icon in input row | ✅ | Camera opens InvoiceScanModal; mic fills chat input box |
+
+---
+
 ## Phase 2 Backlog (Post-MVP)
 
 | # | Task | Status | Notes |

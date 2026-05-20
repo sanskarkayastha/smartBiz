@@ -1,8 +1,6 @@
 package com.smartbiz.ai.controller;
 
-import com.smartbiz.ai.dto.AiInsightResponse;
-import com.smartbiz.ai.dto.AiQueryRequest;
-import com.smartbiz.ai.dto.AiQueryResponse;
+import com.smartbiz.ai.dto.*;
 import com.smartbiz.ai.service.AiService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,5 +26,19 @@ public class AiController {
             @RequestHeader("X-User-Id") Long userId) {
         String insight = aiService.getDailyInsight(userId);
         return ResponseEntity.ok(new AiInsightResponse(insight));
+    }
+
+    @PostMapping("/scan-invoice")
+    public ResponseEntity<ScanInvoiceResponse> scanInvoice(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestBody ScanInvoiceRequest request) {
+        return ResponseEntity.ok(aiService.scanInvoice(request));
+    }
+
+    @PostMapping("/parse-voice")
+    public ResponseEntity<ParseVoiceResponse> parseVoice(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestBody ParseVoiceRequest request) {
+        return ResponseEntity.ok(aiService.parseVoice(request));
     }
 }
