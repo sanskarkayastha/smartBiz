@@ -1,17 +1,36 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 
+type Customer = { id: number; name: string; phone: string | null; email: string | null; address?: string | null }
 type Form = { name: string; phone: string; email: string; address: string }
 const EMPTY: Form = { name: '', phone: '', email: '', address: '' }
 
-export default function AddCustomerModal() {
-  const router = useRouter()
+type Props = {
+  customer?: Customer
+  onSaved?: () => void
+  trigger?: React.ReactNode
+}
+
+export default function AddCustomerModal({ customer, onSaved, trigger }: Props) {
+  const isEdit = Boolean(customer)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<Form>(EMPTY)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (open && customer) {
+      setForm({
+        name: customer.name,
+        phone: customer.phone ?? '',
+        email: customer.email ?? '',
+        address: customer.address ?? '',
+      })
+    } else if (open && !customer) {
+      setForm(EMPTY)
+    }
+  }, [open, customer])
 
   function set(field: keyof Form) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -24,8 +43,9 @@ export default function AddCustomerModal() {
     setError('')
     setLoading(true)
     try {
-      const res = await fetch('/api/customers', {
-        method: 'POST',
+      const url = isEdit ? `/api/customers/${customer!.id}` : '/api/customers'
+      const res = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name.trim(),
@@ -36,12 +56,11 @@ export default function AddCustomerModal() {
       })
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
-        setError(d.message ?? 'Failed to create customer.')
+        setError(d.message ?? `Failed to ${isEdit ? 'update' : 'create'} customer.`)
         return
       }
-      setForm(EMPTY)
       setOpen(false)
-      router.refresh()
+      onSaved?.()
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -49,22 +68,33 @@ export default function AddCustomerModal() {
     }
   }
 
+  const defaultTrigger = isEdit ? (
+    <button
+      onClick={() => { setOpen(true); setError('') }}
+      className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+    >
+      Edit
+    </button>
+  ) : (
+    <button
+      onClick={() => { setOpen(true); setError('') }}
+      className="flex items-center gap-2 px-4 py-2 bg-[#135BEC] text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Customer
+    </button>
+  )
+
   return (
     <>
-      <button
-        onClick={() => { setOpen(true); setError('') }}
-        className="flex items-center gap-2 px-4 py-2 bg-[#135BEC] text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add Customer
-      </button>
+      <span onClick={() => { setOpen(true); setError('') }}>{trigger ?? defaultTrigger}</span>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-gray-900">Add Customer</h2>
+              <h2 className="text-lg font-bold text-gray-900">{isEdit ? 'Edit Customer' : 'Add Customer'}</h2>
               <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
@@ -99,7 +129,7 @@ export default function AddCustomerModal() {
                   Cancel
                 </button>
                 <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-[#135BEC] text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors">
-                  {loading ? 'Saving…' : 'Save Customer'}
+                  {loading ? 'Saving…' : isEdit ? 'Update Customer' : 'Save Customer'}
                 </button>
               </div>
             </form>

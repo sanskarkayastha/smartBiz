@@ -21,7 +21,7 @@ Mobile-first business management system for small businesses in Nepal.
 | Sales (POS + analytics) | ✅ Live | Atomic stock deduction, weekly chart |
 | CRM — Customers | ✅ Live | Expandable cards, purchase history |
 | CRM — Leads | ✅ Live | 5-stage pipeline, convert to customer |
-| AI Insights | ✅ Live | Gemini API chatbot |
+| AI Insights | ✅ Live | Gemini chatbot + invoice scanner + voice input |
 | Web Dashboard | 🔄 Partial | Inventory + Suppliers only |
 | Messaging / Unified Inbox | ⬜ Phase 2 | WhatsApp/Instagram |
 | Push Notifications | ⬜ Phase 2 | Firebase |
@@ -149,14 +149,14 @@ sale_items (id, sale_id FK, product_id, product_name, quantity, unit_price, subt
 
 ```
 app/(tabs)/
-├── index.tsx       Home       — summary cards + live weekly revenue chart
-├── inventory.tsx   Inventory  — product list, search, add/edit/delete
+├── index.tsx       Home       — summary cards + live weekly revenue chart + tap-to-load AI insight
+├── inventory.tsx   Inventory  — product list, search, add/edit/delete; camera FAB (invoice scan) + voice FAB
 ├── suppliers.tsx   Suppliers  — supplier list, edit, balance badge
 ├── sales.tsx       Sales      — POS cart + payment method + history tab
 ├── customers.tsx   Customers  — expandable accordion cards, purchase history modal
 ├── leads.tsx       Leads      — pipeline with stage filter, expandable cards,
-│                               stage stepper arrows, convert→customer
-├── ai.tsx          AI         — Gemini chatbot
+│                               stage stepper arrows, convert→customer; voice input in header
+├── ai.tsx          AI         — Gemini chatbot + camera (invoice scan) + mic (voice-to-chat)
 └── settings.tsx    Settings   — profile edit (name/phone)
 ```
 
@@ -170,7 +170,18 @@ app/(tabs)/
 | `sales.ts` | createSale, getSales, getDailySummary, getWeeklySummary |
 | `customers.ts` | customers CRUD, getCustomersWithDue |
 | `leads.ts` | leads CRUD, convertToCustomer |
-| `ai.ts` | chat endpoint |
+| `ai.ts` | queryAi (chat), scanInvoice, parseVoiceForLead, parseVoiceForProducts |
+
+### UI Components (`mobile/components/ui/`)
+| File | Purpose |
+|------|---------|
+| `InputField.tsx` | Reusable text input — no `flex:1` on wrapper |
+| `SearchBar.tsx` | Search input |
+| `FilterTabs.tsx` | Horizontal filter tab strip |
+| `StatusBadge.tsx` | Colored status chip |
+| `VoiceButton.tsx` | Mic button with pulse animation; native SpeechRecognizer in dev build, text fallback in Expo Go |
+| `InvoiceScanModal.tsx` | 4-step: camera → processing → review list → save; match detection against existing products |
+| `colors.ts` | Design tokens |
 
 ---
 
@@ -235,9 +246,23 @@ POST   /leads/{id}/convert    Convert WON lead → Customer record, delete lead
 
 ### AI Query Flow
 1. User sends message in AI tab
-2. `POST /ai/chat` → AI Service → Gemini API
-3. AI Service optionally queries Sales Service for context data
-4. Returns natural language response to mobile
+2. `POST /ai/query` → AI Service → Gemini API (`gemini-2.5-flash-lite`)
+3. AI Service builds context from 5 sources: today's sales, weekly sales, low stock, inventory value, customer overdue
+4. Context injected as formatted text into first user message; full conversation history sent for multi-turn
+5. Returns structured natural language response with bullet points and NPR figures
+
+### Invoice Scan Flow
+1. User taps camera FAB in inventory tab → `InvoiceScanModal` → camera/gallery picker
+2. Base64 image + `POST /ai/scan-invoice` → Gemini Vision extracts product list
+3. User reviews/edits detected products; matches highlighted against existing inventory
+4. Save: matched products get stock top-up; new products are created
+
+### Voice Input Flow
+1. User taps mic (VoiceButton) on inventory/leads/AI tab
+2. Dev build: native `ExpoSpeechRecognitionModule` → transcribed text
+3. Expo Go fallback: text input modal
+4. Text sent to `POST /ai/parse-voice` with intent (`product` or `lead`) → structured JSON extracted by Gemini
+5. Pre-fills create modal (leads) or InvoiceScanModal review step (inventory)
 
 ---
 

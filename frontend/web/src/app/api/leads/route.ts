@@ -5,7 +5,7 @@ export async function GET() {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const res = await fetch(`${process.env.API_GATEWAY_URL}/customers`, {
+  const res = await fetch(`${process.env.API_GATEWAY_URL}/leads`, {
     headers: {
       Authorization: `Bearer ${session.token}`,
       'X-User-Id': String(session.userId),
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const res = await fetch(`${process.env.API_GATEWAY_URL}/customers`, {
+  const res = await fetch(`${process.env.API_GATEWAY_URL}/leads`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${session.token}`,

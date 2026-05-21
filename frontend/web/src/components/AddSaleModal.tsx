@@ -1,11 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 type Product = { id: number; name: string; price: number; quantity: number }
-type PaymentMethod = 'CASH' | 'CARD' | 'DIGITAL'
+type PaymentMethod = 'CASH' | 'CARD' | 'DIGITAL' | 'DUE'
 type CartItem = { product: Product; quantity: number; unitPrice: number }
+type CustomerSuggestion = { id: number; name: string; phone: string | null }
+
+const PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'CARD', 'DIGITAL', 'DUE']
 
 export default function AddSaleModal({ products }: { products: Product[] }) {
   const router = useRouter()
@@ -13,12 +16,48 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
   const [cart, setCart] = useState<CartItem[]>([])
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH')
   const [search, setSearch] = useState('')
+  const [customerSearch, setCustomerSearch] = useState('')
+  const [customerSuggestions, setCustomerSuggestions] = useState<CustomerSuggestion[]>([])
+  const [selectedCustomerName, setSelectedCustomerName] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const customerRef = useRef<HTMLDivElement>(null)
 
   const filtered = products.filter(
     (p) => p.quantity > 0 && p.name.toLowerCase().includes(search.toLowerCase())
   )
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (customerRef.current && !customerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  useEffect(() => {
+    if (customerSearch.trim().length < 1) {
+      setCustomerSuggestions([])
+      return
+    }
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/customers')
+        const customers: CustomerSuggestion[] = await res.json()
+        const q = customerSearch.toLowerCase()
+        setCustomerSuggestions(
+          customers.filter((c) => c.name.toLowerCase().includes(q) || (c.phone ?? '').includes(q)).slice(0, 4)
+        )
+      } catch {
+        setCustomerSuggestions([])
+      }
+    }, 250)
+    return () => clearTimeout(timeout)
+  }, [customerSearch])
 
   function addToCart(product: Product) {
     setCart((prev) => {
@@ -55,14 +94,22 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
     setCart([])
     setSearch('')
     setPaymentMethod('CASH')
+    setCustomerSearch('')
+    setSelectedCustomerName('')
+    setCustomerSuggestions([])
     setError('')
     setOpen(true)
   }
 
   async function handleSubmit() {
     if (cart.length === 0) { setError('Add at least one item.'); return }
+    if (paymentMethod === 'DUE' && !selectedCustomerName.trim() && !customerSearch.trim()) {
+      setError('Customer name is required for DUE payment.')
+      return
+    }
     setError('')
     setLoading(true)
+    const customerName = selectedCustomerName.trim() || customerSearch.trim() || undefined
     try {
       const res = await fetch('/api/sales', {
         method: 'POST',
@@ -74,6 +121,7 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
             unitPrice: i.unitPrice,
           })),
           paymentMethod,
+          customerName: customerName || null,
         }),
       })
       if (!res.ok) {
@@ -105,7 +153,7 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh]">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
               <h2 className="text-lg font-bold text-gray-900">New Sale</h2>
               <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -115,7 +163,7 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
             <div className="flex flex-1 overflow-hidden">
               {/* Product picker */}
               <div className="flex-1 flex flex-col border-r border-gray-100 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-50">
+                <div className="px-4 py-3 border-b border-gray-50 shrink-0">
                   <input
                     type="text"
                     placeholder="Search products…"
@@ -137,7 +185,7 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
                             <p className="text-xs text-gray-400">NPR {Number(p.price).toLocaleString()} · {p.quantity} in stock</p>
                           </div>
                           <div className="flex items-center gap-2 shrink-0 ml-3">
-                            {inCart ? (
+                            {inCart && (
                               <>
                                 <button
                                   onClick={() => updateQty(p.id, -1)}
@@ -147,7 +195,7 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
                                 </button>
                                 <span className="w-6 text-center text-sm font-semibold text-gray-900">{inCart.quantity}</span>
                               </>
-                            ) : null}
+                            )}
                             <button
                               onClick={() => addToCart(p)}
                               className="w-7 h-7 rounded-lg bg-[#135BEC] flex items-center justify-center text-white hover:bg-blue-700 transition-colors"
@@ -163,9 +211,9 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
               </div>
 
               {/* Cart + Summary */}
-              <div className="w-64 flex flex-col px-4 py-4 gap-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Cart</p>
-                <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+              <div className="w-64 flex flex-col px-4 py-4 gap-3 overflow-y-auto">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">Cart</p>
+                <div className="flex-1 space-y-2 min-h-0">
                   {cart.length === 0 ? (
                     <p className="text-xs text-gray-400 pt-4 text-center">No items yet</p>
                   ) : (
@@ -205,22 +253,67 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
                   )}
                 </div>
 
-                <div className="border-t border-gray-100 pt-3 space-y-3">
+                <div className="border-t border-gray-100 pt-3 space-y-3 shrink-0">
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-500">Total</span>
                     <span className="text-base font-bold text-gray-900">NPR {total.toLocaleString()}</span>
                   </div>
 
+                  {/* Customer (optional) */}
+                  <div ref={customerRef} className="relative">
+                    <p className="text-xs font-semibold text-gray-500 mb-1">
+                      Customer {paymentMethod === 'DUE' ? <span className="text-red-500">*</span> : <span className="text-gray-300">(optional)</span>}
+                    </p>
+                    {selectedCustomerName ? (
+                      <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-2 py-1.5">
+                        <span className="text-xs text-gray-800 flex-1 truncate">{selectedCustomerName}</span>
+                        <button
+                          onClick={() => { setSelectedCustomerName(''); setCustomerSearch('') }}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={customerSearch}
+                        onChange={(e) => { setCustomerSearch(e.target.value); setShowSuggestions(true) }}
+                        onFocus={() => setShowSuggestions(true)}
+                        placeholder="Search or type name…"
+                        className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#135BEC]"
+                      />
+                    )}
+                    {showSuggestions && customerSuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                        {customerSuggestions.map((c) => (
+                          <button
+                            key={c.id}
+                            onClick={() => { setSelectedCustomerName(c.name); setCustomerSearch(c.name); setShowSuggestions(false) }}
+                            className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                          >
+                            <span className="font-medium text-gray-800">{c.name}</span>
+                            {c.phone && <span className="text-gray-400 ml-1">{c.phone}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div>
                     <p className="text-xs font-semibold text-gray-500 mb-1.5">Payment</p>
-                    <div className="grid grid-cols-3 gap-1">
-                      {(['CASH', 'CARD', 'DIGITAL'] as PaymentMethod[]).map((m) => (
+                    <div className="grid grid-cols-2 gap-1">
+                      {PAYMENT_METHODS.map((m) => (
                         <button
                           key={m}
                           onClick={() => setPaymentMethod(m)}
                           className={`py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                             paymentMethod === m
-                              ? 'bg-[#135BEC] text-white border-[#135BEC]'
+                              ? m === 'DUE'
+                                ? 'bg-red-500 text-white border-red-500'
+                                : 'bg-[#135BEC] text-white border-[#135BEC]'
+                              : m === 'DUE'
+                              ? 'border-red-200 text-red-600 hover:bg-red-50'
                               : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                           }`}
                         >
@@ -228,6 +321,9 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
                         </button>
                       ))}
                     </div>
+                    {paymentMethod === 'DUE' && (
+                      <p className="text-xs text-red-500 mt-1">Customer required for DUE payment</p>
+                    )}
                   </div>
 
                   {error && <p className="text-xs text-red-600 bg-red-50 px-2 py-1.5 rounded-lg">{error}</p>}

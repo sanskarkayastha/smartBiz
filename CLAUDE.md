@@ -30,7 +30,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Sales (POS + analytics) | ✅ | ✅ | — |
 | Customers (CRM) | ✅ | ✅ | — |
 | Leads (pipeline tracking) | ✅ | ✅ | — |
-| AI Insights | ✅ (Gemini) | ✅ | — |
+| AI Insights + Voice + Scanner | ✅ (Gemini) | ✅ | — |
 | Messaging | Phase 2 | — | — |
 
 ---
@@ -124,13 +124,13 @@ smartbiz/
 ├── mobile/                     # Expo/React Native app
 │   ├── app/
 │   │   ├── (tabs)/
-│   │   │   ├── index.tsx       # Home — real weekly chart
-│   │   │   ├── inventory.tsx   # Inventory CRUD + edit/delete
+│   │   │   ├── index.tsx       # Home — weekly chart + tap-to-load AI insight
+│   │   │   ├── inventory.tsx   # Inventory CRUD + camera FAB (invoice scan) + voice FAB
 │   │   │   ├── suppliers.tsx   # Supplier list + edit
 │   │   │   ├── sales.tsx       # POS + history tabs
 │   │   │   ├── customers.tsx   # Expandable customer cards + history
-│   │   │   ├── leads.tsx       # Lead pipeline (NEW)
-│   │   │   ├── ai.tsx          # AI chatbot
+│   │   │   ├── leads.tsx       # Lead pipeline + voice input in header
+│   │   │   ├── ai.tsx          # AI chatbot + camera + mic icons
 │   │   │   ├── settings.tsx    # Profile edit
 │   │   │   └── _layout.tsx     # 8-tab navigator
 │   │   ├── onboarding.tsx      # Landing page
@@ -139,11 +139,13 @@ smartbiz/
 │   │   └── add-product.tsx     # Add product screen
 │   ├── components/
 │   │   └── ui/
-│   │       ├── InputField.tsx  # Reusable text input (no flex:1 on wrapper)
+│   │       ├── InputField.tsx      # Reusable text input (no flex:1 on wrapper)
 │   │       ├── SearchBar.tsx
 │   │       ├── FilterTabs.tsx
 │   │       ├── StatusBadge.tsx
-│   │       └── colors.ts       # Design tokens
+│   │       ├── VoiceButton.tsx     # Mic button; native SpeechRecognizer or text fallback
+│   │       ├── InvoiceScanModal.tsx # Camera → AI parse → review → save flow
+│   │       └── colors.ts           # Design tokens
 │   ├── services/               # API service layer
 │   │   ├── api.ts              # Axios base (base URL + JWT interceptor)
 │   │   ├── auth.ts
@@ -151,8 +153,8 @@ smartbiz/
 │   │   ├── suppliers.ts
 │   │   ├── sales.ts
 │   │   ├── customers.ts
-│   │   ├── leads.ts            # NEW — Lead CRUD + convertToCustomer
-│   │   └── ai.ts
+│   │   ├── leads.ts            # Lead CRUD + convertToCustomer
+│   │   └── ai.ts               # queryAi, scanInvoice, parseVoiceForLead, parseVoiceForProducts
 │   ├── contexts/
 │   │   └── AuthContext.tsx
 │   └── package.json
@@ -182,13 +184,13 @@ npx expo start
 
 ### Tab Navigation (8 tabs)
 `app/(tabs)/_layout.tsx` defines all tabs in order:
-1. Home (`index`) — dashboard + weekly revenue chart
-2. Inventory — product list, add/edit/delete, search
+1. Home (`index`) — dashboard + weekly revenue chart + tap-to-load AI insight card
+2. Inventory — product list, add/edit/delete, search; camera FAB (invoice scan) + voice FAB
 3. Suppliers — supplier list, edit, balance badge
 4. Sales — POS cart + history tab
 5. Customers — expandable accordion cards, purchase history modal
-6. Leads — pipeline with stage filter tabs, expandable cards, stage stepper
-7. AI — Gemini chatbot
+6. Leads — pipeline with stage filter tabs, expandable cards, stage stepper; voice button in header
+7. AI — Gemini chatbot; camera icon (invoice scan) + mic icon (voice-to-chat) in input row
 8. Settings — profile edit
 
 ### API Base URL
@@ -401,6 +403,19 @@ Use `${VAR_NAME:fallback_value}` syntax. Without a fallback, an unset env var cr
 - Verify `EXPO_PUBLIC_API_URL` matches your machine's IP (not `localhost`)
 - Check API Gateway is running: `curl http://<ip>:8080/auth/health`
 - Ensure `.env` is loaded when running Docker: `docker-compose up` reads `.env` automatically
+
+### Gemini 429 "Rate limit reached" from Nepal
+- Gemini 2.0 models (`gemini-2.0-flash-lite`, etc.) have `limit: 0` for Nepal free tier — they are permanently blocked regardless of quota remaining
+- **Fix:** Use `gemini-2.5-flash-lite` (set in `app.gemini-url` in `application.yml`)
+- If 429 persists: verify the GEMINI_API_KEY in root `.env` (Docker reads root `.env`, not `backend/.env`)
+- Check active key inside container: `docker exec smartbiz-ai env | grep GEMINI`
+- API keys in the same GCP project share quota — use a key from a different GCP project if hitting limits
+
+### Voice input "requires development build"
+- `expo-speech-recognition` is a native module — it cannot run in Expo Go
+- Android dev build: `cd mobile && npx expo run:android` (USB-connected device, USB debugging on)
+- iOS dev build: `eas build --platform ios --profile development` (requires EAS account; Xcode not needed on Windows)
+- `VoiceButton.tsx` already has a text input fallback for Expo Go — voice still "works" via typing
 
 ---
 

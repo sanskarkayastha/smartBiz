@@ -192,6 +192,85 @@
 
 ---
 
+## Session 7 — 2026-05-21 — AI Quality Improvements + API Spam Fix
+
+### AI Service — Backend
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 84 | Switch Gemini model to `gemini-2.5-flash-lite` | ✅ | 2.0 models have `limit:0` from Nepal; 2.5 models work without billing |
+| 85 | Rewrite `buildContext()` — 5 human-readable context sources | ✅ | Today's sales, weekly sales breakdown, low stock, inventory total value, customer overdue summary |
+| 86 | New system prompt — remove 3-sentence cap, add bullet-point guidance | ✅ | Structured, practical answers; NPR currency; handles [unavailable] gracefully |
+| 87 | Add CRM context source to AI service | ✅ | New `@Value crmBase` field; fetches `/customers` for overdue payment summary |
+| 88 | Update `application.yml` (ai-service) — add `crm-url` | ✅ | `${CRM_SERVICE_URL:http://localhost:8083}` |
+| 89 | Update `docker-compose.yml` — add `CRM_SERVICE_URL` env var + `crm-service` dependency to ai-service | ✅ | |
+
+### Mobile — Home Tab
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 90 | Remove auto-`getDailyInsight()` on Home tab mount | ✅ | Was spamming Gemini API on every tab navigation and Docker rebuild |
+| 91 | Add tap-to-load insight flow with spinner | ✅ | Shows "Tap to get today's business insight" → spinner → result + "Ask more questions →" |
+
+---
+
+## Session 8 — 2026-05-21 — Web Dashboard Feature Parity
+
+### Phase A — Fix AI Waste + API Mismatch
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 92 | Remove auto `/ai/insights` call from overview server component | ✅ | Was calling Gemini on every page render |
+| 93 | Fix `AiInsightCard` — remove `initialInsight` prop, fix payload to `{ messages: [...] }` | ✅ | Was sending `{ question }` but backend expects `{ messages }` array |
+
+### Phase B — Customers Enhancement
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 94 | Create `CustomersClient.tsx` — search, edit, delete, purchase history modal | ✅ | Filters sales client-side by customerId |
+| 95 | Create `/api/customers/[id]/route.ts` — PUT + DELETE | ✅ | |
+| 96 | Add `GET` handler to `/api/customers/route.ts` | ✅ | Needed for AddSaleModal customer search |
+| 97 | Update `AddCustomerModal` — edit mode support (PUT + pre-fill) | ✅ | Accepts optional `customer` + `onSaved` props |
+| 98 | Update `customers/page.tsx` — fetch sales + use CustomersClient | ✅ | Sales fetched server-side, passed to client |
+
+### Phase C — Leads Page (New)
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 99 | Create `/api/leads/route.ts` — GET + POST | ✅ | |
+| 100 | Create `/api/leads/[id]/route.ts` — PUT + DELETE | ✅ | |
+| 101 | Create `/api/leads/[id]/convert/route.ts` — POST | ✅ | |
+| 102 | Create `AddLeadModal.tsx` — add + edit, all fields, stage/source chips | ✅ | |
+| 103 | Create `LeadsClient.tsx` — stage filter tabs, expandable cards, stage stepper, convert | ✅ | Overdue follow-up warning; convert only shown for WON leads |
+| 104 | Create `leads/page.tsx` — server component, initial fetch | ✅ | |
+
+### Phase D — AI Chat Page (New)
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 105 | Create `/api/ai/scan-invoice/route.ts` | ✅ | Forwards base64 image to AI service |
+| 106 | Create `dashboard/ai/page.tsx` — full chat UI | ✅ | Quick prompts, conversation history, file upload for invoice scan, no auto AI calls |
+| 107 | Create `/api/products/route.ts` GET handler | ✅ | Needed by AI page for product match detection |
+| 108 | Create `/api/products/[id]/stock/route.ts` — PUT | ✅ | Needed by AI page to top-up matched product stock |
+
+### Phase E — Settings Page (New)
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 109 | Create `/api/auth/profile/route.ts` — PUT | ✅ | Updates session cookie with new fullName |
+| 110 | Create `/api/auth/me/route.ts` — GET | ✅ | Returns session data + phone from backend profile |
+| 111 | Create `dashboard/settings/page.tsx` — profile display + inline edit form | ✅ | |
+
+### Phase F — Sales + Sidebar
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 112 | Update `AddSaleModal` — add DUE payment type + optional customer search dropdown | ✅ | Auto-suggests from existing customers; DUE shown in red |
+| 113 | Update `sales/page.tsx` — add DUE to payment labels + styled DUE badge | ✅ | |
+| 114 | Update `Sidebar.tsx` — add Leads, AI Assistant, Settings nav entries | ✅ | |
+
+---
+
 ## Phase 2 Backlog (Post-MVP)
 
 | # | Task | Status | Notes |
@@ -202,8 +281,6 @@
 | B4 | Change Password endpoint + mobile flow | ⬜ | PUT /auth/password |
 | B5 | Language support (Nepali i18n) | ⬜ | |
 | B6 | Barcode scanning in inventory | ⬜ | Expo Camera integration |
-| B7 | Web dashboard — CRM + Sales pages | ⬜ | |
-| B8 | Web dashboard — Leads pipeline view | ⬜ | Kanban board |
 
 ---
 

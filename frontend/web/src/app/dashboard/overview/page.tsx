@@ -19,11 +19,10 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
 export default async function OverviewPage() {
   const session = await requireSession()
 
-  const [summary, lowStock, weekly, aiData, dueCustomers] = await Promise.all([
+  const [summary, lowStock, weekly, dueCustomers] = await Promise.all([
     apiFetch<SaleSummary>('/sales/analytics/today', session),
     apiFetch<Product[]>('/inventory/products/low-stock', session),
     apiFetch<DailyRevenue[]>('/sales/analytics/weekly', session),
-    apiFetch<{ insight: string }>('/ai/insights', session).catch(() => null),
     apiFetch<Customer[]>('/customers/with-due', session).catch(() => null),
   ])
 
@@ -55,7 +54,7 @@ export default async function OverviewPage() {
         />
       </div>
 
-      <AiInsightCard initialInsight={aiData?.insight ?? null} />
+      <AiInsightCard />
 
       <div className="grid grid-cols-2 gap-6">
         {/* Weekly Chart */}

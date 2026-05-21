@@ -12,7 +12,7 @@ type Sale = {
 }
 type Product = { id: number; name: string; price: number; quantity: number }
 
-const PAYMENT_LABELS: Record<string, string> = { CASH: 'Cash', CARD: 'Card', DIGITAL: 'Digital' }
+const PAYMENT_LABELS: Record<string, string> = { CASH: 'Cash', CARD: 'Card', DIGITAL: 'Digital', DUE: 'Due' }
 
 export default async function SalesPage() {
   const session = await requireSession()
@@ -62,7 +62,15 @@ export default async function SalesPage() {
                     <p className="text-gray-700">{s.items?.[0]?.productName ?? '—'}</p>
                     {s.items?.length > 1 && <p className="text-xs text-gray-400">+{s.items.length - 1} more</p>}
                   </td>
-                  <td className="px-5 py-3 text-gray-600">{PAYMENT_LABELS[s.paymentMethod] ?? s.paymentMethod}</td>
+                  <td className="px-5 py-3">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      s.paymentMethod === 'DUE'
+                        ? 'bg-red-50 text-red-600'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {PAYMENT_LABELS[s.paymentMethod] ?? s.paymentMethod}
+                    </span>
+                  </td>
                   <td className="px-5 py-3 text-right font-semibold text-gray-900">
                     NPR {Number(s.totalAmount).toLocaleString()}
                   </td>
