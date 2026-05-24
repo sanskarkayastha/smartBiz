@@ -22,7 +22,8 @@ Mobile-first business management system for small businesses in Nepal.
 | CRM — Customers | ✅ Live | Expandable cards, purchase history |
 | CRM — Leads | ✅ Live | 5-stage pipeline, convert to customer |
 | AI Insights | ✅ Live | Gemini chatbot + invoice scanner + voice input |
-| Web Dashboard | 🔄 Partial | Inventory + Suppliers only |
+| Pagination + Redis Caching | ✅ Live | Backend: Spring Cache + Redis; Mobile: Load More; Web: Prev/Next |
+| Web Dashboard | ✅ Live | All 6 features: inventory, suppliers, sales, customers, leads, AI chat |
 | Messaging / Unified Inbox | ⬜ Phase 2 | WhatsApp/Instagram |
 | Push Notifications | ⬜ Phase 2 | Firebase |
 
@@ -245,17 +246,19 @@ POST   /leads/{id}/convert    Convert WON lead → Customer record, delete lead
 4. Mobile removes lead from list, shows success alert
 
 ### AI Query Flow
-1. User sends message in AI tab
-2. `POST /ai/query` → AI Service → Gemini API (`gemini-2.5-flash-lite`)
+1. User sends message in AI tab (optionally with image or Excel attachment)
+2. `POST /ai/query` → AI Service → Gemini API (`gemini-2.5-flash`)
 3. AI Service builds context from 5 sources: today's sales, weekly sales, low stock, inventory value, customer overdue
 4. Context injected as formatted text into first user message; full conversation history sent for multi-turn
-5. Returns structured natural language response with bullet points and NPR figures
+5. If attachment present: vision call (image) or text injection (Excel/CSV) with PRODUCTS_JSON delimiter
+6. Returns conversational text + optional structured product list (with inferred categories)
+7. When products returned: review panel opens (web) or InvoiceScanModal pre-loaded (mobile) for edit → save
 
 ### Invoice Scan Flow
 1. User taps camera FAB in inventory tab → `InvoiceScanModal` → camera/gallery picker
-2. Base64 image + `POST /ai/scan-invoice` → Gemini Vision extracts product list
-3. User reviews/edits detected products; matches highlighted against existing inventory
-4. Save: matched products get stock top-up; new products are created
+2. Base64 image + `POST /ai/scan-invoice` → Gemini Vision extracts product list with inferred categories
+3. User reviews/edits detected products and categories; matches highlighted against existing inventory
+4. Save: matched products get stock top-up; new products are created with category
 
 ### Voice Input Flow
 1. User taps mic (VoiceButton) on inventory/leads/AI tab
@@ -337,7 +340,7 @@ smartbiz/
 │   ├── components/ui/
 │   ├── services/                 # API service layer
 │   └── contexts/AuthContext.tsx
-└── frontend/web/                 # Next.js web dashboard (partial)
+└── frontend/web/                 # Next.js web dashboard (full feature parity)
 ```
 
 ---

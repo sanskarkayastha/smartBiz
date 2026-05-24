@@ -1,3 +1,5 @@
 package com.smartbiz.ai.dto;
 
-public record AiQueryResponse(String response) {}
+import java.util.List;
+
+public record AiQueryResponse(String response, List<ParsedProduct> products) {}

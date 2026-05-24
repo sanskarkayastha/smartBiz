@@ -85,6 +85,9 @@ export default function Leads() {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<LeadStage | 'ALL'>('ALL');
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Lead | null>(null);
@@ -94,8 +97,10 @@ export default function Leads() {
   const load = useCallback(async () => {
     setError(false);
     try {
-      const data = await leadsService.getLeads();
-      setLeads(data);
+      const data = await leadsService.getLeads(0, 20);
+      setLeads(data.content);
+      setCurrentPage(0);
+      setHasNext(data.hasNext);
     } catch {
       setError(true);
     } finally {
@@ -103,6 +108,22 @@ export default function Leads() {
       setRefreshing(false);
     }
   }, []);
+
+  const loadMore = async () => {
+    if (!hasNext || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const data = await leadsService.getLeads(nextPage, 20);
+      setLeads((prev) => [...prev, ...data.content]);
+      setCurrentPage(nextPage);
+      setHasNext(data.hasNext);
+    } catch {
+      // silently fail; user can tap again
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -172,13 +193,12 @@ export default function Leads() {
         followUpDate: form.followUpDate.trim() || undefined,
       };
       if (editTarget) {
-        const updated = await leadsService.updateLead(editTarget.id, payload);
-        setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+        await leadsService.updateLead(editTarget.id, payload);
       } else {
-        const created = await leadsService.createLead(payload as CreateLeadPayload);
-        setLeads((prev) => [created, ...prev]);
+        await leadsService.createLead(payload as CreateLeadPayload);
       }
       setShowModal(false);
+      load();
     } catch {
       Alert.alert('Error', `Failed to ${editTarget ? 'update' : 'create'} lead.`);
     } finally {
@@ -194,8 +214,8 @@ export default function Leads() {
         onPress: async () => {
           try {
             await leadsService.deleteLead(l.id);
-            setLeads((prev) => prev.filter((x) => x.id !== l.id));
             if (expandedId === l.id) setExpandedId(null);
+            load();
           } catch {
             Alert.alert('Error', 'Failed to delete lead.');
           }
@@ -229,8 +249,8 @@ export default function Leads() {
           onPress: async () => {
             try {
               await leadsService.convertToCustomer(l.id);
-              setLeads((prev) => prev.filter((x) => x.id !== l.id));
               if (expandedId === l.id) setExpandedId(null);
+              load();
               Alert.alert('Success', `${l.name} has been added as a customer.`);
             } catch {
               Alert.alert('Error', 'Failed to convert lead.');
@@ -489,6 +509,13 @@ export default function Leads() {
               );
             })
           )}
+          {hasNext && (
+            <Pressable style={styles.loadMoreBtn} onPress={loadMore} disabled={loadingMore}>
+              {loadingMore
+                ? <ActivityIndicator color={Colors.primary} size="small" />
+                : <Text style={styles.loadMoreText}>Load More</Text>}
+            </Pressable>
+          )}
         </ScrollView>
       )}
 
@@ -699,4 +726,6 @@ const styles = StyleSheet.create({
   pickerChipText: { fontSize: 13, fontWeight: '500', color: Colors.textMuted },
   saveBtn: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
   saveBtnText: { color: Colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
+  loadMoreBtn: { alignItems: 'center', paddingVertical: 16 },
+  loadMoreText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
 });

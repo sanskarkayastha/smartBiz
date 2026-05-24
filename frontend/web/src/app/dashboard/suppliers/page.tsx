@@ -2,6 +2,9 @@ import { requireSession, apiFetch } from '@/src/lib/session'
 import EditSupplierModal from '@/src/components/EditSupplierModal'
 import CreateSupplierModal from '@/src/components/CreateSupplierModal'
 import ViewSupplierProductsModal from '@/src/components/ViewSupplierProductsModal'
+import Pagination from '@/src/components/Pagination'
+
+const PAGE_SIZE = 15
 
 type Supplier = {
   id: number
@@ -13,11 +16,24 @@ type Supplier = {
   createdAt: string
 }
 
-export default async function SuppliersPage() {
+export default async function SuppliersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>
+}) {
   const session = await requireSession()
-  const suppliers = await apiFetch<Supplier[]>('/inventory/suppliers', session)
+  const { page: pageParam } = await searchParams
+  const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0)
 
-  const totalOwed = (suppliers ?? []).reduce((sum, s) => sum + Number(s.balanceOwed), 0)
+  const data = await apiFetch<{ content: Supplier[]; totalPages: number; totalElements: number }>(
+    `/inventory/suppliers?page=${page}&size=${PAGE_SIZE}`,
+    session
+  )
+  const suppliers = data?.content ?? []
+  const totalPages = data?.totalPages ?? 1
+  const totalElements = data?.totalElements ?? 0
+
+  const totalOwed = suppliers.reduce((sum, s) => sum + Number(s.balanceOwed), 0)
 
   return (
     <div className="space-y-6">
@@ -25,7 +41,7 @@ export default async function SuppliersPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Suppliers</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {suppliers?.length ?? 0} suppliers · Total owed: NPR {totalOwed.toLocaleString()}
+            {suppliers.length} suppliers · Total owed: NPR {totalOwed.toLocaleString()}
           </p>
         </div>
         <CreateSupplierModal />
@@ -38,13 +54,13 @@ export default async function SuppliersPage() {
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
           <p className="text-sm text-red-700 font-medium">
-            Outstanding balance: <span className="font-bold">NPR {totalOwed.toLocaleString()}</span> across {(suppliers ?? []).filter(s => Number(s.balanceOwed) > 0).length} supplier(s)
+            Outstanding balance: <span className="font-bold">NPR {totalOwed.toLocaleString()}</span> across {suppliers.filter(s => Number(s.balanceOwed) > 0).length} supplier(s)
           </p>
         </div>
       )}
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        {suppliers && suppliers.length > 0 ? (
+        {suppliers.length > 0 ? (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
@@ -99,6 +115,13 @@ export default async function SuppliersPage() {
             <p className="text-xs mt-1">Use &ldquo;Add Supplier&rdquo; above, or add a supplier name when creating a product</p>
           </div>
         )}
+        <Pagination
+          basePath="/dashboard/suppliers"
+          currentPage={page}
+          totalPages={totalPages}
+          totalElements={totalElements}
+          pageSize={PAGE_SIZE}
+        />
       </div>
     </div>
   )

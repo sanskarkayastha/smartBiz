@@ -19,6 +19,14 @@ export type Lead = {
   updatedAt: string;
 };
 
+export type PagedResponse<T> = {
+  content: T[];
+  currentPage: number;
+  totalPages: number;
+  totalElements: number;
+  hasNext: boolean;
+};
+
 export type CreateLeadPayload = {
   name: string;
   phone?: string;
@@ -31,8 +39,10 @@ export type CreateLeadPayload = {
 };
 
 export const leadsService = {
-  async getLeads(): Promise<Lead[]> {
-    const { data } = await api.get<Lead[]>('/leads');
+  async getLeads(page = 0, size = 20): Promise<PagedResponse<Lead>> {
+    const { data } = await api.get<PagedResponse<Lead>>('/leads', {
+      params: { page, size },
+    });
     return data;
   },
 

@@ -20,6 +20,14 @@ export type SupplierProduct = {
   quantity: number;
 };
 
+export type PagedResponse<T> = {
+  content: T[];
+  currentPage: number;
+  totalPages: number;
+  totalElements: number;
+  hasNext: boolean;
+};
+
 export type CreateSupplierPayload = {
   name: string;
   phone?: string;
@@ -36,8 +44,10 @@ export type UpdateSupplierPayload = {
 };
 
 export const supplierService = {
-  async getSuppliers(): Promise<Supplier[]> {
-    const { data } = await api.get<Supplier[]>('/inventory/suppliers');
+  async getSuppliers(page = 0, size = 20): Promise<PagedResponse<Supplier>> {
+    const { data } = await api.get<PagedResponse<Supplier>>('/inventory/suppliers', {
+      params: { page, size },
+    });
     return data;
   },
 

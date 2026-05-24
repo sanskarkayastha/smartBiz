@@ -92,6 +92,7 @@ export default function InvoiceScanModal({ visible, onClose, onSaved, initialPro
         const matched = findMatch(value, existingProducts);
         return { ...r, name: value, matchedProduct: matched };
       }
+      if (field === 'category') return { ...r, category: value };
       const num = parseFloat(value) || 0;
       return { ...r, [field]: num };
     }));
@@ -99,7 +100,7 @@ export default function InvoiceScanModal({ visible, onClose, onSaved, initialPro
 
   const deleteRow = (idx: number) => setRows((prev) => prev.filter((_, i) => i !== idx));
 
-  const addRow = () => setRows((prev) => [...prev, { name: '', quantity: 1, rate: 0, matchedProduct: null }]);
+  const addRow = () => setRows((prev) => [...prev, { name: '', quantity: 1, rate: 0, category: '', matchedProduct: null }]);
 
   const handleSave = async () => {
     const validRows = rows.filter((r) => r.name.trim());
@@ -119,6 +120,7 @@ export default function InvoiceScanModal({ visible, onClose, onSaved, initialPro
             price: row.rate,
             costPrice: row.rate,
             quantity: Math.round(row.quantity),
+            category: row.category?.trim() || undefined,
           });
         }
         saved++;
@@ -235,6 +237,15 @@ export default function InvoiceScanModal({ visible, onClose, onSaved, initialPro
                       />
                     </View>
                   </View>
+
+                  <Text style={styles.fieldLabel}>Category</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={row.category ?? ''}
+                    onChangeText={(v) => updateRow(idx, 'category', v)}
+                    placeholder="e.g. Electronics, Food, Clothing"
+                    placeholderTextColor={Colors.textMuted}
+                  />
                 </View>
               ))}
 

@@ -37,6 +37,9 @@ export default function Inventory() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
@@ -48,8 +51,10 @@ export default function Inventory() {
 
   const load = useCallback(async () => {
     try {
-      const data = await inventoryService.getProducts();
-      setProducts(data);
+      const data = await inventoryService.getProducts(0, 20);
+      setProducts(data.content);
+      setCurrentPage(0);
+      setHasNext(data.hasNext);
       hasLoaded.current = true;
     } catch {
       // keep previous data
@@ -58,6 +63,22 @@ export default function Inventory() {
       setRefreshing(false);
     }
   }, []);
+
+  const loadMore = async () => {
+    if (!hasNext || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const data = await inventoryService.getProducts(nextPage, 20);
+      setProducts((prev) => [...prev, ...data.content]);
+      setCurrentPage(nextPage);
+      setHasNext(data.hasNext);
+    } catch {
+      // silently fail; user can tap again
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useFocusEffect(useCallback(() => {
     if (hasLoaded.current) setRefreshing(true);
@@ -93,9 +114,9 @@ export default function Inventory() {
     if (!editingProduct) return;
     setEditSaving(true);
     try {
-      const updated = await inventoryService.updateProduct(editingProduct.id, editForm);
-      setProducts((prev) => prev.map((p) => (p.id === editingProduct.id ? updated : p)));
+      await inventoryService.updateProduct(editingProduct.id, editForm);
       setShowEditModal(false);
+      load();
     } catch {
       Alert.alert('Error', 'Failed to update product');
     } finally {
@@ -112,7 +133,7 @@ export default function Inventory() {
         onPress: async () => {
           try {
             await inventoryService.deleteProduct(product.id);
-            setProducts((prev) => prev.filter((p) => p.id !== product.id));
+            load();
           } catch {
             Alert.alert('Error', 'Failed to delete product');
           }
@@ -171,6 +192,15 @@ export default function Inventory() {
                   {search || activeTab !== 'All Items' ? 'Try adjusting your search or filter' : 'Tap + to add your first product'}
                 </Text>
               </View>
+            }
+            ListFooterComponent={
+              hasNext ? (
+                <Pressable style={styles.loadMoreBtn} onPress={loadMore} disabled={loadingMore}>
+                  {loadingMore
+                    ? <ActivityIndicator color={Colors.primary} size="small" />
+                    : <Text style={styles.loadMoreText}>Load More</Text>}
+                </Pressable>
+              ) : null
             }
             renderItem={({ item, index }) => {
               const status = getStatus(item);
@@ -372,4 +402,6 @@ const styles = StyleSheet.create({
   col: { flex: 1 },
   saveBtn: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
   saveBtnText: { color: Colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
+  loadMoreBtn: { alignItems: 'center', paddingVertical: 16 },
+  loadMoreText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
 });

@@ -1,7 +1,7 @@
 import { api } from './api';
 
 export type ChatMessage = { role: 'user' | 'ai'; text: string };
-export type ParsedProduct = { name: string; quantity: number; rate: number };
+export type ParsedProduct = { name: string; quantity: number; rate: number; category?: string };
 export type ParsedLead = {
   name: string | null;
   phone: string | null;
@@ -13,8 +13,11 @@ export type ParsedLead = {
   stage: string;
 };
 
-export const queryAi = (messages: ChatMessage[]): Promise<string> =>
-  api.post('/ai/query', { messages }).then((r) => r.data.response);
+export type QueryAiResponse = { response: string; products?: ParsedProduct[] };
+type Attachment = { image?: string; mimeType?: string; fileText?: string };
+
+export const queryAi = (messages: ChatMessage[], attachment?: Attachment): Promise<QueryAiResponse> =>
+  api.post('/ai/query', { messages, ...attachment }).then((r) => r.data);
 
 export const getDailyInsight = (): Promise<string> =>
   api.get('/ai/insights').then((r) => r.data.insight);

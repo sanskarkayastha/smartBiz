@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import AddCustomerModal from '@/src/components/AddCustomerModal'
+import Pagination from '@/src/components/Pagination'
 
 type Customer = {
   id: number
@@ -31,9 +32,17 @@ const PAYMENT_LABELS: Record<string, string> = { CASH: 'Cash', CARD: 'Card', DIG
 export default function CustomersClient({
   customers: initial,
   sales,
+  currentPage,
+  totalPages,
+  totalElements,
+  pageSize,
 }: {
   customers: Customer[]
   sales: Sale[]
+  currentPage: number
+  totalPages: number
+  totalElements: number
+  pageSize: number
 }) {
   const [customers, setCustomers] = useState(initial)
   const [search, setSearch] = useState('')
@@ -163,6 +172,13 @@ export default function CustomersClient({
             {!search && <p className="text-xs mt-1">Click &quot;Add Customer&quot; to add your first customer</p>}
           </div>
         )}
+        <Pagination
+          basePath="/dashboard/customers"
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalElements={totalElements}
+          pageSize={pageSize}
+        />
       </div>
 
       {/* Purchase History Modal */}

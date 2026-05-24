@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Service Discovery: Eureka + Spring Cloud Gateway
 - Deployment: Docker Compose (multi-stage builds)
 
-**Current Status:** MVP fully built and running. All 6 core backend services are live via Docker. Mobile app has 8 tabs all connected to the backend. Web dashboard has inventory + suppliers pages.
+**Current Status:** MVP fully built and running. All 6 core backend services are live via Docker. Mobile app has 8 tabs all connected to the backend. Web dashboard has all 6 features (inventory, suppliers, sales, customers, leads, AI chat) with paginated tables and Redis caching on the backend.
 
 ---
 
@@ -27,10 +27,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Auth (login/signup/profile) | ✅ | ✅ | ✅ |
 | Inventory (CRUD + stock) | ✅ | ✅ | ✅ |
 | Suppliers | ✅ | ✅ | ✅ |
-| Sales (POS + analytics) | ✅ | ✅ | — |
-| Customers (CRM) | ✅ | ✅ | — |
-| Leads (pipeline tracking) | ✅ | ✅ | — |
-| AI Insights + Voice + Scanner | ✅ (Gemini) | ✅ | — |
+| Sales (POS + analytics) | ✅ | ✅ | ✅ |
+| Customers (CRM) | ✅ | ✅ | ✅ |
+| Leads (pipeline tracking) | ✅ | ✅ | ✅ |
+| AI Insights + Voice + Scanner | ✅ (Gemini) | ✅ | ✅ |
+| Pagination + Redis Caching | ✅ | ✅ (Load More) | ✅ (Prev/Next) |
 | Messaging | Phase 2 | — | — |
 
 ---
@@ -48,7 +49,6 @@ Core services delivered:
 
 **Phase 2 (not yet built):**
 - Messaging / Unified Inbox
-- Full Web Dashboard
 - Firebase push notifications
 - Barcode scanning
 - Refresh token flow
@@ -168,7 +168,7 @@ smartbiz/
 │   ├── ai-service/             # Port 8085 — Gemini API
 │   └── messaging-service/      # Phase 2
 └── frontend/
-    └── web/                    # Next.js — inventory + suppliers pages
+    └── web/                    # Next.js — all 6 features with paginated tables
 ```
 
 ---
@@ -372,6 +372,29 @@ public class GlobalExceptionHandler {
     }
 }
 ```
+
+### Pagination Pattern (inventory-service + crm-service)
+All list endpoints are paginated via `@RequestParam(defaultValue="0") int page` and `size`. They return `PagedResponse<T>`:
+```java
+// PagedResponse<T> record — in both services' dto/ package
+public record PagedResponse<T>(List<T> content, int currentPage, int totalPages, long totalElements, boolean hasNext) {
+    public static <T> PagedResponse<T> of(Page<T> page) { ... }
+}
+```
+Service methods use `@Cacheable(value="products", key="#userId + ':' + #page + ':' + #size")`. Write methods use `@CacheEvict(value="products", allEntries=true)`.
+
+**Critical:** Both `CacheConfig.java` files implement `CachingConfigurer` and override `errorHandler()` with a lenient handler that logs Redis errors as WARN and falls through to the database — this prevents a stale/malformed Redis entry from causing 500s on all subsequent requests. Never remove this.
+
+### Web Pagination Pattern (Next.js 16)
+Web pages read page from URL search params (which are a `Promise` in Next.js 15+):
+```typescript
+export default async function Page({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const { page: pageParam } = await searchParams
+  const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0)
+  // fetch ?page=${page}&size=15
+}
+```
+The shared `Pagination.tsx` client component renders Previous/Next `<Link>` buttons and is used by all 4 list pages (inventory, suppliers, customers, leads). It's hidden when `totalPages ≤ 1`.
 
 ---
 

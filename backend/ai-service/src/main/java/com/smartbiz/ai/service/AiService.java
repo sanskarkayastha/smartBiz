@@ -42,11 +42,65 @@ public class AiService {
     private final Map<Long, String> insightCache = new ConcurrentHashMap<>();
     private final Map<Long, Long> insightCacheTimestamp = new ConcurrentHashMap<>();
 
-    public String answerQuery(Long userId, List<AiQueryRequest.ChatMessage> messages) {
+    public AiQueryResponse answerQuery(Long userId, List<AiQueryRequest.ChatMessage> messages, String image, String mimeType, String fileText) {
         String context = buildContext(userId);
         List<AiQueryRequest.ChatMessage> window = messages.size() > 10
             ? messages.subList(messages.size() - 10, messages.size()) : messages;
-        return callGemini(context, window);
+        if (image != null && !image.isBlank()) return processWithImage(context, window, image, mimeType);
+        if (fileText != null && !fileText.isBlank()) return processWithFileText(context, window, fileText);
+        return new AiQueryResponse(callGemini(context, window), null);
+    }
+
+    private AiQueryResponse processWithImage(String context, List<AiQueryRequest.ChatMessage> messages, String image, String mimeType) {
+        String userPrompt = messages.isEmpty() ? "What is in this image?"
+            : messages.get(messages.size() - 1).text();
+        String extractionPrompt =
+            "BUSINESS DATA:\n" + context + "\n\n" +
+            "User message: " + userPrompt + "\n\n" +
+            "Respond helpfully to the user's message about this image. Use NPR for currency. Be concise and practical.\n" +
+            "IMPORTANT: If the user wants to add products to inventory (e.g. 'add these', 'update stock', 'I bought these'), " +
+            "extract all products from the image and append EXACTLY the following after your response text — no markdown, no extra text:\n" +
+            "PRODUCTS_JSON:[{\"name\":\"product name\",\"quantity\":1.0,\"rate\":0.0,\"category\":\"General\"}]\n" +
+            "Infer a short category (1-2 words, e.g. 'Electronics', 'Food & Beverages', 'Clothing') for each product based on its name. " +
+            "Only include PRODUCTS_JSON if you can clearly identify product data. Do NOT include it for general questions.";
+        List<Map<String, Object>> parts = List.of(
+            Map.of("inline_data", Map.of("mime_type", mimeType != null ? mimeType : "image/jpeg", "data", image)),
+            Map.of("text", extractionPrompt)
+        );
+        String raw = callGeminiWithParts(parts);
+        return splitResponseAndProducts(raw);
+    }
+
+    private AiQueryResponse processWithFileText(String context, List<AiQueryRequest.ChatMessage> messages, String fileText) {
+        String userPrompt = messages.isEmpty() ? "Extract products from this data"
+            : messages.get(messages.size() - 1).text();
+        String fullPrompt =
+            "BUSINESS DATA:\n" + context + "\n\n" +
+            "User message: " + userPrompt + "\n\n" +
+            "Spreadsheet/file content:\n" + fileText + "\n\n" +
+            "Respond helpfully to the user's message about this data. Use NPR for currency. Be concise and practical.\n" +
+            "IMPORTANT: If the user wants to add products to inventory, extract all products and append EXACTLY the following after your response — no markdown, no extra text:\n" +
+            "PRODUCTS_JSON:[{\"name\":\"product name\",\"quantity\":1.0,\"rate\":0.0,\"category\":\"General\"}]\n" +
+            "Infer a short category (1-2 words, e.g. 'Electronics', 'Food & Beverages', 'Clothing') for each product based on its name. " +
+            "Only include PRODUCTS_JSON if you can clearly extract product data.";
+        Map<String, Object> body = Map.of(
+            "contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("text", fullPrompt))))
+        );
+        String raw = callGeminiRaw(body);
+        return splitResponseAndProducts(raw);
+    }
+
+    private AiQueryResponse splitResponseAndProducts(String raw) {
+        if (raw != null && raw.contains("PRODUCTS_JSON:")) {
+            int idx = raw.indexOf("PRODUCTS_JSON:");
+            String text = raw.substring(0, idx).trim();
+            String json = raw.substring(idx + "PRODUCTS_JSON:".length()).trim();
+            List<ParsedProduct> products = parseProductJson(json);
+            if (!products.isEmpty()) {
+                return new AiQueryResponse(text.isEmpty() ? "Products extracted successfully." : text, products);
+            }
+        }
+        return new AiQueryResponse(raw, null);
     }
 
     public String getDailyInsight(Long userId) {
@@ -69,7 +123,8 @@ public class AiService {
     public ScanInvoiceResponse scanInvoice(ScanInvoiceRequest request) {
         String prompt = "Extract all line items from this invoice/bill/receipt. " +
             "Return ONLY a valid JSON array, no markdown, no explanation: " +
-            "[{\"name\": \"product name\", \"quantity\": 1.0, \"rate\": 0.0}]. " +
+            "[{\"name\": \"product name\", \"quantity\": 1.0, \"rate\": 0.0, \"category\": \"General\"}]. " +
+            "Infer a short category (1-2 words, e.g. 'Electronics', 'Food & Beverages', 'Clothing', 'Stationery') based on each product name. " +
             "If you cannot read a field, use 0 for numbers. Include every distinct item you can see.";
 
         List<Map<String, Object>> parts = List.of(
@@ -330,7 +385,12 @@ public class AiService {
 
             Map<?, ?> candidate = (Map<?, ?>) candidates.get(0);
             Map<?, ?> content = (Map<?, ?>) candidate.get("content");
+            if (content == null) {
+                log.warn("Gemini returned no content, finishReason={}", candidate.get("finishReason"));
+                return "I couldn't generate a response. Please rephrase your question.";
+            }
             List<?> parts = (List<?>) content.get("parts");
+            if (parts == null || parts.isEmpty()) return "No response from AI.";
             return (String) ((Map<?, ?>) parts.get(0)).get("text");
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 429) {

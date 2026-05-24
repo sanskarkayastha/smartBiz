@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AddProductModal from '@/src/components/AddProductModal'
+import Pagination from '@/src/components/Pagination'
 
 type Product = {
   id: number
@@ -22,7 +23,19 @@ function statusLabel(quantity: number, reorderLevel: number | null) {
   return { text: 'In Stock', cls: 'bg-green-50 text-green-700' }
 }
 
-export default function InventoryClient({ initialProducts }: { initialProducts: Product[] }) {
+export default function InventoryClient({
+  initialProducts,
+  currentPage,
+  totalPages,
+  totalElements,
+  pageSize,
+}: {
+  initialProducts: Product[]
+  currentPage: number
+  totalPages: number
+  totalElements: number
+  pageSize: number
+}) {
   const router = useRouter()
   const [products, setProducts] = useState<Product[]>(initialProducts)
   const [search, setSearch] = useState('')
@@ -148,6 +161,13 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
             </p>
           </div>
         )}
+        <Pagination
+          basePath="/dashboard/inventory"
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalElements={totalElements}
+          pageSize={pageSize}
+        />
       </div>
     </div>
   )

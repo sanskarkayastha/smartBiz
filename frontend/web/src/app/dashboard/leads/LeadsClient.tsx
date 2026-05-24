@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import AddLeadModal from '@/src/components/AddLeadModal'
+import Pagination from '@/src/components/Pagination'
 
 type Lead = {
   id: number
@@ -33,7 +34,19 @@ const SOURCE_LABELS: Record<string, string> = {
   PHONE_CALL: 'Phone Call', ONLINE: 'Online', OTHER: 'Other',
 }
 
-export default function LeadsClient({ leads: initial }: { leads: Lead[] }) {
+export default function LeadsClient({
+  leads: initial,
+  currentPage,
+  totalPages,
+  totalElements,
+  pageSize,
+}: {
+  leads: Lead[]
+  currentPage: number
+  totalPages: number
+  totalElements: number
+  pageSize: number
+}) {
   const [leads, setLeads] = useState(initial)
   const [stageFilter, setStageFilter] = useState('ALL')
   const [search, setSearch] = useState('')
@@ -307,6 +320,18 @@ export default function LeadsClient({ leads: initial }: { leads: Lead[] }) {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <Pagination
+            basePath="/dashboard/leads"
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalElements={totalElements}
+            pageSize={pageSize}
+          />
         </div>
       )}
     </div>

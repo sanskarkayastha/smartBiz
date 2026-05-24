@@ -17,8 +17,10 @@ public class AiController {
     public ResponseEntity<AiQueryResponse> query(
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody AiQueryRequest request) {
-        String response = aiService.answerQuery(userId, request.messages());
-        return ResponseEntity.ok(new AiQueryResponse(response));
+        AiQueryResponse response = aiService.answerQuery(
+            userId, request.messages(), request.image(), request.mimeType(), request.fileText()
+        );
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/insights")

@@ -12,9 +12,29 @@ type Product = {
   supplier: string | null
 }
 
-export default async function InventoryPage() {
-  const session = await requireSession()
-  const products = await apiFetch<Product[]>('/inventory/products', session)
+const PAGE_SIZE = 15
 
-  return <InventoryClient initialProducts={products ?? []} />
+export default async function InventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>
+}) {
+  const session = await requireSession()
+  const { page: pageParam } = await searchParams
+  const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0)
+
+  const data = await apiFetch<{ content: Product[]; totalPages: number; totalElements: number }>(
+    `/inventory/products?page=${page}&size=${PAGE_SIZE}`,
+    session
+  )
+
+  return (
+    <InventoryClient
+      initialProducts={data?.content ?? []}
+      currentPage={page}
+      totalPages={data?.totalPages ?? 1}
+      totalElements={data?.totalElements ?? 0}
+      pageSize={PAGE_SIZE}
+    />
+  )
 }

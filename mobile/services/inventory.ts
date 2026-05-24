@@ -13,6 +13,14 @@ export type Product = {
   imageUrl: string | null;
 };
 
+export type PagedResponse<T> = {
+  content: T[];
+  currentPage: number;
+  totalPages: number;
+  totalElements: number;
+  hasNext: boolean;
+};
+
 export type CreateProductPayload = {
   name: string;
   sku?: string;
@@ -25,8 +33,10 @@ export type CreateProductPayload = {
 };
 
 export const inventoryService = {
-  async getProducts(): Promise<Product[]> {
-    const { data } = await api.get<Product[]>('/inventory/products');
+  async getProducts(page = 0, size = 20): Promise<PagedResponse<Product>> {
+    const { data } = await api.get<PagedResponse<Product>>('/inventory/products', {
+      params: { page, size },
+    });
     return data;
   },
 

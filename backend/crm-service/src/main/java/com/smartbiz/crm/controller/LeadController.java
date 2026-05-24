@@ -3,14 +3,13 @@ package com.smartbiz.crm.controller;
 import com.smartbiz.crm.dto.CreateLeadRequest;
 import com.smartbiz.crm.dto.CustomerDTO;
 import com.smartbiz.crm.dto.LeadDTO;
+import com.smartbiz.crm.dto.PagedResponse;
 import com.smartbiz.crm.dto.UpdateLeadRequest;
 import com.smartbiz.crm.service.LeadService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/leads")
@@ -20,8 +19,11 @@ public class LeadController {
     private final LeadService leadService;
 
     @GetMapping
-    public ResponseEntity<List<LeadDTO>> getLeads(@RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.ok(leadService.getLeads(userId));
+    public ResponseEntity<PagedResponse<LeadDTO>> getLeads(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(leadService.getLeads(userId, page, size));
     }
 
     @GetMapping("/{id}")

@@ -25,6 +25,9 @@ export default function Suppliers() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Edit modal
   const [editing, setEditing] = useState<Supplier | null>(null);
@@ -43,8 +46,10 @@ export default function Suppliers() {
 
   const load = useCallback(async () => {
     try {
-      const data = await supplierService.getSuppliers();
-      setSuppliers(data);
+      const data = await supplierService.getSuppliers(0, 20);
+      setSuppliers(data.content);
+      setCurrentPage(0);
+      setHasNext(data.hasNext);
     } catch {
       // keep previous data
     } finally {
@@ -52,6 +57,22 @@ export default function Suppliers() {
       setRefreshing(false);
     }
   }, []);
+
+  const loadMore = async () => {
+    if (!hasNext || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const data = await supplierService.getSuppliers(nextPage, 20);
+      setSuppliers((prev) => [...prev, ...data.content]);
+      setCurrentPage(nextPage);
+      setHasNext(data.hasNext);
+    } catch {
+      // silently fail; user can tap again
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -74,9 +95,9 @@ export default function Suppliers() {
         balanceOwed: balance,
         notes: editForm.notes.trim() || undefined,
       };
-      const updated = await supplierService.updateSupplier(editing.id, payload);
-      setSuppliers((prev) => prev.map((s) => (s.id === editing.id ? updated : s)));
+      await supplierService.updateSupplier(editing.id, payload);
       setEditing(null);
+      load();
     } catch {
       Alert.alert('Error', 'Failed to update supplier');
     } finally {
@@ -98,9 +119,9 @@ export default function Suppliers() {
         balanceOwed: createForm.balanceOwed ? parseFloat(createForm.balanceOwed) : 0,
         notes: createForm.notes.trim() || undefined,
       };
-      const created = await supplierService.createSupplier(payload);
-      setSuppliers((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      await supplierService.createSupplier(payload);
       setCreateOpen(false);
+      load();
       setCreateForm({ name: '', phone: '', email: '', balanceOwed: '', notes: '' });
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Failed to create supplier';
@@ -157,6 +178,15 @@ export default function Suppliers() {
                 {search ? 'Try a different search term' : 'Add suppliers directly or via a product'}
               </Text>
             </View>
+          }
+          ListFooterComponent={
+            hasNext ? (
+              <Pressable style={styles.loadMoreBtn} onPress={loadMore} disabled={loadingMore}>
+                {loadingMore
+                  ? <ActivityIndicator color={Colors.primary} size="small" />
+                  : <Text style={styles.loadMoreText}>Load More</Text>}
+              </Pressable>
+            ) : null
           }
           renderItem={({ item }) => {
             const owes = Number(item.balanceOwed) > 0;
@@ -398,5 +428,7 @@ const styles = StyleSheet.create({
   qtyBadgeOut: { backgroundColor: '#FEE2E2' },
   qtyBadgeText: { fontSize: 11, fontWeight: '600', color: '#059669' },
   qtyBadgeTextOut: { color: Colors.danger },
+  loadMoreBtn: { alignItems: 'center', paddingVertical: 16 },
+  loadMoreText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
 });
 

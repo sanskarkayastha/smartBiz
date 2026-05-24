@@ -2,12 +2,18 @@ package com.smartbiz.crm.service;
 
 import com.smartbiz.crm.dto.CreateCustomerRequest;
 import com.smartbiz.crm.dto.CustomerDTO;
+import com.smartbiz.crm.dto.PagedResponse;
 import com.smartbiz.crm.dto.UpdateCustomerRequest;
 import com.smartbiz.crm.exception.CustomerNotFoundException;
 import com.smartbiz.crm.model.Customer;
 import com.smartbiz.crm.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,12 +26,17 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class CrmService {
+    private static final String CACHE_NAME = "customers";
 
     private final CustomerRepository customerRepository;
 
-    public List<CustomerDTO> findByUserId(Long userId) {
-        return customerRepository.findByUserIdOrderByCreatedAtDesc(userId)
-                .stream().map(this::toDTO).collect(Collectors.toList());
+    @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size")
+    public PagedResponse<CustomerDTO> findByUserId(Long userId, int page, int size) {
+        int clampedSize = Math.min(size, 100);
+        Pageable pageable = PageRequest.of(page, clampedSize, Sort.by("createdAt").descending());
+        return PagedResponse.of(
+            customerRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable).map(this::toDTO)
+        );
     }
 
     public CustomerDTO findByIdAndUserId(Long id, Long userId) {
@@ -34,6 +45,7 @@ public class CrmService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public CustomerDTO create(Long userId, CreateCustomerRequest request) {
         Customer customer = new Customer();
         customer.setUserId(userId);
@@ -49,6 +61,7 @@ public class CrmService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public CustomerDTO update(Long id, Long userId, UpdateCustomerRequest request) {
         Customer customer = customerRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not found: " + id));
@@ -64,6 +77,7 @@ public class CrmService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public void deleteCustomer(Long id, Long userId) {
         Customer customer = customerRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not found: " + id));
@@ -72,6 +86,7 @@ public class CrmService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public void updatePurchaseTotal(Long userId, Long customerId, BigDecimal amount) {
         customerRepository.findByIdAndUserId(customerId, userId).ifPresent(customer -> {
             customer.setTotalPurchases(customer.getTotalPurchases().add(amount));
@@ -82,6 +97,7 @@ public class CrmService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public void addDueAmount(Long userId, Long customerId, BigDecimal amount) {
         customerRepository.findByIdAndUserId(customerId, userId).ifPresent(customer -> {
             BigDecimal current = customer.getDueAmount() != null ? customer.getDueAmount() : BigDecimal.ZERO;

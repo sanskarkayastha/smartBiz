@@ -10,6 +10,14 @@ export type Customer = {
   lastPurchaseDate: string | null;
 };
 
+export type PagedResponse<T> = {
+  content: T[];
+  currentPage: number;
+  totalPages: number;
+  totalElements: number;
+  hasNext: boolean;
+};
+
 export type CreateCustomerPayload = {
   name: string;
   phone?: string;
@@ -18,8 +26,10 @@ export type CreateCustomerPayload = {
 };
 
 export const customersService = {
-  async getCustomers(): Promise<Customer[]> {
-    const { data } = await api.get<Customer[]>('/customers');
+  async getCustomers(page = 0, size = 20): Promise<PagedResponse<Customer>> {
+    const { data } = await api.get<PagedResponse<Customer>>('/customers', {
+      params: { page, size },
+    });
     return data;
   },
 

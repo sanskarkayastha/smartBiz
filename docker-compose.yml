@@ -1,4 +1,19 @@
 services:
+  # ===== CACHE =====
+  redis:
+    image: redis:7-alpine
+    container_name: smartbiz-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartbiz-network
+
   # ===== SERVICE DISCOVERY =====
   eureka-server:
     build:
@@ -63,8 +78,13 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       APP_JWT_SECRET: ${JWT_SECRET:-smartbiz-dev-secret-key-at-least-32-chars-long-min}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     depends_on:
-      - eureka-server
+      eureka-server:
+        condition: service_started
+      redis:
+        condition: service_healthy
     networks:
       - smartbiz-network
 
@@ -82,8 +102,13 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       APP_JWT_SECRET: ${JWT_SECRET:-smartbiz-dev-secret-key-at-least-32-chars-long-min}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     depends_on:
-      - eureka-server
+      eureka-server:
+        condition: service_started
+      redis:
+        condition: service_healthy
     networks:
       - smartbiz-network
 

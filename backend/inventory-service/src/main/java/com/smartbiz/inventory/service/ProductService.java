@@ -9,6 +9,11 @@ import com.smartbiz.inventory.repository.ProductRepository;
 import com.smartbiz.inventory.repository.StockHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,13 +23,19 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 public class ProductService {
+    private static final String CACHE_NAME = "products";
+
     private final ProductRepository productRepository;
     private final StockHistoryRepository stockHistoryRepository;
     private final SupplierService supplierService;
 
-    public List<ProductDTO> findAll(Long userId) {
-        return productRepository.findAllByUserId(userId)
-            .stream().map(ProductDTO::from).toList();
+    @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size")
+    public PagedResponse<ProductDTO> findAll(Long userId, int page, int size) {
+        int clampedSize = Math.min(size, 100);
+        Pageable pageable = PageRequest.of(page, clampedSize, Sort.by("id").descending());
+        return PagedResponse.of(
+            productRepository.findAllByUserId(userId, pageable).map(ProductDTO::from)
+        );
     }
 
     public ProductDTO findById(Long userId, Long productId) {
@@ -45,6 +56,7 @@ public class ProductService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public ProductDTO create(Long userId, CreateProductRequest request) {
         Product product = Product.builder()
             .userId(userId)
@@ -75,6 +87,7 @@ public class ProductService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public ProductDTO update(Long userId, Long productId, UpdateProductRequest request) {
         Product product = productRepository.findByIdAndUserId(productId, userId)
             .orElseThrow(() -> new ProductNotFoundException(productId));
@@ -101,6 +114,7 @@ public class ProductService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public ProductDTO adjustStock(Long userId, Long productId, StockUpdateRequest request) {
         Product product = productRepository.findByIdAndUserId(productId, userId)
             .orElseThrow(() -> new ProductNotFoundException(productId));
@@ -119,6 +133,7 @@ public class ProductService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public void delete(Long userId, Long productId) {
         Product product = productRepository.findByIdAndUserId(productId, userId)
             .orElseThrow(() -> new ProductNotFoundException(productId));

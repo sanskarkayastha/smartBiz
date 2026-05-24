@@ -1,3 +1,3 @@
 package com.smartbiz.ai.dto;
 
-public record ParsedProduct(String name, Double quantity, Double rate) {}
+public record ParsedProduct(String name, Double quantity, Double rate, String category) {}

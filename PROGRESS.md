@@ -271,6 +271,136 @@
 
 ---
 
+## Session 9 — 2026-05-24 — AI Fix + Attachment-based Chat
+
+### AI Service — Backend
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 115 | Fix 403 FORBIDDEN — update Gemini model to `gemini-2.5-flash` | ✅ | Old GCP project was denied; model also updated from `gemini-2.5-flash-lite` |
+| 116 | Fix null pointer in `callGeminiRaw()` response parsing | ✅ | Added null check on `content` for safety-blocked responses |
+| 117 | Extend `AiQueryRequest.java` — add `image`, `mimeType`, `fileText` optional fields | ✅ | Supports images and Excel (text) attachments |
+| 118 | Extend `AiQueryResponse.java` — add `List<ParsedProduct> products` | ✅ | Null for regular chat; populated when AI extracts products |
+| 119 | Update `AiController.java` — pass new fields to service | ✅ | |
+| 120 | Add `processWithImage()` to AiService — vision call with PRODUCTS_JSON delimiter | ✅ | User prompt + image → Gemini Vision → text response + optional product list |
+| 121 | Add `processWithFileText()` to AiService — text/Excel processing | ✅ | CSV text injected into prompt; PRODUCTS_JSON delimiter parsed out |
+| 122 | Add `splitResponseAndProducts()` helper — PRODUCTS_JSON delimiter parsing | ✅ | Splits AI response into text + structured product list |
+
+### Mobile
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 123 | Install `xlsx`, `expo-document-picker`, `expo-file-system` in mobile | ✅ | |
+| 124 | Update `mobile/services/ai.ts` — `queryAi()` now accepts optional attachment | ✅ | Returns `QueryAiResponse { response, products? }` instead of plain string |
+| 125 | Rewrite `mobile/app/(tabs)/ai.tsx` — unified attachment picker | ✅ | Paperclip icon → Alert sheet (Photo / Excel); attachment chip shown above input; InvoiceScanModal pre-loaded from AI response products |
+
+### Web
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 126 | Install `xlsx` in web | ✅ | |
+| 127 | Rewrite `frontend/web/src/app/dashboard/ai/page.tsx` — unified attachment | ✅ | Single file input accepts image/* + .xlsx; Excel parsed client-side with SheetJS; review panel triggered from `/ai/query` response; fixed role mapping bug ('model'→'ai') |
+
+---
+
+## Session 10 — 2026-05-24 — AI Auto-Category Inference
+
+### AI Service — Backend
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 128 | Add `String category` to `ParsedProduct.java` record | ✅ | Nullable; backward-compatible — absent from JSON deserializes as null |
+| 129 | Update `scanInvoice()` prompt — include `category` in JSON template | ✅ | Instructs Gemini to infer 1-2 word category from product name |
+| 130 | Update `processWithImage()` PRODUCTS_JSON template — add category | ✅ | Same inference instruction for attachment-based chat |
+| 131 | Update `processWithFileText()` PRODUCTS_JSON template — add category | ✅ | Same for Excel/CSV text attachment flow |
+
+### Mobile
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 132 | Add `category?: string` to `ParsedProduct` type in `ai.ts` | ✅ | Already matches backend field |
+| 133 | Add Category `TextInput` to `InvoiceScanModal` review row UI | ✅ | Editable; below qty/rate row |
+| 134 | Pass `category` in `handleSave()` → `createProduct()` call | ✅ | `row.category?.trim() || undefined` |
+| 135 | Handle `'category'` as string field in `updateRow()` | ✅ | Avoids `parseFloat()` coercion |
+| 136 | Update `addRow()` default — include `category: ''` | ✅ | Consistent empty state for manually added rows |
+
+### Web
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 137 | Add `category?: string` to `ParsedProduct` and `ReviewProduct` types | ✅ | |
+| 138 | Map `p.category` from AI response into `ReviewProduct` objects | ✅ | Populated from Gemini inference |
+| 139 | Add category input field to review panel rows | ✅ | Between name and qty; editable |
+| 140 | Pass `category` in `saveScannedProducts()` POST body for new products | ✅ | `p.category || undefined` |
+| 141 | Fix `updateReviewProduct()` — treat `'category'` as string field | ✅ | `stringFields` array guards against `Number()` coercion |
+
+---
+
+## Session 11 — 2026-05-24 — Pagination + Redis Caching
+
+### Backend — Inventory Service
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 142 | Add `spring-boot-starter-data-redis` + `spring-boot-starter-cache` to pom.xml | ✅ | No version needed; managed by Spring Boot parent BOM |
+| 143 | Add Redis config block to `application.yml` | ✅ | `${REDIS_HOST:localhost}` fallback for local dev |
+| 144 | Create `CacheConfig.java` | ✅ | `@EnableCaching`, `RedisCacheManager`, `GenericJackson2JsonRedisSerializer`, 5 min TTL |
+| 145 | Create `PagedResponse<T>` record DTO | ✅ | `content`, `currentPage`, `totalPages`, `totalElements`, `hasNext` |
+| 146 | `ProductRepository` — add `Page<Product> findAllByUserId(userId, pageable)` | ✅ | Kept existing List version for internal use |
+| 147 | `SupplierRepository` — add `Page<Supplier> findAllByUserIdOrderByNameAsc(userId, pageable)` | ✅ | |
+| 148 | `ProductService` — paginate `findAll()`, add `@Cacheable`/`@CacheEvict` on all writes | ✅ | Cache key: `userId:page:size`; evict `allEntries=true` on write |
+| 149 | `SupplierService` — paginate `getSuppliers()`, add `@Cacheable`/`@CacheEvict` | ✅ | `findOrCreate` also evicts |
+| 150 | `ProductController` — add `?page=0&size=20` params, return `PagedResponse<ProductDTO>` | ✅ | |
+| 151 | `SupplierController` — add `?page=0&size=20` params, return `PagedResponse<SupplierDTO>` | ✅ | |
+
+### Backend — CRM Service
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 152 | Add Redis deps + config to pom.xml and application.yml | ✅ | Same pattern as inventory |
+| 153 | Create `CacheConfig.java` + `PagedResponse<T>` in crm package | ✅ | |
+| 154 | `CustomerRepository` — add `Page<Customer> findByUserIdOrderByCreatedAtDesc(userId, pageable)` | ✅ | |
+| 155 | `LeadRepository` — add `Page<Lead> findByUserIdOrderByCreatedAtDesc(userId, pageable)` | ✅ | |
+| 156 | `CrmService` — paginate `findByUserId()`, `@CacheEvict` on all writes including `updatePurchaseTotal` + `addDueAmount` | ✅ | |
+| 157 | `LeadService` — paginate `getLeads()`, `@Caching` on `convertToCustomer` evicts both `leads` + `customers` | ✅ | |
+| 158 | `CustomerController` — add `?page=0&size=20` params | ✅ | |
+| 159 | `LeadController` — add `?page=0&size=20` params | ✅ | |
+
+### Infrastructure
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 160 | Add `redis:7-alpine` service to `docker-compose.yml` | ✅ | 256mb maxmemory, allkeys-lru policy, healthcheck |
+| 161 | Add `REDIS_HOST: redis` + `REDIS_PORT: 6379` to inventory + crm services | ✅ | |
+| 162 | Add `depends_on: redis: condition: service_healthy` to inventory + crm services | ✅ | |
+
+### Mobile
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 163 | `services/inventory.ts` — add `PagedResponse<T>` type, update `getProducts(page, size)` | ✅ | |
+| 164 | `services/suppliers.ts` — add `PagedResponse<T>` type, update `getSuppliers(page, size)` | ✅ | |
+| 165 | `services/customers.ts` — add `PagedResponse<T>` type, update `getCustomers(page, size)` | ✅ | |
+| 166 | `services/leads.ts` — add `PagedResponse<T>` type, update `getLeads(page, size)` | ✅ | |
+| 167 | `inventory.tsx` — pagination state + `loadMore()` + `ListFooterComponent` "Load More" button | ✅ | Writes call `load()` to reset to page 0 |
+| 168 | `suppliers.tsx` — pagination state + `loadMore()` + `ListFooterComponent` "Load More" button | ✅ | |
+| 169 | `customers.tsx` — pagination state + `loadMore()` + bottom "Load More" in ScrollView | ✅ | |
+| 170 | `leads.tsx` — pagination state + `loadMore()` + bottom "Load More" in ScrollView; `handleStageStep` keeps local mutation | ✅ | |
+
+### Web — Bug Fixes + Pagination UI
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 171 | Fix all web pages broken by pagination response shape change | ✅ | Changed `apiFetch<T[]>` → `apiFetch<{content:T[]}>` + `?size=1000` on suppliers, inventory, customers, leads; fixed sales products fetch too |
+| 172 | Add lenient `CacheErrorHandler` to both `CacheConfig.java` files | ✅ | Both services now implement `CachingConfigurer`; Redis GET/PUT/EVICT errors log as WARN and fall through to DB instead of propagating a 500 — root cause of "no products after tab switch" |
+| 173 | Create `Pagination.tsx` reusable component | ✅ | Client component; Previous/Next `<Link>` buttons; shows "Showing X–Y of Z"; hidden when `totalPages ≤ 1` |
+| 174 | Add URL-based pagination to `suppliers/page.tsx` | ✅ | Reads `?page=N` from `searchParams` (Next.js 16 Promise); fetches 15 per page; Pagination bar at bottom of table |
+| 175 | Add URL-based pagination to `inventory/page.tsx` + `InventoryClient.tsx` | ✅ | Server passes `currentPage`, `totalPages`, `totalElements`, `pageSize` to client; Pagination bar in table card |
+| 176 | Add URL-based pagination to `customers/page.tsx` + `CustomersClient.tsx` | ✅ | Same pattern; `totalElements` shown in subtitle |
+| 177 | Add URL-based pagination to `leads/page.tsx` + `LeadsClient.tsx` | ✅ | Same pattern; pagination rendered in its own white card below the lead list |
+
+---
+
 ## Phase 2 Backlog (Post-MVP)
 
 | # | Task | Status | Notes |
@@ -358,3 +488,98 @@
 - `mobile/app/(tabs)/customers.tsx` (redesigned — expandable cards + history modal)
 - `mobile/app/(tabs)/_layout.tsx`
 - `mobile/components/ui/InputField.tsx`
+
+### Sessions 5–7
+- `backend/ai-service/Dockerfile` (NEW)
+- `backend/ai-service/src/main/resources/application.yml`
+- `backend/ai-service/src/main/java/com/smartbiz/ai/dto/AiQueryRequest.java`
+- `backend/ai-service/src/main/java/com/smartbiz/ai/dto/ParsedProduct.java` (NEW)
+- `backend/ai-service/src/main/java/com/smartbiz/ai/dto/ParsedLead.java` (NEW)
+- `backend/ai-service/src/main/java/com/smartbiz/ai/service/AiService.java`
+- `backend/ai-service/src/main/java/com/smartbiz/ai/controller/AiController.java`
+- `docker-compose.yml`
+- `mobile/services/ai.ts`
+- `mobile/app/(tabs)/ai.tsx`
+- `mobile/app/(tabs)/index.tsx`
+- `mobile/components/ui/VoiceButton.tsx` (NEW)
+- `mobile/components/ui/InvoiceScanModal.tsx` (NEW)
+- `mobile/app/app.json`
+
+### Session 8
+- `frontend/web/src/app/dashboard/ai/page.tsx` (NEW)
+- `frontend/web/src/app/dashboard/leads/page.tsx` (NEW)
+- `frontend/web/src/app/dashboard/settings/page.tsx` (NEW)
+- `frontend/web/src/components/CustomersClient.tsx` (NEW)
+- `frontend/web/src/components/LeadsClient.tsx` (NEW)
+- `frontend/web/src/components/AddLeadModal.tsx` (NEW)
+- `frontend/web/src/components/AddSaleModal.tsx`
+- `frontend/web/src/app/dashboard/customers/page.tsx`
+- `frontend/web/src/app/dashboard/sales/page.tsx`
+- `frontend/web/src/app/api/ai/query/route.ts` (NEW)
+- `frontend/web/src/app/api/leads/route.ts` (NEW)
+- `frontend/web/src/app/api/leads/[id]/route.ts` (NEW)
+- `frontend/web/src/app/api/leads/[id]/convert/route.ts` (NEW)
+- `frontend/web/src/app/api/customers/[id]/route.ts` (NEW)
+- `frontend/web/src/app/api/products/route.ts`
+- `frontend/web/src/app/api/products/[id]/stock/route.ts` (NEW)
+- `frontend/web/src/app/api/auth/profile/route.ts` (NEW)
+- `frontend/web/src/app/api/auth/me/route.ts` (NEW)
+- `frontend/web/src/components/Sidebar.tsx`
+
+### Session 9
+- `backend/ai-service/src/main/resources/application.yml`
+- `backend/ai-service/src/main/java/com/smartbiz/ai/dto/AiQueryRequest.java`
+- `backend/ai-service/src/main/java/com/smartbiz/ai/dto/AiQueryResponse.java`
+- `backend/ai-service/src/main/java/com/smartbiz/ai/controller/AiController.java`
+- `backend/ai-service/src/main/java/com/smartbiz/ai/service/AiService.java`
+- `mobile/services/ai.ts`
+- `mobile/app/(tabs)/ai.tsx` (rewritten)
+- `frontend/web/src/app/dashboard/ai/page.tsx` (rewritten)
+
+### Session 10
+- `backend/ai-service/src/main/java/com/smartbiz/ai/dto/ParsedProduct.java`
+- `backend/ai-service/src/main/java/com/smartbiz/ai/service/AiService.java`
+- `mobile/services/ai.ts`
+- `mobile/components/ui/InvoiceScanModal.tsx`
+- `frontend/web/src/app/dashboard/ai/page.tsx`
+
+### Session 11
+- `backend/inventory-service/pom.xml`
+- `backend/inventory-service/src/main/resources/application.yml`
+- `backend/inventory-service/src/main/java/com/smartbiz/inventory/config/CacheConfig.java` (NEW → updated with `CachingConfigurer` + lenient error handler)
+- `backend/inventory-service/src/main/java/com/smartbiz/inventory/dto/PagedResponse.java` (NEW)
+- `backend/inventory-service/src/main/java/com/smartbiz/inventory/repository/ProductRepository.java`
+- `backend/inventory-service/src/main/java/com/smartbiz/inventory/repository/SupplierRepository.java`
+- `backend/inventory-service/src/main/java/com/smartbiz/inventory/service/ProductService.java`
+- `backend/inventory-service/src/main/java/com/smartbiz/inventory/service/SupplierService.java`
+- `backend/inventory-service/src/main/java/com/smartbiz/inventory/controller/ProductController.java`
+- `backend/inventory-service/src/main/java/com/smartbiz/inventory/controller/SupplierController.java`
+- `backend/inventory-service/src/test/java/com/smartbiz/inventory/service/ProductServiceTest.java`
+- `backend/crm-service/pom.xml`
+- `backend/crm-service/src/main/resources/application.yml`
+- `backend/crm-service/src/main/java/com/smartbiz/crm/config/CacheConfig.java` (NEW → updated with `CachingConfigurer` + lenient error handler)
+- `backend/crm-service/src/main/java/com/smartbiz/crm/dto/PagedResponse.java` (NEW)
+- `backend/crm-service/src/main/java/com/smartbiz/crm/repository/CustomerRepository.java`
+- `backend/crm-service/src/main/java/com/smartbiz/crm/repository/LeadRepository.java`
+- `backend/crm-service/src/main/java/com/smartbiz/crm/service/CrmService.java`
+- `backend/crm-service/src/main/java/com/smartbiz/crm/service/LeadService.java`
+- `backend/crm-service/src/main/java/com/smartbiz/crm/controller/CustomerController.java`
+- `backend/crm-service/src/main/java/com/smartbiz/crm/controller/LeadController.java`
+- `docker-compose.yml`
+- `mobile/services/inventory.ts`
+- `mobile/services/suppliers.ts`
+- `mobile/services/customers.ts`
+- `mobile/services/leads.ts`
+- `mobile/app/(tabs)/inventory.tsx`
+- `mobile/app/(tabs)/suppliers.tsx`
+- `mobile/app/(tabs)/customers.tsx`
+- `mobile/app/(tabs)/leads.tsx`
+- `frontend/web/src/components/Pagination.tsx` (NEW)
+- `frontend/web/src/app/dashboard/inventory/page.tsx`
+- `frontend/web/src/app/dashboard/inventory/InventoryClient.tsx`
+- `frontend/web/src/app/dashboard/suppliers/page.tsx`
+- `frontend/web/src/app/dashboard/customers/page.tsx`
+- `frontend/web/src/app/dashboard/customers/CustomersClient.tsx`
+- `frontend/web/src/app/dashboard/leads/page.tsx`
+- `frontend/web/src/app/dashboard/leads/LeadsClient.tsx`
+- `frontend/web/src/app/dashboard/sales/page.tsx`

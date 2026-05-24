@@ -16,12 +16,12 @@ const PAYMENT_LABELS: Record<string, string> = { CASH: 'Cash', CARD: 'Card', DIG
 
 export default async function SalesPage() {
   const session = await requireSession()
-  const [sales, products] = await Promise.all([
+  const [sales, productsData] = await Promise.all([
     apiFetch<Sale[]>('/sales', session),
-    apiFetch<Product[]>('/inventory/products', session),
+    apiFetch<{ content: Product[] }>('/inventory/products?page=0&size=1000', session),
   ])
 
-  const inStockProducts = (products ?? []).filter((p) => p.quantity > 0)
+  const inStockProducts = (productsData?.content ?? []).filter((p) => p.quantity > 0)
 
   return (
     <div className="space-y-6">

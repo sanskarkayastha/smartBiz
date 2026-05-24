@@ -2,6 +2,7 @@ package com.smartbiz.crm.controller;
 
 import com.smartbiz.crm.dto.CreateCustomerRequest;
 import com.smartbiz.crm.dto.CustomerDTO;
+import com.smartbiz.crm.dto.PagedResponse;
 import com.smartbiz.crm.dto.UpdateCustomerRequest;
 import com.smartbiz.crm.service.CrmService;
 import jakarta.validation.Valid;
@@ -20,8 +21,11 @@ public class CustomerController {
     private final CrmService crmService;
 
     @GetMapping
-    public ResponseEntity<List<CustomerDTO>> getCustomers(@RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.ok(crmService.findByUserId(userId));
+    public ResponseEntity<PagedResponse<CustomerDTO>> getCustomers(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(crmService.findByUserId(userId, page, size));
     }
 
     @GetMapping("/{id}")

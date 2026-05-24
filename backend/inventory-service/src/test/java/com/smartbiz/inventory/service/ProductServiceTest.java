@@ -1,6 +1,7 @@
 package com.smartbiz.inventory.service;
 
 import com.smartbiz.inventory.dto.CreateProductRequest;
+import com.smartbiz.inventory.dto.PagedResponse;
 import com.smartbiz.inventory.dto.ProductDTO;
 import com.smartbiz.inventory.dto.StockUpdateRequest;
 import com.smartbiz.inventory.exception.InsufficientStockException;
@@ -15,6 +16,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -29,6 +33,7 @@ class ProductServiceTest {
 
     @Mock ProductRepository productRepository;
     @Mock StockHistoryRepository stockHistoryRepository;
+    @Mock SupplierService supplierService;
 
     @InjectMocks ProductService productService;
 
@@ -65,12 +70,13 @@ class ProductServiceTest {
 
     @Test
     void findAll_returnsOnlyOwnProducts() {
-        when(productRepository.findAllByUserId(10L)).thenReturn(List.of(product));
+        Page<Product> page = new PageImpl<>(List.of(product));
+        when(productRepository.findAllByUserId(eq(10L), any(Pageable.class))).thenReturn(page);
 
-        List<ProductDTO> result = productService.findAll(10L);
+        PagedResponse<ProductDTO> result = productService.findAll(10L, 0, 20);
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).userId()).isEqualTo(10L);
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().get(0).userId()).isEqualTo(10L);
     }
 
     @Test

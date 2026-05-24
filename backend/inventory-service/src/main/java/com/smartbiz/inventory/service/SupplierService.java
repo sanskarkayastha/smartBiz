@@ -1,15 +1,17 @@
 package com.smartbiz.inventory.service;
 
-import com.smartbiz.inventory.dto.CreateSupplierRequest;
-import com.smartbiz.inventory.dto.SupplierDTO;
-import com.smartbiz.inventory.dto.SupplierProductDTO;
-import com.smartbiz.inventory.dto.UpdateSupplierRequest;
+import com.smartbiz.inventory.dto.*;
 import com.smartbiz.inventory.model.Supplier;
 import com.smartbiz.inventory.repository.ProductRepository;
 import com.smartbiz.inventory.repository.SupplierRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,15 +22,22 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 public class SupplierService {
+    private static final String CACHE_NAME = "suppliers";
+
     private final SupplierRepository supplierRepository;
     private final ProductRepository productRepository;
 
-    public List<SupplierDTO> getSuppliers(Long userId) {
-        return supplierRepository.findAllByUserIdOrderByNameAsc(userId)
-            .stream().map(SupplierDTO::from).toList();
+    @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size")
+    public PagedResponse<SupplierDTO> getSuppliers(Long userId, int page, int size) {
+        int clampedSize = Math.min(size, 100);
+        Pageable pageable = PageRequest.of(page, clampedSize, Sort.by("name").ascending());
+        return PagedResponse.of(
+            supplierRepository.findAllByUserIdOrderByNameAsc(userId, pageable).map(SupplierDTO::from)
+        );
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public SupplierDTO createSupplier(Long userId, CreateSupplierRequest request) {
         String name = request.name().trim();
         if (supplierRepository.findByUserIdAndNameIgnoreCase(userId, name).isPresent()) {
@@ -47,6 +56,7 @@ public class SupplierService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public void findOrCreate(Long userId, String supplierName) {
         String trimmed = supplierName.trim();
         if (trimmed.isEmpty()) return;
@@ -59,6 +69,7 @@ public class SupplierService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public SupplierDTO updateSupplier(Long userId, Long id, UpdateSupplierRequest request) {
         Supplier supplier = supplierRepository.findByIdAndUserId(id, userId)
             .orElseThrow(() -> new EntityNotFoundException("Supplier not found: " + id));

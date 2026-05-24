@@ -29,6 +29,9 @@ export default function Customers() {
   const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Customer | null>(null);
@@ -43,8 +46,10 @@ export default function Customers() {
   const load = useCallback(async () => {
     setError(false);
     try {
-      const data = await customersService.getCustomers();
-      setCustomers(data);
+      const data = await customersService.getCustomers(0, 20);
+      setCustomers(data.content);
+      setCurrentPage(0);
+      setHasNext(data.hasNext);
     } catch {
       setError(true);
     } finally {
@@ -52,6 +57,22 @@ export default function Customers() {
       setRefreshing(false);
     }
   }, []);
+
+  const loadMore = async () => {
+    if (!hasNext || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const data = await customersService.getCustomers(nextPage, 20);
+      setCustomers((prev) => [...prev, ...data.content]);
+      setCurrentPage(nextPage);
+      setHasNext(data.hasNext);
+    } catch {
+      // silently fail; user can tap again
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -104,13 +125,12 @@ export default function Customers() {
         email: form.email.trim() || undefined,
       };
       if (editTarget) {
-        const updated = await customersService.updateCustomer(editTarget.id, payload);
-        setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+        await customersService.updateCustomer(editTarget.id, payload);
       } else {
-        const created = await customersService.createCustomer(payload as CreateCustomerPayload);
-        setCustomers((prev) => [created, ...prev]);
+        await customersService.createCustomer(payload as CreateCustomerPayload);
       }
       setShowModal(false);
+      load();
     } catch {
       Alert.alert('Error', `Failed to ${editTarget ? 'update' : 'create'} customer.`);
     } finally {
@@ -127,8 +147,8 @@ export default function Customers() {
         onPress: async () => {
           try {
             await customersService.deleteCustomer(c.id);
-            setCustomers((prev) => prev.filter((x) => x.id !== c.id));
             if (expandedId === c.id) setExpandedId(null);
+            load();
           } catch {
             Alert.alert('Error', 'Failed to delete customer.');
           }
@@ -285,6 +305,13 @@ export default function Customers() {
                 </View>
               );
             })
+          )}
+          {hasNext && (
+            <Pressable style={styles.loadMoreBtn} onPress={loadMore} disabled={loadingMore}>
+              {loadingMore
+                ? <ActivityIndicator color={Colors.primary} size="small" />
+                : <Text style={styles.loadMoreText}>Load More</Text>}
+            </Pressable>
           )}
         </ScrollView>
       )}
@@ -459,4 +486,6 @@ const styles = StyleSheet.create({
   historyMeta: { fontSize: 12, color: Colors.textMuted, flex: 1, marginRight: 8 },
   historyBadge: { backgroundColor: Colors.primary + '15', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   historyBadgeText: { fontSize: 11, fontWeight: '600', color: Colors.primary },
+  loadMoreBtn: { alignItems: 'center', paddingVertical: 16 },
+  loadMoreText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
 });

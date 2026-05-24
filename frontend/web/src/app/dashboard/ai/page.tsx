@@ -1,10 +1,17 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import * as XLSX from 'xlsx'
 
 type Message = { role: 'user' | 'ai'; content: string }
-type ParsedProduct = { name: string; quantity: number; rate: number }
-type ReviewProduct = ParsedProduct & { id?: number; isNew: boolean }
+type ParsedProduct = { name: string; quantity: number; rate: number; category?: string }
+type ReviewProduct = ParsedProduct & { id?: number; isNew: boolean; unitPrice: number; category?: string }
+type AttachmentState = {
+  label: string;
+  image?: string;
+  mimeType?: string;
+  fileText?: string;
+} | null
 
 const QUICK_PROMPTS = [
   'How is my business doing today?',
@@ -18,10 +25,9 @@ export default function AiPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [scanLoading, setScanLoading] = useState(false)
+  const [attachment, setAttachment] = useState<AttachmentState>(null)
   const [reviewProducts, setReviewProducts] = useState<ReviewProduct[] | null>(null)
   const [savingProducts, setSavingProducts] = useState(false)
-  const [existingProducts, setExistingProducts] = useState<{ id: number; name: string; quantity: number }[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -30,70 +36,73 @@ export default function AiPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
+  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') ||
+      file.type.includes('spreadsheet') || file.type.includes('excel')
+
+    if (isExcel) {
+      try {
+        const buffer = await file.arrayBuffer()
+        const wb = XLSX.read(buffer, { type: 'array' })
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        const csvText = XLSX.utils.sheet_to_csv(ws)
+        setAttachment({ label: file.name, fileText: csvText })
+      } catch {
+        alert('Could not read the Excel file. Please try a different file.')
+      }
+    } else {
+      const base64 = await fileToBase64(file)
+      setAttachment({ label: file.name, image: base64, mimeType: file.type })
+    }
+  }
+
   async function send(overrideText?: string) {
     const text = (overrideText ?? input).trim()
-    if (!text || loading) return
-    setInput('')
+    const currentAttachment = attachment
+    if ((!text && !currentAttachment) || loading) return
 
-    const userMsg: Message = { role: 'user', content: text }
+    setInput('')
+    setAttachment(null)
+
+    const displayText = text || `📎 ${currentAttachment!.label}`
+    const userMsg: Message = { role: 'user', content: displayText }
     const updated = [...messages, userMsg]
     setMessages(updated)
     setLoading(true)
 
     try {
+      const payload = updated.map((m) => ({ role: m.role === 'ai' ? 'ai' : 'user', text: m.content }))
+      const body: Record<string, unknown> = { messages: payload }
+      if (currentAttachment?.image) { body.image = currentAttachment.image; body.mimeType = currentAttachment.mimeType }
+      if (currentAttachment?.fileText) body.fileText = currentAttachment.fileText
+
       const res = await fetch('/api/ai/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: updated.map((m) => ({ role: m.role === 'ai' ? 'model' : 'user', text: m.content })),
-        }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       setMessages((prev) => [...prev, { role: 'ai', content: data.response ?? 'No response received.' }])
+
+      if (data.products && data.products.length > 0) {
+        const existingRes = await fetch('/api/products')
+        const existing = await existingRes.json().catch(() => [])
+        const reviewed: ReviewProduct[] = data.products.map((p: ParsedProduct) => {
+          const match = existing.find((ex: { id: number; name: string }) =>
+            ex.name.toLowerCase() === p.name.toLowerCase()
+          )
+          return { name: p.name, quantity: p.quantity, rate: p.rate, unitPrice: p.rate, category: p.category, id: match?.id, isNew: !match }
+        })
+        setReviewProducts(reviewed)
+      }
     } catch {
       setMessages((prev) => [...prev, { role: 'ai', content: 'Something went wrong. Please try again.' }])
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    e.target.value = ''
-
-    setScanLoading(true)
-    try {
-      // Load existing products for match detection
-      const productsRes = await fetch('/api/products')
-      const products = await productsRes.json().catch(() => [])
-      setExistingProducts(products)
-
-      const base64 = await fileToBase64(file)
-      const res = await fetch('/api/ai/scan-invoice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64, mimeType: file.type }),
-      })
-      const data = await res.json()
-      const parsed: ParsedProduct[] = data.products ?? []
-
-      if (parsed.length === 0) {
-        alert('No products could be detected in this image.')
-        return
-      }
-
-      const reviewed: ReviewProduct[] = parsed.map((p) => {
-        const match = products.find(
-          (ex: { id: number; name: string }) => ex.name.toLowerCase() === p.name.toLowerCase()
-        )
-        return { name: p.name, quantity: p.quantity, unitPrice: p.rate, id: match?.id, isNew: !match }
-      })
-      setReviewProducts(reviewed)
-    } catch {
-      alert('Failed to scan invoice. Please try again.')
-    } finally {
-      setScanLoading(false)
     }
   }
 
@@ -107,13 +116,13 @@ export default function AiPage() {
           await fetch('/api/products', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: p.name, quantity: p.quantity, price: p.unitPrice, costPrice: p.unitPrice }),
+            body: JSON.stringify({ name: p.name, quantity: p.quantity, price: p.unitPrice, costPrice: p.unitPrice, category: p.category || undefined }),
           })
         } else if (p.id) {
           await fetch(`/api/products/${p.id}/stock`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ quantityChange: p.quantity, type: 'RESTOCK', reason: 'Invoice scan' }),
+            body: JSON.stringify({ quantityChange: p.quantity, type: 'RESTOCK', reason: 'AI extraction' }),
           })
         }
         saved++
@@ -121,7 +130,7 @@ export default function AiPage() {
       setReviewProducts(null)
       setMessages((prev) => [
         ...prev,
-        { role: 'ai', content: `Invoice processed: ${saved} product${saved !== 1 ? 's' : ''} updated in inventory.` },
+        { role: 'ai', content: `Done! ${saved} product${saved !== 1 ? 's' : ''} updated in inventory.` },
       ])
     } catch {
       alert('Some products failed to save. Please check your inventory.')
@@ -130,11 +139,12 @@ export default function AiPage() {
     }
   }
 
-  function updateReviewProduct(idx: number, field: keyof ParsedProduct, value: string) {
+  function updateReviewProduct(idx: number, field: string, value: string) {
     setReviewProducts((prev) => {
       if (!prev) return prev
       const copy = [...prev]
-      copy[idx] = { ...copy[idx], [field]: field === 'name' ? value : Number(value) }
+      const stringFields = ['name', 'category']
+      copy[idx] = { ...copy[idx], [field]: stringFields.includes(field) ? value : Number(value) }
       return copy
     })
   }
@@ -146,6 +156,8 @@ export default function AiPage() {
       return copy.length > 0 ? copy : null
     })
   }
+
+  const canSend = (!!input.trim() || !!attachment) && !loading
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
@@ -184,7 +196,7 @@ export default function AiPage() {
               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
             <p className="text-sm font-medium text-gray-500">Ask anything about your business</p>
-            <p className="text-xs mt-1">Use quick prompts above or type your own question</p>
+            <p className="text-xs mt-1">Attach an image or Excel file and describe what you want to do</p>
           </div>
         )}
 
@@ -228,11 +240,11 @@ export default function AiPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Invoice Review Panel */}
+      {/* Product Review Panel */}
       {reviewProducts && (
         <div className="shrink-0 border-t border-gray-100 bg-amber-50 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-amber-800">Review Scanned Products ({reviewProducts.length})</p>
+            <p className="text-sm font-semibold text-amber-800">Review Extracted Products ({reviewProducts.length})</p>
             <button onClick={() => setReviewProducts(null)} className="text-gray-400 hover:text-gray-600">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -247,6 +259,12 @@ export default function AiPage() {
                   value={p.name}
                   onChange={(e) => updateReviewProduct(idx, 'name', e.target.value)}
                   className="flex-1 text-sm text-gray-800 bg-transparent focus:outline-none min-w-0"
+                />
+                <input
+                  value={p.category ?? ''}
+                  onChange={(e) => updateReviewProduct(idx, 'category', e.target.value)}
+                  placeholder="Category"
+                  className="w-24 text-sm border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
                 />
                 <input
                   type="number"
@@ -285,27 +303,36 @@ export default function AiPage() {
 
       {/* Input Row */}
       <div className="shrink-0 pt-3 border-t border-gray-100">
+        {/* Attachment chip */}
+        {attachment && (
+          <div className="flex items-center gap-1.5 mb-2 px-1 py-1 bg-blue-50 border border-blue-100 rounded-lg w-fit max-w-xs">
+            <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+            </svg>
+            <span className="text-xs text-blue-700 font-medium truncate max-w-[180px]">{attachment.label}</span>
+            <button onClick={() => setAttachment(null)} className="text-blue-400 hover:text-blue-600 shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        )}
+
         <div className="flex items-end gap-2">
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
-            onChange={handleFileUpload}
+            accept="image/*,.xlsx,.xls"
+            onChange={handleFileSelected}
             className="hidden"
           />
           <button
             onClick={() => fileRef.current?.click()}
-            disabled={scanLoading}
-            title="Upload invoice/receipt image"
-            className="p-2.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 shrink-0"
+            disabled={loading}
+            title="Attach image or Excel file"
+            className="p-2.5 text-gray-400 hover:text-[#135BEC] hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 shrink-0"
           >
-            {scanLoading ? (
-              <div className="w-5 h-5 border-2 border-gray-300 border-t-[#135BEC] rounded-full animate-spin" />
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
-              </svg>
-            )}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+            </svg>
           </button>
 
           <textarea
@@ -315,7 +342,7 @@ export default function AiPage() {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
             }}
-            placeholder="Ask about your business…"
+            placeholder={attachment ? 'Describe what you want to do with this file…' : 'Ask about your business…'}
             rows={1}
             className="flex-1 resize-none px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC] placeholder-gray-400 max-h-32 overflow-y-auto"
             style={{ lineHeight: '1.4' }}
@@ -323,7 +350,7 @@ export default function AiPage() {
 
           <button
             onClick={() => send()}
-            disabled={!input.trim() || loading}
+            disabled={!canSend}
             className="p-2.5 bg-[#135BEC] text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -331,7 +358,7 @@ export default function AiPage() {
             </svg>
           </button>
         </div>
-        <p className="text-xs text-gray-400 mt-1.5 px-1">Upload a bill/receipt image to auto-update inventory · Enter to send</p>
+        <p className="text-xs text-gray-400 mt-1.5 px-1">Attach an image or .xlsx file to extract products · Enter to send</p>
       </div>
     </div>
   )
@@ -343,7 +370,6 @@ function fileToBase64(file: File): Promise<string> {
     reader.readAsDataURL(file)
     reader.onload = () => {
       const result = reader.result as string
-      // Strip the data:image/...;base64, prefix
       resolve(result.split(',')[1])
     }
     reader.onerror = reject

@@ -1,9 +1,6 @@
 package com.smartbiz.inventory.controller;
 
-import com.smartbiz.inventory.dto.CreateSupplierRequest;
-import com.smartbiz.inventory.dto.SupplierDTO;
-import com.smartbiz.inventory.dto.SupplierProductDTO;
-import com.smartbiz.inventory.dto.UpdateSupplierRequest;
+import com.smartbiz.inventory.dto.*;
 import com.smartbiz.inventory.service.SupplierService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +16,11 @@ public class SupplierController {
     private final SupplierService supplierService;
 
     @GetMapping
-    public ResponseEntity<List<SupplierDTO>> getAll(@RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.ok(supplierService.getSuppliers(userId));
+    public ResponseEntity<PagedResponse<SupplierDTO>> getAll(
+        @RequestHeader("X-User-Id") Long userId,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(supplierService.getSuppliers(userId, page, size));
     }
 
     @PostMapping

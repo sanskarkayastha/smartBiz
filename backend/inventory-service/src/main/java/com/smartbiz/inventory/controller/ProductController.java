@@ -17,8 +17,11 @@ public class ProductController {
     private final ProductService productService;
 
     @GetMapping
-    public ResponseEntity<List<ProductDTO>> getAll(@RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.ok(productService.findAll(userId));
+    public ResponseEntity<PagedResponse<ProductDTO>> getAll(
+        @RequestHeader("X-User-Id") Long userId,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(productService.findAll(userId, page, size));
     }
 
     @GetMapping("/{id}")

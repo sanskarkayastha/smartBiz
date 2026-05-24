@@ -8,6 +8,12 @@ import com.smartbiz.crm.repository.CustomerRepository;
 import com.smartbiz.crm.repository.LeadRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,14 +25,19 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class LeadService {
+    private static final String CACHE_NAME = "leads";
 
     private final LeadRepository leadRepository;
     private final CustomerRepository customerRepository;
     private final CrmService crmService;
 
-    public List<LeadDTO> getLeads(Long userId) {
-        return leadRepository.findByUserIdOrderByCreatedAtDesc(userId)
-                .stream().map(this::toDTO).collect(Collectors.toList());
+    @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size")
+    public PagedResponse<LeadDTO> getLeads(Long userId, int page, int size) {
+        int clampedSize = Math.min(size, 100);
+        Pageable pageable = PageRequest.of(page, clampedSize, Sort.by("createdAt").descending());
+        return PagedResponse.of(
+            leadRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable).map(this::toDTO)
+        );
     }
 
     public LeadDTO getLead(Long id, Long userId) {
@@ -34,6 +45,7 @@ public class LeadService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public LeadDTO createLead(Long userId, CreateLeadRequest request) {
         Lead lead = new Lead();
         lead.setUserId(userId);
@@ -50,6 +62,7 @@ public class LeadService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public LeadDTO updateLead(Long id, Long userId, UpdateLeadRequest request) {
         Lead lead = findOrThrow(id, userId);
         if (request.getName() != null) lead.setName(request.getName());
@@ -64,6 +77,7 @@ public class LeadService {
     }
 
     @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
     public void deleteLead(Long id, Long userId) {
         Lead lead = findOrThrow(id, userId);
         leadRepository.delete(lead);
@@ -71,6 +85,10 @@ public class LeadService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "leads", allEntries = true),
+        @CacheEvict(value = "customers", allEntries = true)
+    })
     public CustomerDTO convertToCustomer(Long id, Long userId) {
         Lead lead = findOrThrow(id, userId);
 
