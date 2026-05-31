@@ -1,15 +1,15 @@
 import { View, Text, FlatList, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Colors } from '@/components/ui/colors';
 import SearchBar from '@/components/ui/SearchBar';
-import FilterTabs from '@/components/ui/FilterTabs';
 import StatusBadge from '@/components/ui/StatusBadge';
 import VoiceButton from '@/components/ui/VoiceButton';
 import InvoiceScanModal from '@/components/ui/InvoiceScanModal';
-import { inventoryService, Product, CreateProductPayload } from '@/services/inventory';
+import CategoryPicker from '@/components/ui/CategoryPicker';
+import { inventoryService, Product, CreateProductPayload, ProductFilters, type Category } from '@/services/inventory';
 import { parseVoiceForProducts, ParsedProduct } from '@/services/ai';
 
 type StockStatus = 'In Stock' | 'Low Stock' | 'Out of Stock';
@@ -27,14 +27,17 @@ function skuLine(product: Product): string {
   return parts.join(' · ');
 }
 
-const TABS = ['All Items', 'Low Stock', 'Out of Stock'];
 const PLACEHOLDER_COLORS = ['#FEE2E2', '#FEF9C3', '#F3E8FF', '#E0F2FE', '#FEF3C7'];
 
 export default function Inventory() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
-  const [activeTab, setActiveTab] = useState('All Items');
   const [search, setSearch] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterStockStatus, setFilterStockStatus] = useState('');
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [pendingCategory, setPendingCategory] = useState('');
+  const [pendingStockStatus, setPendingStockStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
@@ -47,11 +50,30 @@ export default function Inventory() {
   const [showScanModal, setShowScanModal] = useState(false);
   const [voiceProducts, setVoiceProducts] = useState<ParsedProduct[] | undefined>(undefined);
 
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    inventoryService.getCategories().then(setCategories).catch(() => {});
+  }, []);
+
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const hasLoaded = useRef(false);
+  const filtersRef = useRef({ search: '', category: '', stockStatus: '' });
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const buildFilters = (): ProductFilters | undefined => {
+    const { search: s, category, stockStatus } = filtersRef.current;
+    const f: ProductFilters = {};
+    if (s.trim()) f.search = s.trim();
+    if (category.trim()) f.category = category.trim();
+    if (stockStatus) f.stockStatus = stockStatus;
+    return Object.keys(f).length ? f : undefined;
+  };
 
   const load = useCallback(async () => {
     try {
-      const data = await inventoryService.getProducts(0, 20);
+      const data = await inventoryService.getProducts(0, 20, buildFilters());
       setProducts(data.content);
       setCurrentPage(0);
       setHasNext(data.hasNext);
@@ -62,6 +84,7 @@ export default function Inventory() {
       setLoading(false);
       setRefreshing(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadMore = async () => {
@@ -69,7 +92,7 @@ export default function Inventory() {
     setLoadingMore(true);
     try {
       const nextPage = currentPage + 1;
-      const data = await inventoryService.getProducts(nextPage, 20);
+      const data = await inventoryService.getProducts(nextPage, 20, buildFilters());
       setProducts((prev) => [...prev, ...data.content]);
       setCurrentPage(nextPage);
       setHasNext(data.hasNext);
@@ -86,6 +109,49 @@ export default function Inventory() {
   }, [load]));
 
   const onRefresh = () => { setRefreshing(true); load(); };
+
+  const handleSearchChange = (text: string) => {
+    setSearch(text);
+    filtersRef.current.search = text;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => load(), 400);
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+    if (!text.trim()) { setSuggestions([]); return; }
+    suggestTimerRef.current = setTimeout(async () => {
+      try {
+        const data = await inventoryService.getProducts(0, 5, { search: text });
+        setSuggestions(data.content.map((p) => p.name));
+      } catch { /* ignore */ }
+    }, 300);
+  };
+
+  const openFilterSheet = () => {
+    setPendingCategory(filterCategory);
+    setPendingStockStatus(filterStockStatus);
+    setShowFilterSheet(true);
+  };
+
+  const applyFilters = () => {
+    filtersRef.current.category = pendingCategory;
+    filtersRef.current.stockStatus = pendingStockStatus;
+    setFilterCategory(pendingCategory);
+    setFilterStockStatus(pendingStockStatus);
+    setShowFilterSheet(false);
+    load();
+  };
+
+  const clearFilters = () => {
+    filtersRef.current.category = '';
+    filtersRef.current.stockStatus = '';
+    setPendingCategory('');
+    setPendingStockStatus('');
+    setFilterCategory('');
+    setFilterStockStatus('');
+    setShowFilterSheet(false);
+    load();
+  };
+
+  const activeFilterCount = (filterCategory.trim() ? 1 : 0) + (filterStockStatus ? 1 : 0);
 
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
@@ -152,16 +218,6 @@ export default function Inventory() {
     }
   };
 
-  const filtered = products.filter((p) => {
-    const status = getStatus(p);
-    const term = search.toLowerCase();
-    const matchesSearch = p.name.toLowerCase().includes(term) ||
-      p.sku?.toLowerCase().includes(term) ||
-      p.category?.toLowerCase().includes(term);
-    const matchesTab = activeTab === 'All Items' || status === activeTab;
-    return matchesSearch && matchesTab;
-  });
-
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -169,27 +225,54 @@ export default function Inventory() {
         <Pressable><Ionicons name="notifications-outline" size={24} color={Colors.textDark} /></Pressable>
       </View>
 
-      {/* Sticky search + filter above the list */}
-      <SearchBar placeholder="Search products, SKU..." value={search} onChangeText={setSearch} showFilter />
-      <FilterTabs tabs={TABS} active={activeTab} onSelect={setActiveTab} />
+      <View style={styles.searchWrapper}>
+        <SearchBar
+          placeholder="Search products, SKU..."
+          value={search}
+          onChangeText={handleSearchChange}
+          showFilter
+          onFilterPress={openFilterSheet}
+          filterActive={activeFilterCount > 0}
+        />
+        {suggestions.length > 0 && search.trim() !== '' && (
+          <View style={styles.suggestOverlay}>
+            {suggestions.map((name) => (
+              <Pressable
+                key={name}
+                style={styles.suggestItem}
+                onPress={() => {
+                  if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+                  if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+                  setSearch(name);
+                  setSuggestions([]);
+                  filtersRef.current.search = name;
+                  load();
+                }}
+              >
+                <Text style={styles.suggestText}>{name}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </View>
 
       {loading
         ? <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
         : (
           <FlatList
-            data={filtered}
+            data={products}
             keyExtractor={(item) => String(item.id)}
-            contentContainerStyle={filtered.length === 0 ? styles.listEmpty : styles.list}
+            contentContainerStyle={products.length === 0 ? styles.listEmpty : styles.list}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
             ListEmptyComponent={
               <View style={styles.empty}>
                 <Ionicons name="cube-outline" size={48} color={Colors.textMuted} />
                 <Text style={styles.emptyTitle}>
-                  {search || activeTab !== 'All Items' ? 'No matching products' : 'No products yet'}
+                  {search || activeFilterCount > 0 ? 'No matching products' : 'No products yet'}
                 </Text>
                 <Text style={styles.emptyText}>
-                  {search || activeTab !== 'All Items' ? 'Try adjusting your search or filter' : 'Tap + to add your first product'}
+                  {search || activeFilterCount > 0 ? 'Try adjusting your search or filters' : 'Tap + to add your first product'}
                 </Text>
               </View>
             }
@@ -260,6 +343,7 @@ export default function Inventory() {
         initialProducts={voiceProducts}
       />
 
+      {/* Edit Product Modal */}
       <Modal visible={showEditModal} animationType="slide" transparent onRequestClose={() => setShowEditModal(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
@@ -269,7 +353,7 @@ export default function Inventory() {
                 <Ionicons name="close" size={22} color={Colors.textDark} />
               </Pressable>
             </View>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTabs="handled">
 
             <Text style={styles.label}>Product Name *</Text>
             <TextInput
@@ -290,12 +374,10 @@ export default function Inventory() {
             />
 
             <Text style={styles.label}>Category</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Grocery"
-              value={editForm.category}
-              onChangeText={(v) => setEditForm((f) => ({ ...f, category: v }))}
-              placeholderTextColor={Colors.textMuted}
+            <CategoryPicker
+              value={editForm.category ?? ''}
+              onChange={(v) => setEditForm((f) => ({ ...f, category: v || undefined }))}
+              categories={categories}
             />
 
             <View style={styles.row}>
@@ -364,6 +446,55 @@ export default function Inventory() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Filter Sheet */}
+      <Modal visible={showFilterSheet} animationType="slide" transparent onRequestClose={() => setShowFilterSheet(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, styles.filterSheet]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filter Products</Text>
+              <Pressable onPress={() => setShowFilterSheet(false)}>
+                <Ionicons name="close" size={22} color={Colors.textDark} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.label}>Category</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipScrollContent}>
+              {[{ id: 0, name: '' }, ...categories].map((c) => {
+                const label = c.name || 'All';
+                const active = pendingCategory === c.name;
+                return (
+                  <Pressable key={c.id} style={[styles.pill, active && styles.pillActive]} onPress={() => setPendingCategory(c.name)}>
+                    <Text style={[styles.pillText, active && styles.pillTextActive]}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <Text style={styles.label}>Stock Status</Text>
+            <View style={styles.pillRow}>
+              {(['', 'LOW_STOCK', 'OUT_OF_STOCK'] as const).map((s) => {
+                const label = s === '' ? 'All' : s === 'LOW_STOCK' ? 'Low Stock' : 'Out of Stock';
+                const active = pendingStockStatus === s;
+                return (
+                  <Pressable key={s} style={[styles.pill, active && styles.pillActive]} onPress={() => setPendingStockStatus(s)}>
+                    <Text style={[styles.pillText, active && styles.pillTextActive]}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={styles.filterBtnRow}>
+              <Pressable style={styles.clearBtn} onPress={clearFilters}>
+                <Text style={styles.clearBtnText}>Clear All</Text>
+              </Pressable>
+              <Pressable style={styles.applyBtn} onPress={applyFilters}>
+                <Text style={styles.applyBtnText}>Apply</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -404,4 +535,21 @@ const styles = StyleSheet.create({
   saveBtnText: { color: Colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
   loadMoreBtn: { alignItems: 'center', paddingVertical: 16 },
   loadMoreText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
+  filterSheet: { paddingBottom: 36 },
+  pillRow: { flexDirection: 'row', gap: 8, marginTop: 4, flexWrap: 'wrap' },
+  pill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.background },
+  pillActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  pillText: { fontSize: 13, fontWeight: '500', color: Colors.textMuted },
+  pillTextActive: { color: Colors.textOnPrimary, fontWeight: '600' },
+  filterBtnRow: { flexDirection: 'row', gap: 10, marginTop: 24 },
+  clearBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
+  clearBtnText: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
+  applyBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: Colors.primary, alignItems: 'center' },
+  applyBtnText: { fontSize: 14, fontWeight: '600', color: Colors.textOnPrimary },
+  chipScroll: { marginTop: 4 },
+  chipScrollContent: { flexDirection: 'row', gap: 8, paddingRight: 4 },
+  searchWrapper: { zIndex: 10 },
+  suggestOverlay: { position: 'absolute', top: 50, left: 16, right: 16, zIndex: 100, backgroundColor: Colors.card, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 8 },
+  suggestItem: { paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
+  suggestText: { fontSize: 14, color: Colors.textDark },
 });

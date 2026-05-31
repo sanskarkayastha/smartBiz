@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/src/lib/session'
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const qs = searchParams.toString()
-
-  const res = await fetch(`${process.env.API_GATEWAY_URL}/customers${qs ? `?${qs}` : ''}`, {
+  const res = await fetch(`${process.env.API_GATEWAY_URL}/inventory/categories`, {
     headers: {
       Authorization: `Bearer ${session.token}`,
       'X-User-Id': String(session.userId),
@@ -24,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const res = await fetch(`${process.env.API_GATEWAY_URL}/customers`, {
+  const res = await fetch(`${process.env.API_GATEWAY_URL}/inventory/categories`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${session.token}`,

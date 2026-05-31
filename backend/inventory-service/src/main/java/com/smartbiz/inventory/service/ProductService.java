@@ -29,12 +29,15 @@ public class ProductService {
     private final StockHistoryRepository stockHistoryRepository;
     private final SupplierService supplierService;
 
-    @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size")
-    public PagedResponse<ProductDTO> findAll(Long userId, int page, int size) {
+    @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size + ':' + #search + ':' + #category + ':' + #stockStatus")
+    public PagedResponse<ProductDTO> findAll(Long userId, int page, int size, String search, String category, String stockStatus) {
         int clampedSize = Math.min(size, 100);
         Pageable pageable = PageRequest.of(page, clampedSize, Sort.by("id").descending());
+        String s = (search != null && !search.isBlank()) ? search.trim().toLowerCase() : "";
+        String c = (category != null && !category.isBlank()) ? category.trim().toLowerCase() : "";
+        String ss = (stockStatus != null && !stockStatus.isBlank()) ? stockStatus.trim() : "";
         return PagedResponse.of(
-            productRepository.findAllByUserId(userId, pageable).map(ProductDTO::from)
+            productRepository.findWithFilters(userId, s, c, ss, pageable).map(ProductDTO::from)
         );
     }
 

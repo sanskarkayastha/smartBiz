@@ -25,11 +25,17 @@ export type CreateCustomerPayload = {
   address?: string;
 };
 
+export type CustomerFilters = {
+  search?: string;
+  hasDue?: boolean;
+};
+
 export const customersService = {
-  async getCustomers(page = 0, size = 20): Promise<PagedResponse<Customer>> {
-    const { data } = await api.get<PagedResponse<Customer>>('/customers', {
-      params: { page, size },
-    });
+  async getCustomers(page = 0, size = 20, filters?: CustomerFilters): Promise<PagedResponse<Customer>> {
+    const params: Record<string, string | number | boolean> = { page, size };
+    if (filters?.search) params.search = filters.search;
+    if (filters?.hasDue) params.hasDue = true;
+    const { data } = await api.get<PagedResponse<Customer>>('/customers', { params });
     return data;
   },
 

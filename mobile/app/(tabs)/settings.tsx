@@ -9,14 +9,17 @@
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Colors } from '@/components/ui/colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/auth';
+import { inventoryService, type Category } from '@/services/inventory';
 
 export default function Settings() {
   const router = useRouter();
@@ -25,6 +28,48 @@ export default function Settings() {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ fullName: '', phone: '' });
   const [savingProfile, setSavingProfile] = useState(false);
+
+  const [showManageCategories, setShowManageCategories] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [savingCategory, setSavingCategory] = useState(false);
+
+  useEffect(() => {
+    inventoryService.getCategories().then(setCategories).catch(() => {});
+  }, []);
+
+  const handleAddCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    setSavingCategory(true);
+    try {
+      const cat = await inventoryService.createCategory(name);
+      setCategories((prev) => [...prev, cat].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewCategoryName('');
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.error ?? 'Failed to add category.');
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = (cat: Category) => {
+    Alert.alert('Delete Category', `Delete "${cat.name}"? Products with this label keep it.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await inventoryService.deleteCategory(cat.id);
+            setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+          } catch {
+            Alert.alert('Error', 'Failed to delete category.');
+          }
+        },
+      },
+    ]);
+  };
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
@@ -85,6 +130,12 @@ export default function Settings() {
       ],
     },
     {
+      title: 'Inventory',
+      items: [
+        { icon: 'grid-outline' as const, label: 'Manage Categories', chevron: true, onPress: () => setShowManageCategories(true) },
+      ],
+    },
+    {
       title: '',
       items: [
         { icon: 'log-out-outline' as const, label: 'Logout', chevron: false, danger: true, onPress: handleLogout },
@@ -137,6 +188,60 @@ export default function Settings() {
           </View>
         </View>
       ))}
+
+      {/* Manage Categories Modal */}
+      <Modal visible={showManageCategories} animationType="slide" transparent onRequestClose={() => setShowManageCategories(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { maxHeight: '75%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Manage Categories</Text>
+              <Pressable onPress={() => setShowManageCategories(false)}>
+                <Ionicons name="close" size={22} color={Colors.textDark} />
+              </Pressable>
+            </View>
+
+            <FlatList
+              data={categories}
+              keyExtractor={(item) => String(item.id)}
+              style={{ maxHeight: 300 }}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <Text style={[styles.label, { color: Colors.textMuted, textAlign: 'center', marginTop: 8 }]}>No categories yet.</Text>
+              }
+              renderItem={({ item }) => (
+                <View style={styles.catRow}>
+                  <Text style={styles.catName}>{item.name}</Text>
+                  <Pressable onPress={() => handleDeleteCategory(item)} style={styles.catDeleteBtn}>
+                    <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+                  </Pressable>
+                </View>
+              )}
+              ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: Colors.border }} />}
+            />
+
+            <Text style={[styles.label, { marginTop: 16 }]}>Add Category</Text>
+            <View style={styles.catAddRow}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="e.g. Electronics"
+                value={newCategoryName}
+                onChangeText={setNewCategoryName}
+                onSubmitEditing={handleAddCategory}
+                placeholderTextColor={Colors.textMuted}
+              />
+              <Pressable
+                style={[styles.saveBtn, { flex: 0, paddingHorizontal: 16, paddingVertical: 10, marginTop: 0, opacity: savingCategory || !newCategoryName.trim() ? 0.5 : 1 }]}
+                onPress={handleAddCategory}
+                disabled={savingCategory || !newCategoryName.trim()}
+              >
+                {savingCategory
+                  ? <ActivityIndicator color={Colors.textOnPrimary} size="small" />
+                  : <Ionicons name="add" size={22} color={Colors.textOnPrimary} />}
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal visible={showEditProfile} animationType="slide" transparent onRequestClose={() => setShowEditProfile(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
@@ -212,5 +317,9 @@ const styles = StyleSheet.create({
   input: { backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.textDark },
   saveBtn: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
   saveBtnText: { color: Colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
+  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  catName: { flex: 1, fontSize: 15, color: Colors.textDark },
+  catDeleteBtn: { padding: 6 },
+  catAddRow: { flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 6 },
 });
 

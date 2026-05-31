@@ -1,13 +1,12 @@
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/components/ui/colors';
 import InputField from '@/components/ui/InputField';
-import { inventoryService } from '@/services/inventory';
-
-const CATEGORIES = ['Groceries', 'Footwear', 'Apparel', 'Accessories', 'Beauty', 'Beverage', 'Other'];
+import CategoryPicker from '@/components/ui/CategoryPicker';
+import { inventoryService, type Category } from '@/services/inventory';
 
 export default function AddProduct() {
   const router = useRouter();
@@ -17,8 +16,12 @@ export default function AddProduct() {
   const [costPrice, setCostPrice] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [stock, setStock] = useState(1);
-  const [showCategories, setShowCategories] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    inventoryService.getCategories().then(setCategories).catch(() => {});
+  }, []);
 
   const handleSave = async () => {
     if (!productName.trim()) {
@@ -90,33 +93,9 @@ export default function AddProduct() {
             onChangeText={setProductName}
           />
 
-          {/* Category dropdown */}
           <View style={styles.fieldWrapper}>
             <Text style={styles.fieldLabel}>Category</Text>
-            <Pressable
-              style={styles.dropdown}
-              onPress={() => setShowCategories(!showCategories)}
-            >
-              <Text style={[styles.dropdownText, !category && { color: Colors.textMuted }]}>
-                {category || 'Select category'}
-              </Text>
-              <Ionicons name="chevron-down" size={18} color={Colors.textMuted} />
-            </Pressable>
-            {showCategories && (
-              <View style={styles.categoryList}>
-                {CATEGORIES.map((cat) => (
-                  <Pressable
-                    key={cat}
-                    style={styles.categoryItem}
-                    onPress={() => { setCategory(cat); setShowCategories(false); }}
-                  >
-                    <Text style={[styles.categoryText, cat === category && { color: Colors.primary, fontWeight: '700' }]}>
-                      {cat}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
+            <CategoryPicker value={category} onChange={setCategory} categories={categories} />
           </View>
 
           <InputField
@@ -227,33 +206,6 @@ const styles = StyleSheet.create({
   },
   fieldWrapper: { gap: 6 },
   fieldLabel: { fontSize: 13, fontWeight: '500', color: Colors.textDark },
-  dropdown: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: Colors.background,
-  },
-  dropdownText: { fontSize: 14, color: Colors.textDark },
-  categoryList: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: Colors.card,
-    marginTop: 4,
-  },
-  categoryItem: {
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  categoryText: { fontSize: 14, color: Colors.textDark },
   row: { flexDirection: 'row', gap: 12 },
   stepper: {
     flexDirection: 'row',

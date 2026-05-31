@@ -20,8 +20,11 @@ public class ProductController {
     public ResponseEntity<PagedResponse<ProductDTO>> getAll(
         @RequestHeader("X-User-Id") Long userId,
         @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(productService.findAll(userId, page, size));
+        @RequestParam(defaultValue = "20") int size,
+        @RequestParam(required = false) String search,
+        @RequestParam(required = false) String category,
+        @RequestParam(required = false) String stockStatus) {
+        return ResponseEntity.ok(productService.findAll(userId, page, size, search, category, stockStatus));
     }
 
     @GetMapping("/{id}")

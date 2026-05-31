@@ -8,17 +8,24 @@ export default function Pagination({
   totalPages,
   totalElements,
   pageSize,
+  extraParams = {},
 }: {
   basePath: string
   currentPage: number
   totalPages: number
   totalElements: number
   pageSize: number
+  extraParams?: Record<string, string>
 }) {
   if (totalPages <= 1) return null
 
   const from = totalElements === 0 ? 0 : currentPage * pageSize + 1
   const to = Math.min((currentPage + 1) * pageSize, totalElements)
+
+  function buildUrl(page: number) {
+    const params = new URLSearchParams({ ...extraParams, page: String(page) })
+    return `${basePath}?${params.toString()}`
+  }
 
   return (
     <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
@@ -28,7 +35,7 @@ export default function Pagination({
       <div className="flex items-center gap-2">
         {currentPage > 0 ? (
           <Link
-            href={`${basePath}?page=${currentPage - 1}`}
+            href={buildUrl(currentPage - 1)}
             className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
           >
             Previous
@@ -43,7 +50,7 @@ export default function Pagination({
         </span>
         {currentPage < totalPages - 1 ? (
           <Link
-            href={`${basePath}?page=${currentPage + 1}`}
+            href={buildUrl(currentPage + 1)}
             className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
           >
             Next

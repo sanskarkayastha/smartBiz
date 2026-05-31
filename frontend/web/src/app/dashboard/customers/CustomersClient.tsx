@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import AddCustomerModal from '@/src/components/AddCustomerModal'
 import Pagination from '@/src/components/Pagination'
 
@@ -36,6 +37,8 @@ export default function CustomersClient({
   totalPages,
   totalElements,
   pageSize,
+  initialSearch = '',
+  initialHasDue = false,
 }: {
   customers: Customer[]
   sales: Sale[]
@@ -43,17 +46,66 @@ export default function CustomersClient({
   totalPages: number
   totalElements: number
   pageSize: number
+  initialSearch?: string
+  initialHasDue?: boolean
 }) {
+  const router = useRouter()
   const [customers, setCustomers] = useState(initial)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(initialSearch)
+  const [hasDue, setHasDue] = useState(initialHasDue)
   const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const filtered = customers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      (c.phone ?? '').includes(search)
-  )
+  function buildParams(s: string, hd: boolean, page = 0) {
+    const sp = new URLSearchParams()
+    if (s) sp.set('search', s)
+    if (hd) sp.set('hasDue', 'true')
+    if (page > 0) sp.set('page', String(page))
+    return sp.toString()
+  }
+
+  function handleSearchChange(val: string) {
+    setSearch(val)
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current)
+    if (!val.trim()) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      const qs = buildParams('', hasDue)
+      router.push(`/dashboard/customers${qs ? `?${qs}` : ''}`)
+      return
+    }
+    suggestTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/customers?search=${encodeURIComponent(val)}&page=0&size=5`)
+        const data = await res.json()
+        setSuggestions((data.content ?? []).map((c: { name: string }) => c.name))
+        setShowSuggestions(true)
+      } catch { /* ignore */ }
+    }, 300)
+  }
+
+  function commitSearch(val: string) {
+    setSearch(val)
+    setSuggestions([])
+    setShowSuggestions(false)
+    const qs = buildParams(val, hasDue)
+    router.push(`/dashboard/customers${qs ? `?${qs}` : ''}`)
+  }
+
+  function toggleHasDue() {
+    const next = !hasDue
+    setHasDue(next)
+    const qs = buildParams(search, next)
+    router.push(`/dashboard/customers${qs ? `?${qs}` : ''}`)
+  }
+
+  const activeFilterCount = [search, hasDue].filter(Boolean).length
+  const extraParams: Record<string, string> = {}
+  if (search) extraParams.search = search
+  if (hasDue) extraParams.hasDue = 'true'
 
   async function handleDelete(c: Customer) {
     if (!confirm(`Delete customer "${c.name}"? This cannot be undone.`)) return
@@ -82,24 +134,69 @@ export default function CustomersClient({
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-xs">
+      {/* Filter Bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or phone…"
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+            onChange={(e) => handleSearchChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitSearch(search) }}
+            onBlur={() => setShowSuggestions(false)}
+            placeholder="Search by name, phone, or email…"
+            className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#135BEC] bg-white"
           />
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="absolute z-10 top-full left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
+              {suggestions.map((name) => (
+                <li key={name} onMouseDown={() => commitSearch(name)} className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-800">
+                  {name}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        <AddCustomerModal onSaved={handleSaved} />
+
+        <button
+          onClick={toggleHasDue}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border rounded-xl transition-colors ${
+            hasDue
+              ? 'bg-red-50 border-red-300 text-red-700'
+              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+          </svg>
+          Has Due
+          {hasDue && <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />}
+        </button>
+
+        <div className="ml-auto flex items-center gap-3">
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => {
+                setSearch('')
+                setHasDue(false)
+                setSuggestions([])
+                setShowSuggestions(false)
+                router.push('/dashboard/customers')
+              }}
+              className="flex items-center gap-1.5 px-3 py-2.5 text-sm text-gray-500 hover:text-gray-800 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Clear
+            </button>
+          )}
+          <AddCustomerModal onSaved={handleSaved} />
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        {filtered.length > 0 ? (
+        {customers.length > 0 ? (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
@@ -112,7 +209,7 @@ export default function CustomersClient({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((c, i) => (
+              {customers.map((c, i) => (
                 <tr key={c.id} className={`border-b border-gray-50 ${i % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
@@ -168,8 +265,8 @@ export default function CustomersClient({
               <circle cx="9" cy="7" r="4"/>
               <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
             </svg>
-            <p className="text-sm font-medium">{search ? 'No customers match your search' : 'No customers yet'}</p>
-            {!search && <p className="text-xs mt-1">Click &quot;Add Customer&quot; to add your first customer</p>}
+            <p className="text-sm font-medium">{activeFilterCount ? 'No customers match your filters' : 'No customers yet'}</p>
+            {!activeFilterCount && <p className="text-xs mt-1">Click &quot;Add Customer&quot; to add your first customer</p>}
           </div>
         )}
         <Pagination
@@ -178,6 +275,7 @@ export default function CustomersClient({
           totalPages={totalPages}
           totalElements={totalElements}
           pageSize={pageSize}
+          extraParams={extraParams}
         />
       </div>
 

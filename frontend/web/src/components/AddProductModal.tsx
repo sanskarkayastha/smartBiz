@@ -45,9 +45,10 @@ type Props = {
   product?: Product
   onClose?: () => void
   triggerLabel?: string
+  categories?: string[]
 }
 
-export default function AddProductModal({ product, onClose, triggerLabel }: Props) {
+export default function AddProductModal({ product, onClose, triggerLabel, categories = [] }: Props) {
   const router = useRouter()
   const isEdit = !!product
   const [open, setOpen] = useState(false)
@@ -151,7 +152,34 @@ export default function AddProductModal({ product, onClose, triggerLabel }: Prop
               <Field label="Product Name *" value={form.name} onChange={set('name')} placeholder="e.g. Rice 5kg" />
               <div className="grid grid-cols-2 gap-3">
                 <Field label="SKU" value={form.sku} onChange={set('sku')} placeholder="e.g. RICE-5KG" />
-                <Field label="Category" value={form.category} onChange={set('category')} placeholder="e.g. Grains" />
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Category</label>
+                  {categories.length > 0 ? (
+                    <>
+                      <select
+                        value={form.category}
+                        onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#135BEC] focus:border-transparent bg-white"
+                      >
+                        <option value="">— Select category —</option>
+                        {categories.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                        {form.category && !categories.includes(form.category) && (
+                          <option value={form.category}>{form.category} (legacy)</option>
+                        )}
+                      </select>
+                    </>
+                  ) : (
+                    <input
+                      type="text"
+                      value={form.category}
+                      onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                      placeholder="e.g. Grains"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#135BEC] focus:border-transparent"
+                    />
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Cost Price (NPR)" value={form.costPrice} onChange={set('costPrice')} placeholder="0.00" type="number" min="0" step="0.01" />

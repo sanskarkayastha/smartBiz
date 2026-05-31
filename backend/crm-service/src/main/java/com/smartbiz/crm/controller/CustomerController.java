@@ -24,8 +24,10 @@ public class CustomerController {
     public ResponseEntity<PagedResponse<CustomerDTO>> getCustomers(
             @RequestHeader("X-User-Id") Long userId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(crmService.findByUserId(userId, page, size));
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean hasDue) {
+        return ResponseEntity.ok(crmService.findByUserId(userId, page, size, search, hasDue));
     }
 
     @GetMapping("/{id}")

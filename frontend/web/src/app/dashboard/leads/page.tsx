@@ -19,14 +19,24 @@ type Lead = {
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>
+  searchParams: Promise<{ page?: string; search?: string; stage?: string; source?: string; overdueOnly?: string }>
 }) {
   const session = await requireSession()
-  const { page: pageParam } = await searchParams
-  const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0)
+  const params = await searchParams
+  const page = Math.max(0, parseInt(params.page ?? '0', 10) || 0)
+  const search = params.search ?? ''
+  const stage = params.stage ?? ''
+  const source = params.source ?? ''
+  const overdueOnly = params.overdueOnly === 'true'
+
+  const qs = new URLSearchParams({ page: String(page), size: String(PAGE_SIZE) })
+  if (search) qs.set('search', search)
+  if (stage) qs.set('stage', stage)
+  if (source) qs.set('source', source)
+  if (overdueOnly) qs.set('overdueOnly', 'true')
 
   const data = await apiFetch<{ content: Lead[]; totalPages: number; totalElements: number }>(
-    `/leads?page=${page}&size=${PAGE_SIZE}`,
+    `/leads?${qs.toString()}`,
     session
   )
   const leads = data?.content ?? []
@@ -46,6 +56,10 @@ export default async function LeadsPage({
         totalPages={totalPages}
         totalElements={totalElements}
         pageSize={PAGE_SIZE}
+        initialSearch={search}
+        initialStage={stage}
+        initialSource={source}
+        initialOverdueOnly={overdueOnly}
       />
     </div>
   )

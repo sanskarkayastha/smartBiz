@@ -15,10 +15,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Colors } from '@/components/ui/colors';
 import VoiceButton from '@/components/ui/VoiceButton';
-import { leadsService, Lead, LeadStage, LeadSource, CreateLeadPayload } from '@/services/leads';
+import { leadsService, Lead, LeadStage, LeadSource, LeadFilters, CreateLeadPayload } from '@/services/leads';
 import { parseVoiceForLead } from '@/services/ai';
 
 // ─── Stage config ────────────────────────────────────────────────────────────
@@ -84,7 +84,17 @@ export default function Leads() {
   const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<LeadStage | 'ALL'>('ALL');
+  const [filterSource, setFilterSource] = useState<LeadSource | ''>('');
+  const [filterOverdueOnly, setFilterOverdueOnly] = useState(false);
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [pendingSource, setPendingSource] = useState<LeadSource | ''>('');
+  const [pendingOverdueOnly, setPendingOverdueOnly] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const filtersRef = useRef({ search: '', stage: '', source: '', overdueOnly: false });
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -94,10 +104,20 @@ export default function Leads() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
+  const buildFilters = (): LeadFilters | undefined => {
+    const { search: s, stage, source, overdueOnly } = filtersRef.current;
+    const f: LeadFilters = {};
+    if (s.trim()) f.search = s.trim();
+    if (stage) f.stage = stage;
+    if (source) f.source = source;
+    if (overdueOnly) f.overdueOnly = true;
+    return Object.keys(f).length ? f : undefined;
+  };
+
   const load = useCallback(async () => {
     setError(false);
     try {
-      const data = await leadsService.getLeads(0, 20);
+      const data = await leadsService.getLeads(0, 20, buildFilters());
       setLeads(data.content);
       setCurrentPage(0);
       setHasNext(data.hasNext);
@@ -107,6 +127,7 @@ export default function Leads() {
       setLoading(false);
       setRefreshing(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadMore = async () => {
@@ -114,7 +135,7 @@ export default function Leads() {
     setLoadingMore(true);
     try {
       const nextPage = currentPage + 1;
-      const data = await leadsService.getLeads(nextPage, 20);
+      const data = await leadsService.getLeads(nextPage, 20, buildFilters());
       setLeads((prev) => [...prev, ...data.content]);
       setCurrentPage(nextPage);
       setHasNext(data.hasNext);
@@ -128,6 +149,55 @@ export default function Leads() {
   useEffect(() => { load(); }, [load]);
 
   const onRefresh = () => { setRefreshing(true); load(); };
+
+  const handleSearchChange = (text: string) => {
+    setSearch(text);
+    filtersRef.current.search = text;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => load(), 400);
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+    if (!text.trim()) { setSuggestions([]); return; }
+    suggestTimerRef.current = setTimeout(async () => {
+      try {
+        const data = await leadsService.getLeads(0, 5, { search: text });
+        setSuggestions(data.content.map((l) => l.name));
+      } catch { /* ignore */ }
+    }, 300);
+  };
+
+  const handleStageSelect = (s: LeadStage | 'ALL') => {
+    setStageFilter(s);
+    filtersRef.current.stage = s === 'ALL' ? '' : s;
+    load();
+  };
+
+  const openFilterSheet = () => {
+    setPendingSource(filterSource);
+    setPendingOverdueOnly(filterOverdueOnly);
+    setShowFilterSheet(true);
+  };
+
+  const applyFilters = () => {
+    filtersRef.current.source = pendingSource;
+    filtersRef.current.overdueOnly = pendingOverdueOnly;
+    setFilterSource(pendingSource);
+    setFilterOverdueOnly(pendingOverdueOnly);
+    setShowFilterSheet(false);
+    load();
+  };
+
+  const clearFilters = () => {
+    filtersRef.current.source = '';
+    filtersRef.current.overdueOnly = false;
+    setPendingSource('');
+    setPendingOverdueOnly(false);
+    setFilterSource('');
+    setFilterOverdueOnly(false);
+    setShowFilterSheet(false);
+    load();
+  };
+
+  const activeFilterCount = (filterSource ? 1 : 0) + (filterOverdueOnly ? 1 : 0);
 
   const toggleExpand = (id: number) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -261,13 +331,6 @@ export default function Leads() {
     );
   };
 
-  const filtered = leads.filter((l) => {
-    const matchesSearch =
-      l.name.toLowerCase().includes(search.toLowerCase()) ||
-      (l.phone ?? '').includes(search);
-    const matchesStage = stageFilter === 'ALL' || l.stage === stageFilter;
-    return matchesSearch && matchesStage;
-  });
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -284,19 +347,50 @@ export default function Leads() {
       </View>
 
       {/* Search */}
-      <View style={styles.searchRow}>
-        <Ionicons name="search-outline" size={16} color={Colors.textMuted} style={{ flexShrink: 0 }} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by name or phone..."
-          placeholderTextColor={Colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <Pressable onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+      <View style={styles.searchWrapper}>
+        <View style={styles.searchRow}>
+          <View style={styles.searchInputRow}>
+            <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by name or phone..."
+              placeholderTextColor={Colors.textMuted}
+              value={search}
+              onChangeText={handleSearchChange}
+            />
+            {search.length > 0 && (
+              <Pressable onPress={() => handleSearchChange('')}>
+                <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+              </Pressable>
+            )}
+          </View>
+          <Pressable
+            style={[styles.filterBtn, activeFilterCount > 0 && styles.filterBtnActive]}
+            onPress={openFilterSheet}
+          >
+            <Ionicons name="options-outline" size={20} color={activeFilterCount > 0 ? Colors.primary : Colors.textDark} />
+            {activeFilterCount > 0 && <View style={styles.filterDot} />}
           </Pressable>
+        </View>
+        {suggestions.length > 0 && search.trim() !== '' && (
+          <View style={styles.suggestOverlay}>
+            {suggestions.map((name) => (
+              <Pressable
+                key={name}
+                style={styles.suggestItem}
+                onPress={() => {
+                  if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+                  if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+                  setSearch(name);
+                  setSuggestions([]);
+                  filtersRef.current.search = name;
+                  load();
+                }}
+              >
+                <Text style={styles.suggestText}>{name}</Text>
+              </Pressable>
+            ))}
+          </View>
         )}
       </View>
 
@@ -311,7 +405,7 @@ export default function Leads() {
           <Pressable
             key={s}
             style={[styles.tab, stageFilter === s && styles.tabActive]}
-            onPress={() => setStageFilter(s)}
+            onPress={() => handleStageSelect(s)}
           >
             <Text style={[styles.tabText, stageFilter === s && styles.tabTextActive]}>
               {s === 'ALL' ? 'All' : STAGE_CONFIG[s].label}
@@ -334,21 +428,21 @@ export default function Leads() {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={filtered.length === 0 ? styles.emptyContainer : styles.list}
+          contentContainerStyle={leads.length === 0 ? styles.emptyContainer : styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
         >
-          {filtered.length === 0 ? (
+          {leads.length === 0 ? (
             <View style={styles.empty}>
               <Ionicons name="funnel-outline" size={48} color={Colors.textMuted} />
               <Text style={styles.emptyText}>
-                {search || stageFilter !== 'ALL' ? 'No leads match your filter' : 'No leads yet'}
+                {search || stageFilter !== 'ALL' || activeFilterCount > 0 ? 'No leads match your filter' : 'No leads yet'}
               </Text>
-              {!search && stageFilter === 'ALL' && (
+              {!search && stageFilter === 'ALL' && activeFilterCount === 0 && (
                 <Text style={styles.emptySubText}>Add your first lead to start tracking your pipeline</Text>
               )}
             </View>
           ) : (
-            filtered.map((l) => {
+            leads.map((l) => {
               const isExpanded = expandedId === l.id;
               const stageConf = STAGE_CONFIG[l.stage];
               const overdue = isOverdue(l.followUpDate);
@@ -519,6 +613,63 @@ export default function Leads() {
         </ScrollView>
       )}
 
+      {/* Filter Sheet */}
+      <Modal visible={showFilterSheet} animationType="slide" transparent onRequestClose={() => setShowFilterSheet(false)}>
+        <View style={styles.filterOverlay}>
+          <View style={styles.filterSheet}>
+            <View style={styles.filterHeader}>
+              <Text style={styles.filterTitle}>Filter Leads</Text>
+              <Pressable onPress={() => setShowFilterSheet(false)}>
+                <Ionicons name="close" size={22} color={Colors.textDark} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.filterLabel}>Source</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+              <Pressable
+                style={[styles.chip, pendingSource === '' && styles.chipActive]}
+                onPress={() => setPendingSource('')}
+              >
+                <Text style={[styles.chipText, pendingSource === '' && styles.chipTextActive]}>All</Text>
+              </Pressable>
+              {(Object.keys(SOURCE_LABELS) as LeadSource[]).map((src) => (
+                <Pressable
+                  key={src}
+                  style={[styles.chip, pendingSource === src && styles.chipActive]}
+                  onPress={() => setPendingSource(pendingSource === src ? '' : src)}
+                >
+                  <Text style={[styles.chipText, pendingSource === src && styles.chipTextActive]}>
+                    {SOURCE_LABELS[src]}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            <Pressable
+              style={[styles.toggleRow, pendingOverdueOnly && styles.toggleRowActive]}
+              onPress={() => setPendingOverdueOnly((v) => !v)}
+            >
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleLabel}>Overdue Follow-ups Only</Text>
+                <Text style={styles.toggleSub}>Show leads with past follow-up dates</Text>
+              </View>
+              <View style={[styles.toggleKnob, pendingOverdueOnly && styles.toggleKnobActive]}>
+                <Ionicons name={pendingOverdueOnly ? 'checkmark' : 'close'} size={14} color={pendingOverdueOnly ? Colors.textOnPrimary : Colors.textMuted} />
+              </View>
+            </Pressable>
+
+            <View style={styles.filterBtnRow}>
+              <Pressable style={styles.clearBtn} onPress={clearFilters}>
+                <Text style={styles.clearBtnText}>Clear All</Text>
+              </Pressable>
+              <Pressable style={styles.applyBtn} onPress={applyFilters}>
+                <Text style={styles.applyBtnText}>Apply</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Add / Edit Modal */}
       <Modal visible={showModal} animationType="slide" transparent onRequestClose={() => setShowModal(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
@@ -654,8 +805,12 @@ const styles = StyleSheet.create({
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
   addBtnText: { color: Colors.textOnPrimary, fontWeight: '600', fontSize: 14 },
 
-  searchRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8, backgroundColor: Colors.card, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 10, paddingVertical: 8, gap: 8 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8, gap: 8 },
+  searchInputRow: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 10, paddingVertical: 8, gap: 8 },
   searchInput: { flex: 1, fontSize: 14, color: Colors.textDark, padding: 0 },
+  filterBtn: { backgroundColor: Colors.card, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, padding: 10 },
+  filterBtnActive: { borderColor: Colors.primary + '60', backgroundColor: Colors.primary + '08' },
+  filterDot: { position: 'absolute', top: 5, right: 5, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary, borderWidth: 1.5, borderColor: Colors.card },
 
   tabsScroll: { flexGrow: 0 },
   tabsContent: { paddingHorizontal: 16, gap: 8, paddingBottom: 8 },
@@ -728,4 +883,30 @@ const styles = StyleSheet.create({
   saveBtnText: { color: Colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
   loadMoreBtn: { alignItems: 'center', paddingVertical: 16 },
   loadMoreText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
+  filterOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  filterSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
+  filterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  filterTitle: { fontSize: 18, fontWeight: '700', color: Colors.textDark },
+  filterLabel: { fontSize: 13, fontWeight: '600', color: Colors.textDark, marginBottom: 8, marginTop: 4 },
+  chipScroll: { flexGrow: 0, marginBottom: 16 },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.background, marginRight: 8 },
+  chipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  chipText: { fontSize: 13, fontWeight: '500', color: Colors.textMuted },
+  chipTextActive: { color: Colors.textOnPrimary, fontWeight: '600' },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.background },
+  toggleRowActive: { borderColor: Colors.primary + '60', backgroundColor: Colors.primary + '06' },
+  toggleInfo: { flex: 1, marginRight: 12 },
+  toggleLabel: { fontSize: 14, fontWeight: '600', color: Colors.textDark },
+  toggleSub: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  toggleKnob: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border, justifyContent: 'center', alignItems: 'center' },
+  toggleKnobActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  filterBtnRow: { flexDirection: 'row', gap: 10, marginTop: 24 },
+  clearBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
+  clearBtnText: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
+  applyBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: Colors.primary, alignItems: 'center' },
+  applyBtnText: { fontSize: 14, fontWeight: '600', color: Colors.textOnPrimary },
+  searchWrapper: { zIndex: 10 },
+  suggestOverlay: { position: 'absolute', top: 44, left: 16, right: 16, zIndex: 100, backgroundColor: Colors.card, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 8 },
+  suggestItem: { paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
+  suggestText: { fontSize: 14, color: Colors.textDark },
 });

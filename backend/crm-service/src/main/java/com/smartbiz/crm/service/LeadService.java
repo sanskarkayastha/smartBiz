@@ -31,12 +31,15 @@ public class LeadService {
     private final CustomerRepository customerRepository;
     private final CrmService crmService;
 
-    @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size")
-    public PagedResponse<LeadDTO> getLeads(Long userId, int page, int size) {
+    @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size + ':' + #search + ':' + #stage + ':' + #source + ':' + #overdueOnly")
+    public PagedResponse<LeadDTO> getLeads(Long userId, int page, int size, String search, String stage, String source, Boolean overdueOnly) {
         int clampedSize = Math.min(size, 100);
         Pageable pageable = PageRequest.of(page, clampedSize, Sort.by("createdAt").descending());
+        String s = (search != null && !search.isBlank()) ? search.trim() : null;
+        String st = (stage != null && !stage.isBlank()) ? stage.trim() : null;
+        String src = (source != null && !source.isBlank()) ? source.trim() : null;
         return PagedResponse.of(
-            leadRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable).map(this::toDTO)
+            leadRepository.findWithFilters(userId, s, st, src, overdueOnly, pageable).map(this::toDTO)
         );
     }
 

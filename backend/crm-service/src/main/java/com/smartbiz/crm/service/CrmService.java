@@ -30,12 +30,13 @@ public class CrmService {
 
     private final CustomerRepository customerRepository;
 
-    @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size")
-    public PagedResponse<CustomerDTO> findByUserId(Long userId, int page, int size) {
+    @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size + ':' + #search + ':' + #hasDue")
+    public PagedResponse<CustomerDTO> findByUserId(Long userId, int page, int size, String search, Boolean hasDue) {
         int clampedSize = Math.min(size, 100);
         Pageable pageable = PageRequest.of(page, clampedSize, Sort.by("createdAt").descending());
+        String s = (search != null && !search.isBlank()) ? search.trim() : null;
         return PagedResponse.of(
-            customerRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable).map(this::toDTO)
+            customerRepository.findWithFilters(userId, s, hasDue, pageable).map(this::toDTO)
         );
     }
 

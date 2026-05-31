@@ -1,31 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/src/lib/session'
 
-export async function GET(req: NextRequest) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const qs = searchParams.toString()
-
-  const res = await fetch(`${process.env.API_GATEWAY_URL}/customers${qs ? `?${qs}` : ''}`, {
-    headers: {
-      Authorization: `Bearer ${session.token}`,
-      'X-User-Id': String(session.userId),
-    },
-  })
-
-  const data = await res.json().catch(() => [])
-  return NextResponse.json(data, { status: res.status })
-}
-
-export async function POST(req: NextRequest) {
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
+  const { id } = await params
   const body = await req.json()
-  const res = await fetch(`${process.env.API_GATEWAY_URL}/customers`, {
-    method: 'POST',
+  const res = await fetch(`${process.env.API_GATEWAY_URL}/inventory/categories/${id}`, {
+    method: 'PUT',
     headers: {
       Authorization: `Bearer ${session.token}`,
       'X-User-Id': String(session.userId),
@@ -34,6 +17,24 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify(body),
   })
 
+  const data = await res.json().catch(() => ({}))
+  return NextResponse.json(data, { status: res.status })
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id } = await params
+  const res = await fetch(`${process.env.API_GATEWAY_URL}/inventory/categories/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${session.token}`,
+      'X-User-Id': String(session.userId),
+    },
+  })
+
+  if (res.status === 204) return new NextResponse(null, { status: 204 })
   const data = await res.json().catch(() => ({}))
   return NextResponse.json(data, { status: res.status })
 }

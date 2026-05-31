@@ -43,11 +43,17 @@ export type UpdateSupplierPayload = {
   notes?: string;
 };
 
+export type SupplierFilters = {
+  search?: string;
+  hasBalance?: boolean;
+};
+
 export const supplierService = {
-  async getSuppliers(page = 0, size = 20): Promise<PagedResponse<Supplier>> {
-    const { data } = await api.get<PagedResponse<Supplier>>('/inventory/suppliers', {
-      params: { page, size },
-    });
+  async getSuppliers(page = 0, size = 20, filters?: SupplierFilters): Promise<PagedResponse<Supplier>> {
+    const params: Record<string, string | number | boolean> = { page, size };
+    if (filters?.search) params.search = filters.search;
+    if (filters?.hasBalance) params.hasBalance = true;
+    const { data } = await api.get<PagedResponse<Supplier>>('/inventory/suppliers', { params });
     return data;
   },
 

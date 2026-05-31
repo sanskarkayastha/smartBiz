@@ -38,11 +38,21 @@ export type CreateLeadPayload = {
   followUpDate?: string;
 };
 
+export type LeadFilters = {
+  search?: string;
+  stage?: string;
+  source?: string;
+  overdueOnly?: boolean;
+};
+
 export const leadsService = {
-  async getLeads(page = 0, size = 20): Promise<PagedResponse<Lead>> {
-    const { data } = await api.get<PagedResponse<Lead>>('/leads', {
-      params: { page, size },
-    });
+  async getLeads(page = 0, size = 20, filters?: LeadFilters): Promise<PagedResponse<Lead>> {
+    const params: Record<string, string | number | boolean> = { page, size };
+    if (filters?.search) params.search = filters.search;
+    if (filters?.stage) params.stage = filters.stage;
+    if (filters?.source) params.source = filters.source;
+    if (filters?.overdueOnly) params.overdueOnly = true;
+    const { data } = await api.get<PagedResponse<Lead>>('/leads', { params });
     return data;
   },
 

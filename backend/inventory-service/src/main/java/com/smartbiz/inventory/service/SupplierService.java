@@ -27,12 +27,14 @@ public class SupplierService {
     private final SupplierRepository supplierRepository;
     private final ProductRepository productRepository;
 
-    @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size")
-    public PagedResponse<SupplierDTO> getSuppliers(Long userId, int page, int size) {
+    @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size + ':' + #search + ':' + #hasBalance")
+    public PagedResponse<SupplierDTO> getSuppliers(Long userId, int page, int size, String search, Boolean hasBalance) {
         int clampedSize = Math.min(size, 100);
         Pageable pageable = PageRequest.of(page, clampedSize, Sort.by("name").ascending());
+        String s = (search != null && !search.isBlank()) ? search.trim().toLowerCase() : "";
+        boolean hb = hasBalance != null && hasBalance;
         return PagedResponse.of(
-            supplierRepository.findAllByUserIdOrderByNameAsc(userId, pageable).map(SupplierDTO::from)
+            supplierRepository.findWithFilters(userId, s, hb, pageable).map(SupplierDTO::from)
         );
     }
 

@@ -8,9 +8,10 @@ type Props = {
   onChangeText?: (text: string) => void;
   showFilter?: boolean;
   onFilterPress?: () => void;
+  filterActive?: boolean;
 };
 
-export default function SearchBar({ placeholder = 'Search...', value, onChangeText, showFilter, onFilterPress }: Props) {
+export default function SearchBar({ placeholder = 'Search...', value, onChangeText, showFilter, onFilterPress, filterActive }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.inputRow}>
@@ -24,8 +25,9 @@ export default function SearchBar({ placeholder = 'Search...', value, onChangeTe
         />
       </View>
       {showFilter && (
-        <Pressable onPress={onFilterPress} style={({ pressed }) => [styles.filterBtn, pressed && { opacity: 0.7 }]}>
-          <Ionicons name="options-outline" size={20} color={Colors.textDark} />
+        <Pressable onPress={onFilterPress} style={({ pressed }) => [styles.filterBtn, filterActive && styles.filterBtnActive, pressed && { opacity: 0.7 }]}>
+          <Ionicons name="options-outline" size={20} color={filterActive ? Colors.primary : Colors.textDark} />
+          {filterActive && <View style={styles.filterDot} />}
         </Pressable>
       )}
     </View>
@@ -63,5 +65,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     padding: 10,
+  },
+  filterBtnActive: {
+    borderColor: Colors.primary + '60',
+    backgroundColor: Colors.primary + '08',
+  },
+  filterDot: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.primary,
+    borderWidth: 1.5,
+    borderColor: Colors.card,
   },
 });

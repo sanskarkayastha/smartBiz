@@ -22,8 +22,12 @@ public class LeadController {
     public ResponseEntity<PagedResponse<LeadDTO>> getLeads(
             @RequestHeader("X-User-Id") Long userId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(leadService.getLeads(userId, page, size));
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String stage,
+            @RequestParam(required = false) String source,
+            @RequestParam(required = false) Boolean overdueOnly) {
+        return ResponseEntity.ok(leadService.getLeads(userId, page, size, search, stage, source, overdueOnly));
     }
 
     @GetMapping("/{id}")

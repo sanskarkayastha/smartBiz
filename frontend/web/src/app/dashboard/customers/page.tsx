@@ -29,15 +29,21 @@ type Sale = {
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>
+  searchParams: Promise<{ page?: string; search?: string; hasDue?: string }>
 }) {
   const session = await requireSession()
-  const { page: pageParam } = await searchParams
-  const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0)
+  const params = await searchParams
+  const page = Math.max(0, parseInt(params.page ?? '0', 10) || 0)
+  const search = params.search ?? ''
+  const hasDue = params.hasDue === 'true'
+
+  const qs = new URLSearchParams({ page: String(page), size: String(PAGE_SIZE) })
+  if (search) qs.set('search', search)
+  if (hasDue) qs.set('hasDue', 'true')
 
   const [customersData, sales] = await Promise.all([
     apiFetch<{ content: Customer[]; totalPages: number; totalElements: number }>(
-      `/customers?page=${page}&size=${PAGE_SIZE}`,
+      `/customers?${qs.toString()}`,
       session
     ),
     apiFetch<Sale[]>('/sales', session),
@@ -61,6 +67,8 @@ export default async function CustomersPage({
         totalPages={totalPages}
         totalElements={totalElements}
         pageSize={PAGE_SIZE}
+        initialSearch={search}
+        initialHasDue={hasDue}
       />
     </div>
   )

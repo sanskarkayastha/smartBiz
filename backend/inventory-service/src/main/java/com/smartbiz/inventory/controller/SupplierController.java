@@ -19,8 +19,10 @@ public class SupplierController {
     public ResponseEntity<PagedResponse<SupplierDTO>> getAll(
         @RequestHeader("X-User-Id") Long userId,
         @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(supplierService.getSuppliers(userId, page, size));
+        @RequestParam(defaultValue = "20") int size,
+        @RequestParam(required = false) String search,
+        @RequestParam(required = false) Boolean hasBalance) {
+        return ResponseEntity.ok(supplierService.getSuppliers(userId, page, size, search, hasBalance));
     }
 
     @PostMapping

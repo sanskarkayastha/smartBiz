@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AddProductModal from '@/src/components/AddProductModal'
 import Pagination from '@/src/components/Pagination'
+import ManageCategoriesModal, { type Category } from '@/src/components/ManageCategoriesModal'
 
 type Product = {
   id: number
@@ -23,35 +24,98 @@ function statusLabel(quantity: number, reorderLevel: number | null) {
   return { text: 'In Stock', cls: 'bg-green-50 text-green-700' }
 }
 
+const STOCK_OPTIONS = [
+  { value: '', label: 'All Stock' },
+  { value: 'LOW_STOCK', label: 'Low Stock' },
+  { value: 'OUT_OF_STOCK', label: 'Out of Stock' },
+]
+
 export default function InventoryClient({
   initialProducts,
   currentPage,
   totalPages,
   totalElements,
   pageSize,
+  initialSearch = '',
+  initialCategory = '',
+  initialStockStatus = '',
 }: {
   initialProducts: Product[]
   currentPage: number
   totalPages: number
   totalElements: number
   pageSize: number
+  initialSearch?: string
+  initialCategory?: string
+  initialStockStatus?: string
 }) {
   const router = useRouter()
   const [products, setProducts] = useState<Product[]>(initialProducts)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(initialSearch)
+  const [category, setCategory] = useState(initialCategory)
+  const [stockStatus, setStockStatus] = useState(initialStockStatus)
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [showManageCategories, setShowManageCategories] = useState(false)
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => { setProducts(initialProducts) }, [initialProducts])
+  useEffect(() => {
+    fetch('/api/categories')
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setCategories(data) })
+      .catch(() => {})
+  }, [])
 
-  const filtered = products.filter((p) => {
-    const term = search.toLowerCase()
-    return (
-      p.name.toLowerCase().includes(term) ||
-      (p.sku?.toLowerCase().includes(term) ?? false) ||
-      (p.category?.toLowerCase().includes(term) ?? false) ||
-      (p.supplier?.toLowerCase().includes(term) ?? false)
-    )
-  })
+  function buildParams(s: string, cat: string, ss: string, page = 0) {
+    const sp = new URLSearchParams()
+    if (s) sp.set('search', s)
+    if (cat) sp.set('category', cat)
+    if (ss) sp.set('stockStatus', ss)
+    if (page > 0) sp.set('page', String(page))
+    return sp.toString()
+  }
+
+  function handleSearchChange(val: string) {
+    setSearch(val)
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current)
+    if (!val.trim()) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      const qs = buildParams('', category, stockStatus)
+      router.push(`/dashboard/inventory${qs ? `?${qs}` : ''}`)
+      return
+    }
+    suggestTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/products?search=${encodeURIComponent(val)}&page=0&size=5`)
+        const data = await res.json()
+        setSuggestions((data.content ?? []).map((p: { name: string }) => p.name))
+        setShowSuggestions(true)
+      } catch { /* ignore */ }
+    }, 300)
+  }
+
+  function commitSearch(val: string) {
+    setSearch(val)
+    setSuggestions([])
+    setShowSuggestions(false)
+    const qs = buildParams(val, category, stockStatus)
+    router.push(`/dashboard/inventory${qs ? `?${qs}` : ''}`)
+  }
+
+  function handleCategoryChange(val: string) {
+    setCategory(val)
+    const qs = buildParams(search, val, stockStatus)
+    router.push(`/dashboard/inventory${qs ? `?${qs}` : ''}`)
+  }
+
+  function handleStockStatusChange(val: string) {
+    setStockStatus(val)
+    const qs = buildParams(search, category, val)
+    router.push(`/dashboard/inventory${qs ? `?${qs}` : ''}`)
+  }
 
   async function handleDelete(product: Product) {
     if (!confirm(`Delete "${product.name}"? This cannot be undone.`)) return
@@ -66,32 +130,102 @@ export default function InventoryClient({
     }
   }
 
+  const activeFilterCount = [search, category, stockStatus].filter(Boolean).length
+  const extraParams: Record<string, string> = {}
+  if (search) extraParams.search = search
+  if (category) extraParams.category = category
+  if (stockStatus) extraParams.stockStatus = stockStatus
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
-          <p className="text-sm text-gray-500 mt-1">{products.length} products</p>
+          <p className="text-sm text-gray-500 mt-1">{totalElements} products</p>
         </div>
-        <AddProductModal onClose={() => router.refresh()} />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowManageCategories(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+            Categories
+          </button>
+          <AddProductModal onClose={() => router.refresh()} categories={categories.map((c) => c.name)} />
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input
-          type="text"
-          placeholder="Search by name, SKU, category, or supplier..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#135BEC] focus:border-transparent bg-white"
-        />
+      {/* Filter Bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[200px]">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            type="text"
+            placeholder="Search name, SKU, supplier…"
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitSearch(search) }}
+            onBlur={() => setShowSuggestions(false)}
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#135BEC] focus:border-transparent bg-white"
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="absolute z-10 top-full left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
+              {suggestions.map((name) => (
+                <li key={name} onMouseDown={() => commitSearch(name)} className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-800">
+                  {name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Category */}
+        <select
+          value={category}
+          onChange={(e) => handleCategoryChange(e.target.value)}
+          className={`px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC] bg-white ${category ? 'border-[#135BEC] text-[#135BEC] font-medium' : 'border-gray-200 text-gray-700'}`}
+        >
+          <option value="">All Categories</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.name}>{c.name}</option>
+          ))}
+        </select>
+
+        {/* Stock Status */}
+        <select
+          value={stockStatus}
+          onChange={(e) => handleStockStatusChange(e.target.value)}
+          className={`px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC] bg-white ${stockStatus ? 'border-[#135BEC] text-[#135BEC] font-medium' : 'border-gray-200 text-gray-700'}`}
+        >
+          {STOCK_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+
+        {/* Clear filters */}
+        {activeFilterCount > 0 && (
+          <button
+            onClick={() => {
+              setSearch('')
+              setCategory('')
+              setStockStatus('')
+              setSuggestions([])
+              setShowSuggestions(false)
+              router.push('/dashboard/inventory')
+            }}
+            className="flex items-center gap-1.5 px-3 py-2.5 text-sm text-gray-500 hover:text-gray-800 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Clear {activeFilterCount > 1 ? `(${activeFilterCount})` : ''}
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        {filtered.length > 0 ? (
+        {products.length > 0 ? (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
@@ -106,7 +240,7 @@ export default function InventoryClient({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p, i) => {
+              {products.map((p, i) => {
                 const status = statusLabel(p.quantity, p.reorderLevel)
                 return (
                   <tr key={p.id} className={`border-b border-gray-50 ${i % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
@@ -128,7 +262,7 @@ export default function InventoryClient({
                     </td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <AddProductModal product={p} onClose={() => router.refresh()} />
+                        <AddProductModal product={p} onClose={() => router.refresh()} categories={categories.map((c) => c.name)} />
                         <button
                           onClick={() => handleDelete(p)}
                           disabled={deleting === p.id}
@@ -154,10 +288,10 @@ export default function InventoryClient({
               <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
             </svg>
             <p className="text-sm font-medium">
-              {search ? 'No matching products' : 'No products yet'}
+              {activeFilterCount ? 'No products match your filters' : 'No products yet'}
             </p>
             <p className="text-xs mt-1">
-              {search ? 'Try a different search term' : 'Click "Add Product" to create your first product'}
+              {activeFilterCount ? 'Try clearing your filters' : 'Click "Add Product" to create your first product'}
             </p>
           </div>
         )}
@@ -167,8 +301,19 @@ export default function InventoryClient({
           totalPages={totalPages}
           totalElements={totalElements}
           pageSize={pageSize}
+          extraParams={extraParams}
         />
       </div>
+
+      {showManageCategories && (
+        <ManageCategoriesModal
+          categories={categories}
+          onAdd={(cat) => setCategories((prev) => [...prev, cat].sort((a, b) => a.name.localeCompare(b.name)))}
+          onDelete={(id) => setCategories((prev) => prev.filter((c) => c.id !== id))}
+          onRename={(updated) => setCategories((prev) => prev.map((c) => c.id === updated.id ? updated : c).sort((a, b) => a.name.localeCompare(b.name)))}
+          onClose={() => setShowManageCategories(false)}
+        />
+      )}
     </div>
   )
 }

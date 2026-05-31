@@ -73,7 +73,7 @@ class ProductServiceTest {
         Page<Product> page = new PageImpl<>(List.of(product));
         when(productRepository.findAllByUserId(eq(10L), any(Pageable.class))).thenReturn(page);
 
-        PagedResponse<ProductDTO> result = productService.findAll(10L, 0, 20);
+        PagedResponse<ProductDTO> result = productService.findAll(10L, 0, 20, null, null, null);
 
         assertThat(result.content()).hasSize(1);
         assertThat(result.content().get(0).userId()).isEqualTo(10L);
