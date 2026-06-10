@@ -3,8 +3,9 @@ import { cookies } from 'next/headers'
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json()
+  const authBaseUrl = process.env.AUTH_SERVICE_URL ?? process.env.API_GATEWAY_URL
 
-  const authRes = await fetch(`${process.env.AUTH_SERVICE_URL}/auth/login`, {
+  const authRes = await fetch(`${authBaseUrl}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -13,8 +14,8 @@ export async function POST(req: NextRequest) {
   if (!authRes.ok) {
     const body = await authRes.json().catch(() => ({}))
     return NextResponse.json(
-      { error: body.message ?? 'Invalid credentials' },
-      { status: 401 }
+      { error: body.error ?? 'Invalid credentials', code: body.code ?? 'INVALID_CREDENTIALS' },
+      { status: authRes.status }
     )
   }
 

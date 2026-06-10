@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
@@ -20,7 +21,10 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,9 +38,14 @@ public class SalesService {
     private final SaleRepository saleRepository;
     private final SaleItemRepository saleItemRepository;
     private final RestTemplate restTemplate;
+    private final TransactionTemplate transactionTemplate;
 
     @Transactional
     public SaleDTO createSale(Long userId, CreateSaleRequest request) {
+        return createSaleInternal(userId, request);
+    }
+
+    private SaleDTO createSaleInternal(Long userId, CreateSaleRequest request) {
         // 1. Validate stock availability for all items
         List<InventoryProductDTO> products = new ArrayList<>();
         for (SaleItemRequest itemReq : request.getItems()) {
@@ -60,7 +69,7 @@ public class SalesService {
         sale.setCustomerName(request.getCustomerName());
         sale.setPaymentMethod(paymentMethod);
         sale.setStatus("COMPLETED");
-        sale.setSaleDate(LocalDateTime.now());
+        sale.setSaleDate(request.getSaleDate() != null ? request.getSaleDate() : LocalDateTime.now());
         sale.setCreatedBy(userId);
 
         BigDecimal total = BigDecimal.ZERO;
@@ -109,8 +118,45 @@ public class SalesService {
         return toDTO(savedSale, saleItems);
     }
 
-    public List<SaleDTO> getSalesByUser(Long userId) {
-        return saleRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+    public List<SaleDTO> importSales(Long userId, ImportSalesRequest request) {
+        List<CreateSaleRequest> sales = request.sales().stream()
+                .sorted(Comparator.comparing(sale -> sale.getSaleDate() != null ? sale.getSaleDate() : LocalDateTime.now()))
+                .toList();
+
+        validateImportStock(userId, sales);
+
+        List<SaleDTO> results = new ArrayList<>();
+        for (CreateSaleRequest sale : sales) {
+            SaleDTO result = transactionTemplate.execute(status -> createSaleInternal(userId, sale));
+            if (result == null) {
+                throw new IllegalStateException("Sale import failed before completion");
+            }
+            results.add(result);
+        }
+        return results;
+    }
+
+    public List<SaleDTO> getSalesByUser(Long userId, LocalDate date, LocalDate dateFrom, LocalDate dateTo) {
+        List<Sale> sales;
+
+        if (date != null) {
+            sales = getSalesByDateRange(userId, date, date);
+        } else if (dateFrom != null || dateTo != null) {
+            LocalDate start = dateFrom != null ? dateFrom : dateTo;
+            LocalDate end = dateTo != null ? dateTo : dateFrom;
+
+            if (start != null && end != null && start.isAfter(end)) {
+                LocalDate swap = start;
+                start = end;
+                end = swap;
+            }
+
+            sales = getSalesByDateRange(userId, start, end);
+        } else {
+            sales = saleRepository.findByUserIdOrderBySaleDateDesc(userId);
+        }
+
+        return sales.stream()
                 .map(sale -> {
                     List<SaleItem> items = saleItemRepository.findBySaleId(sale.getId());
                     return toDTO(sale, items);
@@ -154,6 +200,41 @@ public class SalesService {
                 : BigDecimal.ZERO;
 
         return new SaleSummaryDTO(revenue, count, avg, due);
+    }
+
+    private List<Sale> getSalesByDateRange(Long userId, LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null) {
+            return saleRepository.findByUserIdOrderBySaleDateDesc(userId);
+        }
+
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime endExclusive = endDate.plusDays(1).atStartOfDay();
+
+        return saleRepository.findByUserIdAndSaleDateGreaterThanEqualAndSaleDateLessThanOrderBySaleDateDesc(
+                userId,
+                start,
+                endExclusive
+        );
+    }
+
+    private void validateImportStock(Long userId, List<CreateSaleRequest> sales) {
+        Map<Long, Integer> requestedByProduct = new HashMap<>();
+
+        for (CreateSaleRequest sale : sales) {
+            for (SaleItemRequest item : sale.getItems()) {
+                requestedByProduct.merge(item.getProductId(), item.getQuantity(), Integer::sum);
+            }
+        }
+
+        for (Map.Entry<Long, Integer> entry : requestedByProduct.entrySet()) {
+            InventoryProductDTO product = fetchProduct(userId, entry.getKey());
+            if (product.getQuantity() < entry.getValue()) {
+                throw new InsufficientStockException(
+                        "Import would overdraw stock for '" + product.getName() + "'. Available: " +
+                                product.getQuantity() + ", needed: " + entry.getValue()
+                );
+            }
+        }
     }
 
     private InventoryProductDTO fetchProduct(Long userId, Long productId) {

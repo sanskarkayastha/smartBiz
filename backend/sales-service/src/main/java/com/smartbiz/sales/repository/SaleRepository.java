@@ -16,9 +16,17 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
 
     List<Sale> findByUserIdOrderByCreatedAtDesc(Long userId);
 
+    List<Sale> findByUserIdOrderBySaleDateDesc(Long userId);
+
     Optional<Sale> findByIdAndUserId(Long id, Long userId);
 
     List<Sale> findByUserIdAndSaleDateBetween(Long userId, LocalDateTime start, LocalDateTime end);
+
+    List<Sale> findByUserIdAndSaleDateGreaterThanEqualAndSaleDateLessThanOrderBySaleDateDesc(
+            Long userId,
+            LocalDateTime start,
+            LocalDateTime end
+    );
 
     @Query("SELECT SUM(s.totalAmount) FROM Sale s WHERE s.userId = :userId AND s.saleDate BETWEEN :start AND :end AND s.paymentMethod != 'DUE'")
     BigDecimal sumRevenueByUserIdAndDateRange(@Param("userId") Long userId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);

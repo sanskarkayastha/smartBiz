@@ -13,6 +13,19 @@ export type ParsedLead = {
   stage: string;
 };
 
+export type ParsedSaleItem = {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+};
+
+export type ParsedSale = {
+  saleDate: string;
+  customerName: string | null;
+  paymentMethod: 'CASH' | 'CARD' | 'DIGITAL' | 'DUE';
+  items: ParsedSaleItem[];
+};
+
 export type QueryAiResponse = { response: string; products?: ParsedProduct[] };
 type Attachment = { image?: string; mimeType?: string; fileText?: string };
 
@@ -30,3 +43,6 @@ export const parseVoiceForLead = (text: string): Promise<ParsedLead> =>
 
 export const parseVoiceForProducts = (text: string): Promise<ParsedProduct[]> =>
   api.post('/ai/parse-voice', { text, intent: 'product' }).then((r) => r.data.products ?? []);
+
+export const parseSalesFile = (fileText: string): Promise<ParsedSale[]> =>
+  api.post('/ai/parse-sales-file', { fileText }).then((r) => r.data.sales ?? []);

@@ -22,6 +22,17 @@ spring:
   security:
     user:
       password: disabled
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 server:
   port: 8081
@@ -37,6 +48,19 @@ app:
   jwt:
     secret: your-secret-key-change-in-production-at-least-32-characters-long
     expiration: 86400000  # 24 hours in milliseconds
+  auth:
+    verification:
+      code-expiry-minutes: ${AUTH_VERIFICATION_CODE_EXPIRY_MINUTES:10}
+    email:
+      enabled: ${AUTH_EMAIL_ENABLED:false}
+      from: ${AUTH_EMAIL_FROM:no-reply@smartbiz.app}
+      dev-log-otp: ${AUTH_EMAIL_DEV_LOG_OTP:true}
+    google:
+      enabled: ${AUTH_GOOGLE_ENABLED:false}
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
+      public-base-url: ${AUTH_PUBLIC_BASE_URL:http://localhost:8080}
+      allowed-redirect-prefixes: ${GOOGLE_ALLOWED_REDIRECT_PREFIXES:http://localhost:3000/api/auth/google/callback,mobile://auth/callback}
 
 logging:
   level:

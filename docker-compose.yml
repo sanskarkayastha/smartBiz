@@ -59,6 +59,19 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       APP_JWT_SECRET: ${JWT_SECRET:-smartbiz-dev-secret-key-at-least-32-chars-long-min}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      AUTH_EMAIL_ENABLED: ${AUTH_EMAIL_ENABLED:-false}
+      AUTH_EMAIL_FROM: ${AUTH_EMAIL_FROM:-no-reply@smartbiz.app}
+      AUTH_EMAIL_DEV_LOG_OTP: ${AUTH_EMAIL_DEV_LOG_OTP:-true}
+      AUTH_VERIFICATION_CODE_EXPIRY_MINUTES: ${AUTH_VERIFICATION_CODE_EXPIRY_MINUTES:-10}
+      AUTH_GOOGLE_ENABLED: ${AUTH_GOOGLE_ENABLED:-false}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      AUTH_PUBLIC_BASE_URL: ${AUTH_PUBLIC_BASE_URL:-http://localhost:8080}
+      GOOGLE_ALLOWED_REDIRECT_PREFIXES: ${GOOGLE_ALLOWED_REDIRECT_PREFIXES:-http://localhost:3000/api/auth/google/callback,mobile://auth/callback}
     depends_on:
       - eureka-server
     networks:

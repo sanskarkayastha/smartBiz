@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { authService } from '@/services/auth';
+import { authService, type LoginResponse, type SignupResponse } from '@/services/auth';
 
 type AuthUser = {
   token: string;
@@ -13,7 +13,10 @@ type AuthContextType = {
   user: AuthUser | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName: string) => Promise<void>;
+  register: (email: string, password: string, fullName: string) => Promise<SignupResponse>;
+  verifyEmail: (email: string, code: string) => Promise<void>;
+  resendVerification: (email: string) => Promise<SignupResponse>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<Pick<AuthUser, 'fullName'>>) => Promise<void>;
 };
@@ -39,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function saveSession(data: ReturnType<typeof authService.login> extends Promise<infer T> ? T : never) {
+  async function saveSession(data: LoginResponse) {
     const authUser: AuthUser = {
       token: data.access_token,
       userId: data.userId,
@@ -58,7 +61,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function register(email: string, password: string, fullName: string) {
-    const data = await authService.register(email, password, fullName);
+    return authService.register(email, password, fullName);
+  }
+
+  async function verifyEmail(email: string, code: string) {
+    const data = await authService.verifyEmail(email, code);
+    await saveSession(data);
+  }
+
+  async function resendVerification(email: string) {
+    return authService.resendVerification(email);
+  }
+
+  async function loginWithGoogle() {
+    const data = await authService.loginWithGoogle();
     await saveSession(data);
   }
 
@@ -77,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, verifyEmail, resendVerification, loginWithGoogle, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

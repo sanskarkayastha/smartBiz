@@ -6,7 +6,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 SplashScreen.preventAutoHideAsync();
 
 const PROTECTED = new Set(['(tabs)', 'add-product']);
-const PUBLIC = new Set(['onboarding', 'login', 'register']);
+const PUBLIC = new Set(['onboarding', 'login', 'register', 'verify-email']);
 
 function RootLayoutNav() {
   const { user, isLoading } = useAuth();
@@ -33,6 +33,7 @@ function RootLayoutNav() {
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="register" options={{ headerShown: false }} />
+      <Stack.Screen name="verify-email" options={{ headerShown: false }} />
       <Stack.Screen name="add-product" options={{ presentation: 'modal', headerShown: false }} />
     </Stack>
   );

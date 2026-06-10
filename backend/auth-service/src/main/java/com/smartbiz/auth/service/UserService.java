@@ -2,22 +2,35 @@ package com.smartbiz.auth.service;
 
 import com.smartbiz.auth.dto.LoginRequest;
 import com.smartbiz.auth.dto.LoginResponse;
+import com.smartbiz.auth.dto.GoogleUserProfile;
+import com.smartbiz.auth.dto.ResendVerificationRequest;
 import com.smartbiz.auth.dto.SignupRequest;
+import com.smartbiz.auth.dto.SignupResponse;
 import com.smartbiz.auth.dto.UpdateProfileRequest;
+import com.smartbiz.auth.dto.VerifyEmailRequest;
 import com.smartbiz.auth.exception.DuplicateEmailException;
+import com.smartbiz.auth.exception.EmailNotVerifiedException;
 import com.smartbiz.auth.exception.InvalidCredentialsException;
-import com.smartbiz.auth.model.RefreshToken;
+import com.smartbiz.auth.exception.UnsupportedAuthProviderException;
+import com.smartbiz.auth.exception.VerificationCodeException;
 import com.smartbiz.auth.model.User;
 import com.smartbiz.auth.config.JwtUtil;
+import com.smartbiz.auth.model.EmailVerificationCode;
+import com.smartbiz.auth.model.RefreshToken;
+import com.smartbiz.auth.repository.EmailVerificationCodeRepository;
 import com.smartbiz.auth.repository.RefreshTokenRepository;
 import com.smartbiz.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.UUID;
 
 @Service
@@ -25,34 +38,56 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
+    private final EmailVerificationCodeRepository emailVerificationCodeRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
+    private final VerificationEmailService verificationEmailService;
+
+    @Value("${app.auth.verification.code-expiry-minutes:10}")
+    private int verificationCodeExpiryMinutes;
 
     @Transactional
-    public LoginResponse signup(SignupRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+    public SignupResponse signup(SignupRequest request) {
+        String email = normalizeEmail(request.email());
+        Optional<User> existingUser = userRepository.findByEmailIgnoreCase(email);
+
+        if (existingUser.isPresent() && existingUser.get().isEmailVerified()) {
             throw new DuplicateEmailException("Email already registered");
         }
 
-        User user = User.builder()
-            .email(request.email())
-            .passwordHash(passwordEncoder.encode(request.password()))
-            .fullName(request.fullName())
-            .role("USER")
-            .build();
+        User user = existingUser
+            .map(found -> refreshUnverifiedLocalAccount(found, request))
+            .orElseGet(() -> User.builder()
+                .email(email)
+                .passwordHash(passwordEncoder.encode(request.password()))
+                .fullName(request.fullName().trim())
+                .role("USER")
+                .emailVerified(false)
+                .build());
 
         user = userRepository.save(user);
+        createAndSendVerificationCode(user);
         log.info("User registered: {}", user.getEmail());
 
-        return createLoginResponse(user);
+        return new SignupResponse(
+            "Verification code sent to your email",
+            user.getEmail(),
+            true
+        );
     }
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
+        User user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
             .orElseThrow(() -> new InvalidCredentialsException("Invalid credentials"));
 
+        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+            throw new UnsupportedAuthProviderException("This account uses Google sign-in. Please continue with Google.");
+        }
+        if (!user.isEmailVerified()) {
+            throw new EmailNotVerifiedException("Please verify your email before logging in.");
+        }
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new InvalidCredentialsException("Invalid credentials");
         }
@@ -60,6 +95,66 @@ public class UserService {
         refreshTokenRepository.deleteByUserId(user.getId());
         log.info("User logged in: {}", user.getEmail());
 
+        return createLoginResponse(user);
+    }
+
+    @Transactional
+    public LoginResponse verifyEmail(VerifyEmailRequest request) {
+        User user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
+            .orElseThrow(() -> new VerificationCodeException("No pending verification found for this email."));
+
+        if (user.isEmailVerified()) {
+            throw new VerificationCodeException("Email is already verified. Please sign in.");
+        }
+
+        EmailVerificationCode verificationCode = emailVerificationCodeRepository.findByUserId(user.getId())
+            .orElseThrow(() -> new VerificationCodeException("Verification code expired. Please request a new code."));
+
+        if (verificationCode.getExpiresAt().isBefore(LocalDateTime.now())) {
+            emailVerificationCodeRepository.delete(verificationCode);
+            throw new VerificationCodeException("Verification code expired. Please request a new code.");
+        }
+        if (!passwordEncoder.matches(request.code(), verificationCode.getCodeHash())) {
+            throw new VerificationCodeException("Invalid verification code.");
+        }
+
+        user.setEmailVerified(true);
+        user.setEmailVerifiedAt(LocalDateTime.now());
+        userRepository.save(user);
+        emailVerificationCodeRepository.delete(verificationCode);
+        refreshTokenRepository.deleteByUserId(user.getId());
+
+        log.info("Email verified for {}", user.getEmail());
+        return createLoginResponse(user);
+    }
+
+    @Transactional
+    public SignupResponse resendVerificationCode(ResendVerificationRequest request) {
+        User user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
+            .orElseThrow(() -> new VerificationCodeException("No pending verification found for this email."));
+
+        if (user.isEmailVerified()) {
+            throw new VerificationCodeException("Email is already verified. Please sign in.");
+        }
+        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+            throw new UnsupportedAuthProviderException("This account uses Google sign-in. Please continue with Google.");
+        }
+
+        createAndSendVerificationCode(user);
+        return new SignupResponse("A new verification code has been sent.", user.getEmail(), true);
+    }
+
+    @Transactional
+    public LoginResponse loginWithGoogleProfile(GoogleUserProfile profile) {
+        String email = normalizeEmail(profile.email());
+        User user = userRepository.findByGoogleSubject(profile.subject())
+            .or(() -> userRepository.findByEmailIgnoreCase(email))
+            .map(existing -> mergeGoogleProfile(existing, profile, email))
+            .orElseGet(() -> createGoogleUser(profile, email));
+
+        user = userRepository.save(user);
+        refreshTokenRepository.deleteByUserId(user.getId());
+        log.info("Google login succeeded for {}", user.getEmail());
         return createLoginResponse(user);
     }
 
@@ -77,7 +172,6 @@ public class UserService {
         log.info("Profile updated for userId={}", userId);
     }
 
-    @Transactional
     private LoginResponse createLoginResponse(User user) {
         String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail());
         String refreshTokenValue = UUID.randomUUID().toString();
@@ -97,5 +191,74 @@ public class UserService {
             user.getEmail(),
             user.getFullName()
         );
+    }
+
+    private User refreshUnverifiedLocalAccount(User user, SignupRequest request) {
+        if (user.getGoogleSubject() != null && (user.getPasswordHash() == null || user.getPasswordHash().isBlank())) {
+            throw new DuplicateEmailException("This email is already registered with Google sign-in.");
+        }
+
+        user.setFullName(request.fullName().trim());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setEmailVerified(false);
+        user.setEmailVerifiedAt(null);
+        return user;
+    }
+
+    private void createAndSendVerificationCode(User user) {
+        String rawCode = generateSixDigitCode();
+
+        EmailVerificationCode code = emailVerificationCodeRepository.findByUserId(user.getId())
+            .orElseGet(() -> EmailVerificationCode.builder().userId(user.getId()).build());
+
+        code.setCodeHash(passwordEncoder.encode(rawCode));
+        code.setExpiresAt(LocalDateTime.now().plusMinutes(verificationCodeExpiryMinutes));
+        emailVerificationCodeRepository.save(code);
+        verificationEmailService.sendVerificationCode(user.getEmail(), user.getFullName(), rawCode);
+    }
+
+    private User mergeGoogleProfile(User user, GoogleUserProfile profile, String normalizedEmail) {
+        if (user.getGoogleSubject() != null && !user.getGoogleSubject().equals(profile.subject())) {
+            throw new DuplicateEmailException("This email is already linked to another Google account.");
+        }
+
+        user.setEmail(normalizedEmail);
+        user.setGoogleSubject(profile.subject());
+        user.setEmailVerified(true);
+        if (user.getEmailVerifiedAt() == null) {
+            user.setEmailVerifiedAt(LocalDateTime.now());
+        }
+        if (user.getFullName() == null || user.getFullName().isBlank()) {
+            user.setFullName(resolveDisplayName(profile.fullName(), normalizedEmail));
+        }
+        emailVerificationCodeRepository.deleteByUserId(user.getId());
+        return user;
+    }
+
+    private User createGoogleUser(GoogleUserProfile profile, String normalizedEmail) {
+        return User.builder()
+            .email(normalizedEmail)
+            .fullName(resolveDisplayName(profile.fullName(), normalizedEmail))
+            .role("USER")
+            .emailVerified(true)
+            .emailVerifiedAt(LocalDateTime.now())
+            .googleSubject(profile.subject())
+            .build();
+    }
+
+    private String resolveDisplayName(String fullName, String email) {
+        if (fullName != null && !fullName.isBlank()) {
+            return fullName.trim();
+        }
+        int atIndex = email.indexOf('@');
+        return atIndex > 0 ? email.substring(0, atIndex) : email;
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String generateSixDigitCode() {
+        return String.valueOf(ThreadLocalRandom.current().nextInt(100000, 1_000_000));
     }
 }

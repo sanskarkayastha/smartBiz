@@ -8,11 +8,13 @@ import { Colors } from '@/components/ui/colors';
 
 export default function Register() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const googleEnabled = process.env.EXPO_PUBLIC_GOOGLE_SIGNIN_ENABLED === 'true';
 
   const handleRegister = async () => {
     if (!fullName.trim() || !email.trim() || !password.trim()) {
@@ -25,13 +27,25 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      await register(email.trim(), password, fullName.trim());
-      router.replace('/(tabs)');
+      const result = await register(email.trim(), password, fullName.trim());
+      router.replace({ pathname: '/verify-email', params: { email: result.email } });
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Registration failed. Please try again.';
       Alert.alert('Registration Failed', msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle();
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      Alert.alert('Google Sign-In Failed', err?.message ?? 'Could not complete Google sign-in.');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -46,6 +60,17 @@ export default function Register() {
         <Text style={styles.subtitle}>Start managing your business with SmartBiz</Text>
 
         <View style={styles.form}>
+          {googleEnabled ? (
+            <Pressable
+              style={({ pressed }) => [styles.googleBtn, (googleLoading || loading) && styles.btnDisabled, pressed && { opacity: 0.82 }]}
+              onPress={handleGoogleSignup}
+              disabled={googleLoading || loading}
+            >
+              {googleLoading
+                ? <ActivityIndicator color={Colors.textDark} />
+                : <Text style={styles.googleBtnText}>Continue with Google</Text>}
+            </Pressable>
+          ) : null}
           <InputField
             label="Full Name"
             placeholder="Roshan Thapa"
@@ -91,6 +116,15 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: 'bold', color: Colors.textDark, marginBottom: 6 },
   subtitle: { fontSize: 15, color: Colors.textMuted, marginBottom: 32 },
   form: { gap: 16, marginBottom: 24 },
+  googleBtn: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+  },
+  googleBtnText: { color: Colors.textDark, fontSize: 15, fontWeight: '700' },
   btn: {
     backgroundColor: Colors.primary,
     borderRadius: 14,

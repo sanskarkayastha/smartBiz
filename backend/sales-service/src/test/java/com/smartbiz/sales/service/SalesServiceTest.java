@@ -13,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.*;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
@@ -30,6 +31,7 @@ class SalesServiceTest {
     @Mock SaleRepository saleRepository;
     @Mock SaleItemRepository saleItemRepository;
     @Mock RestTemplate restTemplate;
+    @Mock TransactionTemplate transactionTemplate;
 
     @InjectMocks SalesService salesService;
 
@@ -117,5 +119,21 @@ class SalesServiceTest {
         assertThat(result.getTotalRevenue()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.getOrderCount()).isEqualTo(0L);
         assertThat(result.getAvgOrderValue()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    void importSales_usesTransactionTemplateForEachSale() {
+        when(restTemplate.exchange(contains("/inventory/products/1"), eq(HttpMethod.GET), any(), eq(InventoryProductDTO.class)))
+                .thenReturn(ResponseEntity.ok(product));
+        when(saleRepository.save(any(Sale.class))).thenReturn(savedSale);
+        when(saleItemRepository.saveAll(anyList())).thenReturn(List.of(new SaleItem()));
+        when(restTemplate.exchange(contains("/stock"), eq(HttpMethod.POST), any(), eq(Object.class)))
+                .thenReturn(ResponseEntity.ok(null));
+        when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
+
+        List<SaleDTO> result = salesService.importSales(1L, new ImportSalesRequest(List.of(request)));
+
+        assertThat(result).hasSize(1);
+        verify(transactionTemplate).execute(any());
     }
 }

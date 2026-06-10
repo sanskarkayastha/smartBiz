@@ -33,6 +33,16 @@ public class JwtUtil {
             .compact();
     }
 
+    public String generateOauthStateToken(String redirectUri) {
+        return Jwts.builder()
+            .subject("oauth-state")
+            .claim("redirect_uri", redirectUri)
+            .issuedAt(new Date())
+            .expiration(new Date(System.currentTimeMillis() + (10 * 60 * 1000L)))
+            .signWith(getSigningKey())
+            .compact();
+    }
+
     public boolean validateAccessToken(String token) {
         try {
             Jwts.parser()
@@ -58,6 +68,20 @@ public class JwtUtil {
             log.debug("Failed to extract userId from token: {}", e.getMessage());
             return null;
         }
+    }
+
+    public String parseOauthStateToken(String token) {
+        Claims claims = Jwts.parser()
+            .verifyWith(getSigningKey())
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
+
+        if (!"oauth-state".equals(claims.getSubject())) {
+            throw new JwtException("Invalid oauth state token");
+        }
+
+        return claims.get("redirect_uri", String.class);
     }
 
     private SecretKey getSigningKey() {

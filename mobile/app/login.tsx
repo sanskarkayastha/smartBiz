@@ -8,10 +8,12 @@ import { Colors } from '@/components/ui/colors';
 
 export default function Login() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const googleEnabled = process.env.EXPO_PUBLIC_GOOGLE_SIGNIN_ENABLED === 'true';
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -23,10 +25,33 @@ export default function Login() {
       await login(email.trim(), password);
       router.replace('/(tabs)');
     } catch (err: any) {
+      const code = err?.response?.data?.code;
       const msg = err?.response?.data?.error ?? 'Invalid email or password';
-      Alert.alert('Login Failed', msg);
+      if (code === 'EMAIL_NOT_VERIFIED') {
+        Alert.alert('Verify Your Email', msg, [
+          {
+            text: 'Open Verification',
+            onPress: () => router.push({ pathname: '/verify-email', params: { email: email.trim() } }),
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ]);
+      } else {
+        Alert.alert('Login Failed', msg);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle();
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      Alert.alert('Google Sign-In Failed', err?.message ?? 'Could not complete Google sign-in.');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -41,6 +66,17 @@ export default function Login() {
         <Text style={styles.subtitle}>Log in to your SmartBiz account</Text>
 
         <View style={styles.form}>
+          {googleEnabled ? (
+            <Pressable
+              style={({ pressed }) => [styles.googleBtn, (googleLoading || loading) && styles.btnDisabled, pressed && { opacity: 0.82 }]}
+              onPress={handleGoogleLogin}
+              disabled={googleLoading || loading}
+            >
+              {googleLoading
+                ? <ActivityIndicator color={Colors.textDark} />
+                : <Text style={styles.googleBtnText}>Continue with Google</Text>}
+            </Pressable>
+          ) : null}
           <InputField
             label="Email"
             placeholder="you@example.com"
@@ -69,7 +105,7 @@ export default function Login() {
         </Pressable>
 
         <Pressable onPress={() => router.replace('/onboarding')}>
-          <Text style={styles.link}>Don't have an account? <Text style={{ color: Colors.primary }}>Create one</Text></Text>
+          <Text style={styles.link}>Don&apos;t have an account? <Text style={{ color: Colors.primary }}>Create one</Text></Text>
         </Pressable>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -87,6 +123,15 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 24,
   },
+  googleBtn: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+  },
+  googleBtnText: { color: Colors.textDark, fontSize: 15, fontWeight: '700' },
   btn: {
     backgroundColor: Colors.primary,
     borderRadius: 14,

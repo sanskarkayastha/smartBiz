@@ -25,7 +25,7 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
 
     @Column(name = "full_name", nullable = false)
@@ -36,6 +36,15 @@ public class User {
     @Column(nullable = false)
     @Builder.Default
     private String role = "USER";
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean emailVerified = false;
+
+    private LocalDateTime emailVerifiedAt;
+
+    @Column(unique = true)
+    private String googleSubject;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

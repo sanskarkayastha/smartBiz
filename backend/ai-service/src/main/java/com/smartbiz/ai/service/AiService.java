@@ -12,6 +12,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -159,6 +161,36 @@ public class AiService {
             List<ParsedProduct> products = parseProductJson(json);
             return new ParseVoiceResponse("product", null, products);
         }
+    }
+
+    public ParseSalesFileResponse parseSalesFile(ParseSalesFileRequest request) {
+        List<ParsedSale> heuristicSales = parseStructuredSalesFile(request.fileText());
+        if (!heuristicSales.isEmpty()) {
+            return new ParseSalesFileResponse(heuristicSales);
+        }
+
+        String todayDate = LocalDate.now().toString();
+        String prompt =
+            "Today is " + todayDate + ". Read the following spreadsheet or CSV-style sales data and extract historical sales. " +
+            "Return ONLY valid JSON, no markdown, no explanation, using this exact shape: " +
+            "[" +
+            "{\"saleDate\":\"YYYY-MM-DD\",\"customerName\":\"string or null\",\"paymentMethod\":\"CASH|CARD|DIGITAL|DUE\",\"items\":[" +
+            "{\"productName\":\"string\",\"quantity\":1.0,\"unitPrice\":0.0}" +
+            "]}" +
+            "]. " +
+            "Rules: " +
+            "1. Group rows into one sale when they clearly belong to the same sale or invoice. " +
+            "2. Convert dates to ISO format YYYY-MM-DD. " +
+            "3. Payment method must be one of CASH, CARD, DIGITAL, DUE. Default to CASH only if the sheet is unclear. " +
+            "4. Customer name can be null if missing. " +
+            "5. Every sale must contain at least one item. " +
+            "6. Use the product names exactly as they appear when possible. " +
+            "7. If quantity or price is missing, infer only when obvious; otherwise use 0. " +
+            "Spreadsheet content:\n" + request.fileText();
+
+        String json = callGeminiTextOnly(prompt);
+        List<ParsedSale> aiSales = parseSalesJson(json);
+        return new ParseSalesFileResponse(!aiSales.isEmpty() ? aiSales : parseStructuredSalesFile(request.fileText()));
     }
 
     // ─── Context building ─────────────────────────────────────────────────────
@@ -426,5 +458,201 @@ public class AiService {
             log.warn("Failed to parse lead JSON: {}", json);
             return new ParsedLead(null, null, null, json, null, null, null, "NEW");
         }
+    }
+
+    private List<ParsedSale> parseSalesJson(String json) {
+        try {
+            String clean = json.replaceAll("(?s)```json\\s*|```", "").trim();
+            if (clean.startsWith("{")) clean = "[" + clean + "]";
+            return objectMapper.readValue(clean, new TypeReference<List<ParsedSale>>() {});
+        } catch (Exception e) {
+            log.warn("Failed to parse sales JSON: {}", json);
+            return List.of();
+        }
+    }
+
+    private List<ParsedSale> parseStructuredSalesFile(String fileText) {
+        if (fileText == null || fileText.isBlank()) return List.of();
+
+        List<String> rows = Arrays.stream(fileText.split("\\r?\\n"))
+                .filter(row -> row != null && !row.isBlank())
+                .toList();
+        if (rows.size() < 2) return List.of();
+
+        List<String> headers = parseCsvLine(rows.get(0));
+        int dateIndex = findHeaderIndex(headers, header ->
+                header.contains("date sold") ||
+                header.contains("sold date") ||
+                header.equals("date") ||
+                header.contains("sale date"));
+        int productIndex = findHeaderIndex(headers, header ->
+                (header.contains("item") || header.contains("product")) &&
+                !header.contains("cost") &&
+                !header.contains("price"));
+        int quantityIndex = findHeaderIndex(headers, header ->
+                header.equals("qty") || header.contains("quantity"));
+        int soldPriceIndex = findHeaderIndex(headers, header ->
+                header.contains("sold price") ||
+                header.contains("selling price") ||
+                header.contains("sale price") ||
+                header.contains("sell price") ||
+                header.contains("unit price") ||
+                header.contains("price sold"));
+        int genericPriceIndex = findHeaderIndex(headers, header ->
+                header.contains("price") &&
+                !header.contains("cost") &&
+                !header.contains("purchase"));
+        int customerIndex = findHeaderIndex(headers, header ->
+                header.contains("customer") ||
+                header.contains("client") ||
+                header.contains("buyer"));
+        int paymentIndex = findHeaderIndex(headers, header ->
+                header.contains("payment") || header.equals("method"));
+
+        int unitPriceIndex = soldPriceIndex >= 0 ? soldPriceIndex : genericPriceIndex;
+        if (dateIndex < 0 || productIndex < 0 || unitPriceIndex < 0) return List.of();
+
+        List<ParsedSale> sales = new ArrayList<>();
+        for (int i = 1; i < rows.size(); i++) {
+            List<String> columns = parseCsvLine(rows.get(i));
+            String rawDate = getColumn(columns, dateIndex);
+            String productName = getColumn(columns, productIndex);
+            if (rawDate.isBlank() && productName.isBlank()) continue;
+
+            LocalDate saleDate = parseFlexibleDate(rawDate);
+            if (saleDate == null || productName.isBlank()) continue;
+
+            int quantity = quantityIndex >= 0 ? parseQuantity(getColumn(columns, quantityIndex)) : 1;
+            double unitPrice = parseAmount(getColumn(columns, unitPriceIndex));
+            String customerName = trimToNull(getColumn(columns, customerIndex));
+            String paymentMethod = normalizePaymentMethod(getColumn(columns, paymentIndex));
+
+            sales.add(new ParsedSale(
+                    saleDate.toString(),
+                    customerName,
+                    paymentMethod,
+                    List.of(new ParsedSaleItem(productName.trim(), (double) quantity, unitPrice))
+            ));
+        }
+
+        return sales;
+    }
+
+    private List<String> parseCsvLine(String line) {
+        List<String> values = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inQuotes = false;
+
+        for (int i = 0; i < line.length(); i++) {
+            char ch = line.charAt(i);
+            if (ch == '"') {
+                if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                    current.append('"');
+                    i++;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if (ch == ',' && !inQuotes) {
+                values.add(current.toString());
+                current.setLength(0);
+            } else {
+                current.append(ch);
+            }
+        }
+
+        values.add(current.toString());
+        return values;
+    }
+
+    private int findHeaderIndex(List<String> headers, java.util.function.Predicate<String> matcher) {
+        for (int i = 0; i < headers.size(); i++) {
+            if (matcher.test(normalizeHeader(headers.get(i)))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private String normalizeHeader(String value) {
+        return value == null
+                ? ""
+                : value.trim().toLowerCase(Locale.ENGLISH).replaceAll("\\s+", " ");
+    }
+
+    private String getColumn(List<String> columns, int index) {
+        if (index < 0 || index >= columns.size()) return "";
+        return columns.get(index).trim();
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private int parseQuantity(String value) {
+        if (value == null || value.isBlank()) return 1;
+        try {
+            return Math.max(1, (int) Math.round(Double.parseDouble(value.replace(",", "").trim())));
+        } catch (Exception e) {
+            return 1;
+        }
+    }
+
+    private double parseAmount(String value) {
+        if (value == null || value.isBlank()) return 0.0;
+        String cleaned = value.replaceAll("[^0-9.\\-]", "");
+        if (cleaned.isBlank() || ".".equals(cleaned) || "-".equals(cleaned)) return 0.0;
+        try {
+            return Double.parseDouble(cleaned);
+        } catch (Exception e) {
+            return 0.0;
+        }
+    }
+
+    private String normalizePaymentMethod(String value) {
+        String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ENGLISH);
+        return switch (normalized) {
+            case "CARD" -> "CARD";
+            case "DIGITAL", "ONLINE", "ESEWA", "KHALTI", "BANK", "BANK TRANSFER" -> "DIGITAL";
+            case "DUE", "CREDIT" -> "DUE";
+            default -> "CASH";
+        };
+    }
+
+    private LocalDate parseFlexibleDate(String value) {
+        if (value == null || value.isBlank()) return null;
+        String trimmed = value.trim();
+
+        try {
+            double serial = Double.parseDouble(trimmed);
+            if (serial > 20000) {
+                return LocalDate.of(1899, 12, 30).plusDays((long) serial);
+            }
+        } catch (Exception ignored) {
+        }
+
+        List<DateTimeFormatter> formatters = List.of(
+                DateTimeFormatter.ISO_LOCAL_DATE,
+                DateTimeFormatter.ofPattern("M/d/yyyy"),
+                DateTimeFormatter.ofPattern("M/d/yy"),
+                DateTimeFormatter.ofPattern("d/M/yyyy"),
+                DateTimeFormatter.ofPattern("d/M/yy"),
+                DateTimeFormatter.ofPattern("M-d-yyyy"),
+                DateTimeFormatter.ofPattern("d-M-yyyy"),
+                DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH),
+                DateTimeFormatter.ofPattern("MMM d yyyy", Locale.ENGLISH),
+                DateTimeFormatter.ofPattern("d MMM, yyyy", Locale.ENGLISH),
+                DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH)
+        );
+
+        for (DateTimeFormatter formatter : formatters) {
+            try {
+                return LocalDate.parse(trimmed, formatter);
+            } catch (DateTimeParseException ignored) {
+            }
+        }
+
+        return null;
     }
 }

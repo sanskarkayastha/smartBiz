@@ -43,4 +43,11 @@ public class AiController {
             @RequestBody ParseVoiceRequest request) {
         return ResponseEntity.ok(aiService.parseVoice(request));
     }
+
+    @PostMapping("/parse-sales-file")
+    public ResponseEntity<ParseSalesFileResponse> parseSalesFile(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestBody ParseSalesFileRequest request) {
+        return ResponseEntity.ok(aiService.parseSalesFile(request));
+    }
 }
