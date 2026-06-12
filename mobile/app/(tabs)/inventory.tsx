@@ -9,6 +9,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import VoiceButton from '@/components/ui/VoiceButton';
 import InvoiceScanModal from '@/components/ui/InvoiceScanModal';
 import CategoryPicker from '@/components/ui/CategoryPicker';
+import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
 import { inventoryService, Product, CreateProductPayload, ProductFilters, type Category } from '@/services/inventory';
 import { parseVoiceForProducts, ParsedProduct } from '@/services/ai';
 
@@ -49,6 +50,7 @@ export default function Inventory() {
   const [editForm, setEditForm] = useState<Partial<CreateProductPayload>>({});
   const [showScanModal, setShowScanModal] = useState(false);
   const [voiceProducts, setVoiceProducts] = useState<ParsedProduct[] | undefined>(undefined);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
 
   const [categories, setCategories] = useState<Category[]>([]);
 
@@ -164,8 +166,34 @@ export default function Inventory() {
       quantity: product.quantity,
       reorderLevel: product.reorderLevel ?? undefined,
       supplier: product.supplier ?? undefined,
+      barcode: product.barcode ?? undefined,
     });
     setShowEditModal(true);
+  };
+
+  const handleBarcodeLookup = async (code: string) => {
+    setShowBarcodeScanner(false);
+    try {
+      const product = await inventoryService.getProductByBarcode(code);
+      openEditModal(product);
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        Alert.alert(
+          'Code not found',
+          'This barcode or QR code is not linked to a product yet. Create one now?',
+          [
+            { text: 'Not now', style: 'cancel' },
+            {
+              text: 'Create Product',
+              onPress: () => router.push({ pathname: '/add-product', params: { barcode: code } }),
+            },
+          ],
+        );
+        return;
+      }
+
+      Alert.alert('Scan Failed', 'Could not look up that code right now.');
+    }
   };
 
   const handleUpdateProduct = async () => {
@@ -328,6 +356,9 @@ export default function Inventory() {
           style={styles.fabSecondary}
           color={Colors.textOnPrimary}
         />
+        <Pressable style={({ pressed }) => [styles.fabSecondary, pressed && { opacity: 0.82 }]} onPress={() => setShowBarcodeScanner(true)}>
+          <Ionicons name="scan-outline" size={22} color={Colors.textOnPrimary} />
+        </Pressable>
         <Pressable style={({ pressed }) => [styles.fabSecondary, pressed && { opacity: 0.82 }]} onPress={() => { setVoiceProducts(undefined); setShowScanModal(true); }}>
           <Ionicons name="camera-outline" size={22} color={Colors.textOnPrimary} />
         </Pressable>
@@ -343,6 +374,14 @@ export default function Inventory() {
         initialProducts={voiceProducts}
       />
 
+      <BarcodeScannerModal
+        visible={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScanned={(value) => void handleBarcodeLookup(value)}
+        title="Find product by code"
+        subtitle="Scan a product barcode or QR code to open its details."
+      />
+
       {/* Edit Product Modal */}
       <Modal visible={showEditModal} animationType="slide" transparent onRequestClose={() => setShowEditModal(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
@@ -353,7 +392,7 @@ export default function Inventory() {
                 <Ionicons name="close" size={22} color={Colors.textDark} />
               </Pressable>
             </View>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTabs="handled">
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
             <Text style={styles.label}>Product Name *</Text>
             <TextInput
@@ -432,6 +471,17 @@ export default function Inventory() {
               value={editForm.supplier ?? ''}
               onChangeText={(v) => setEditForm((f) => ({ ...f, supplier: v || undefined }))}
               placeholderTextColor={Colors.textMuted}
+            />
+
+            <Text style={styles.label}>Barcode / QR</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Optional code for fast lookup"
+              value={editForm.barcode ?? ''}
+              onChangeText={(v) => setEditForm((f) => ({ ...f, barcode: v }))}
+              placeholderTextColor={Colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
             />
 
             </ScrollView>

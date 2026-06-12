@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation'
 import * as XLSX from 'xlsx'
 
 type Product = { id: number; name: string; price: number; quantity: number }
-type Customer = { id: number; name: string; phone: string | null }
-type CustomerApiResponse = Customer[] | { content?: Customer[] }
 
 type ParsedSaleItem = {
   productName: string
@@ -25,8 +23,10 @@ function normalizeName(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-function parseCustomers(data: CustomerApiResponse): Customer[] {
-  return Array.isArray(data) ? data : data.content ?? []
+function lookupKeys(value: string) {
+  const normalized = normalizeName(value)
+  const compact = normalized.replace(/[^a-z0-9]/g, '')
+  return compact && compact !== normalized ? [normalized, compact] : [normalized]
 }
 
 export default function ImportSalesModal({ products }: { products: Product[] }) {
@@ -40,7 +40,9 @@ export default function ImportSalesModal({ products }: { products: Product[] }) 
   const productMap = useMemo(() => {
     const map = new Map<string, Product>()
     for (const product of products) {
-      map.set(normalizeName(product.name), product)
+      for (const key of lookupKeys(product.name)) {
+        map.set(key, product)
+      }
     }
     return map
   }, [products])
@@ -112,36 +114,12 @@ export default function ImportSalesModal({ products }: { products: Product[] }) 
     })
   }
 
-  async function resolveCustomerIdByName(name: string | null, customers: Customer[]) {
-    if (!name?.trim()) return null
-    const normalized = normalizeName(name)
-    const existing = customers.find((customer) => normalizeName(customer.name) === normalized)
-    if (existing) return existing.id
-
-    const createRes = await fetch('/api/customers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim() }),
-    })
-    if (!createRes.ok) {
-      const data = await createRes.json().catch(() => ({}))
-      throw new Error(data.error ?? `Could not create customer "${name}".`)
-    }
-    const created = await createRes.json()
-    customers.push(created)
-    return created.id
-  }
-
   async function importSales() {
     if (!sales || sales.length === 0) return
     setImporting(true)
     setError('')
 
     try {
-      const customerRes = await fetch('/api/customers')
-      const customerData: CustomerApiResponse = await customerRes.json()
-      const customers = parseCustomers(customerData)
-
       const missingProducts = new Set<string>()
       const payloadSales = []
 
@@ -150,10 +128,10 @@ export default function ImportSalesModal({ products }: { products: Product[] }) 
           throw new Error('Every imported sale needs a date before you can save.')
         }
 
-        const customerId = await resolveCustomerIdByName(sale.customerName, customers)
-
         const items = sale.items.map((item) => {
-          const matched = productMap.get(normalizeName(item.productName))
+          const matched = lookupKeys(item.productName)
+            .map((key) => productMap.get(key))
+            .find(Boolean)
           if (!matched) {
             missingProducts.add(item.productName)
             return null
@@ -166,7 +144,6 @@ export default function ImportSalesModal({ products }: { products: Product[] }) 
         }).filter(Boolean)
 
         payloadSales.push({
-          customerId,
           customerName: sale.customerName?.trim() || null,
           paymentMethod: sale.paymentMethod || 'CASH',
           saleDate: `${sale.saleDate}T12:00:00`,
@@ -224,7 +201,7 @@ export default function ImportSalesModal({ products }: { products: Product[] }) 
             <div className="flex items-center justify-between border-b border-paper-3 px-6 py-4">
               <div>
                 <h2 className="text-lg font-bold text-ink">AI Sales Import</h2>
-                <p className="mt-1 text-xs text-ink-2">Upload an Excel sheet, review the parsed historical sales, then import them as real sales.</p>
+                <p className="mt-1 text-xs text-ink-2">Upload an Excel sheet, review the parsed historical sales, then save them as analytics records without changing inventory.</p>
               </div>
               <button onClick={() => setOpen(false)} className="text-ink-3 transition hover:text-ink">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -296,7 +273,9 @@ export default function ImportSalesModal({ products }: { products: Product[] }) 
 
                       <div className="mt-4 space-y-2">
                         {sale.items.map((item, itemIndex) => {
-                          const matched = productMap.get(normalizeName(item.productName))
+                          const matched = lookupKeys(item.productName)
+                            .map((key) => productMap.get(key))
+                            .find(Boolean)
                           return (
                             <div key={itemIndex} className="grid gap-2 rounded-2xl bg-white p-3 md:grid-cols-[1fr_120px_140px_auto]">
                               <div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -16,14 +16,13 @@ import * as FileSystem from 'expo-file-system';
 import * as XLSX from 'xlsx';
 import { Colors } from '@/components/ui/colors';
 import { parseSalesFile, type ParsedSale, type ParsedSaleItem } from '@/services/ai';
-import { customersService, type Customer } from '@/services/customers';
 import { salesService, type CreateSalePayload } from '@/services/sales';
 import type { Product } from '@/services/inventory';
 
 type Props = {
   visible: boolean;
   products: Product[];
-  customers: Customer[];
+  initialSales?: ParsedSale[] | null;
   onClose: () => void;
   onImported: () => void;
 };
@@ -36,6 +35,12 @@ function normalizeName(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+function lookupKeys(value: string) {
+  const normalized = normalizeName(value);
+  const compact = normalized.replace(/[^a-z0-9]/g, '');
+  return compact && compact !== normalized ? [normalized, compact] : [normalized];
+}
+
 function formatAmount(quantity: number, unitPrice: number) {
   return `NPR ${(quantity * unitPrice).toLocaleString()}`;
 }
@@ -43,7 +48,7 @@ function formatAmount(quantity: number, unitPrice: number) {
 export default function ImportSalesModal({
   visible,
   products,
-  customers,
+  initialSales,
   onClose,
   onImported,
 }: Props) {
@@ -55,7 +60,9 @@ export default function ImportSalesModal({
   const productMap = useMemo(() => {
     const map = new Map<string, Product>();
     for (const product of products) {
-      map.set(normalizeName(product.name), product);
+      for (const key of lookupKeys(product.name)) {
+        map.set(key, product);
+      }
     }
     return map;
   }, [products]);
@@ -67,6 +74,12 @@ export default function ImportSalesModal({
     setSales(null);
     onClose();
   };
+
+  useEffect(() => {
+    if (!visible) return;
+    setError('');
+    setSales(initialSales ?? null);
+  }, [initialSales, visible]);
 
   const pickExcel = async () => {
     setError('');
@@ -144,17 +157,6 @@ export default function ImportSalesModal({
     });
   };
 
-  const resolveCustomerIdByName = async (name: string | null, cache: Customer[]) => {
-    if (!name?.trim()) return null;
-    const normalized = normalizeName(name);
-    const existing = cache.find((customer) => normalizeName(customer.name) === normalized);
-    if (existing) return existing.id;
-
-    const created = await customersService.createCustomer({ name: name.trim() });
-    cache.push(created);
-    return created.id;
-  };
-
   const handleImport = async () => {
     if (!sales?.length) return;
 
@@ -162,7 +164,6 @@ export default function ImportSalesModal({
     setError('');
 
     try {
-      const customerCache = [...customers];
       const missingProducts = new Set<string>();
       const payloadSales: CreateSalePayload[] = [];
 
@@ -173,7 +174,9 @@ export default function ImportSalesModal({
 
         const items = sale.items
           .map((item) => {
-            const matched = productMap.get(normalizeName(item.productName));
+            const matched = lookupKeys(item.productName)
+              .map((key) => productMap.get(key))
+              .find(Boolean);
             if (!matched) {
               missingProducts.add(item.productName);
               return null;
@@ -202,10 +205,7 @@ export default function ImportSalesModal({
           throw new Error('Each imported sale needs at least one valid item.');
         }
 
-        const customerId = await resolveCustomerIdByName(sale.customerName, customerCache);
-
         payloadSales.push({
-          customerId,
           customerName: sale.customerName?.trim() || null,
           paymentMethod: sale.paymentMethod || 'CASH',
           saleDate: `${sale.saleDate}T12:00:00`,
@@ -236,8 +236,8 @@ export default function ImportSalesModal({
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>AI Sales Import</Text>
             <Text style={styles.subtitle}>
-              Upload an Excel sheet, review the detected historical sales, then save them as real
-              sales.
+              Upload an Excel sheet, review the detected historical sales, then save them as
+              analytics records without changing inventory.
             </Text>
           </View>
           <Pressable onPress={handleClose} hitSlop={8}>
@@ -346,7 +346,9 @@ export default function ImportSalesModal({
 
                   <View style={styles.itemsSection}>
                     {sale.items.map((item, itemIndex) => {
-                      const matched = productMap.get(normalizeName(item.productName));
+                      const matched = lookupKeys(item.productName)
+                        .map((key) => productMap.get(key))
+                        .find(Boolean);
                       const quantity = Number(item.quantity) || 0;
                       const unitPrice = Number(item.unitPrice) || 0;
 

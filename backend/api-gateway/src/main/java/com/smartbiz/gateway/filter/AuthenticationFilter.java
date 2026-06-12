@@ -25,7 +25,14 @@ import java.util.List;
 public class AuthenticationFilter implements GlobalFilter, Ordered {
 
     private static final Logger log = LoggerFactory.getLogger(AuthenticationFilter.class);
-    private static final List<String> PUBLIC_PATHS = List.of("/auth/login", "/auth/signup");
+    private static final List<String> PUBLIC_PATHS = List.of(
+            "/auth/login",
+            "/auth/signup",
+            "/auth/verify-email",
+            "/auth/resend-verification",
+            "/auth/google/start",
+            "/auth/google/callback"
+    );
 
     @Value("${app.jwt.secret}")
     private String jwtSecret;

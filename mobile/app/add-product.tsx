@@ -1,27 +1,37 @@
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '@/components/ui/colors';
 import InputField from '@/components/ui/InputField';
 import CategoryPicker from '@/components/ui/CategoryPicker';
+import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
 import { inventoryService, type Category } from '@/services/inventory';
 
 export default function AddProduct() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ barcode?: string }>();
   const [productName, setProductName] = useState('');
   const [category, setCategory] = useState('');
   const [supplier, setSupplier] = useState('');
+  const [barcode, setBarcode] = useState(typeof params.barcode === 'string' ? params.barcode : '');
   const [costPrice, setCostPrice] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [stock, setStock] = useState(1);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
     inventoryService.getCategories().then(setCategories).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (typeof params.barcode === 'string' && params.barcode.trim()) {
+      setBarcode(params.barcode);
+    }
+  }, [params.barcode]);
 
   const handleSave = async () => {
     if (!productName.trim()) {
@@ -41,6 +51,7 @@ export default function AddProduct() {
         name: productName.trim(),
         category: category || undefined,
         supplier: supplier.trim() || undefined,
+        barcode: barcode.trim() || undefined,
         price,
         costPrice: cost !== undefined && !isNaN(cost) ? cost : undefined,
         quantity: stock,
@@ -104,6 +115,25 @@ export default function AddProduct() {
             value={supplier}
             onChangeText={setSupplier}
           />
+
+          <View style={styles.fieldWrapper}>
+            <Text style={styles.fieldLabel}>Barcode / QR</Text>
+            <View style={styles.scanRow}>
+              <TextInput
+                style={styles.scanInput}
+                placeholder="Optional code for faster lookup"
+                placeholderTextColor={Colors.textMuted}
+                value={barcode}
+                onChangeText={setBarcode}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Pressable style={styles.scanBtn} onPress={() => setShowScanner(true)}>
+                <Ionicons name="scan-outline" size={18} color={Colors.textOnPrimary} />
+                <Text style={styles.scanBtnText}>Scan</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
 
         {/* Pricing & Inventory */}
@@ -155,6 +185,17 @@ export default function AddProduct() {
         </Pressable>
       </ScrollView>
       </KeyboardAvoidingView>
+
+      <BarcodeScannerModal
+        visible={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanned={(value) => {
+          setBarcode(value);
+          setShowScanner(false);
+        }}
+        title="Scan product code"
+        subtitle="Scan the product barcode or QR code to fill it in automatically."
+      />
     </SafeAreaView>
   );
 }
@@ -206,6 +247,28 @@ const styles = StyleSheet.create({
   },
   fieldWrapper: { gap: 6 },
   fieldLabel: { fontSize: 13, fontWeight: '500', color: Colors.textDark },
+  scanRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  scanInput: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: Colors.textDark,
+  },
+  scanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  scanBtnText: { color: Colors.textOnPrimary, fontSize: 13, fontWeight: '700' },
   row: { flexDirection: 'row', gap: 12 },
   stepper: {
     flexDirection: 'row',

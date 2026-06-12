@@ -12,6 +12,7 @@ export type Product = {
   quantity: number;
   reorderLevel: number | null;
   supplier: string | null;
+  barcode?: string | null;
   imageUrl: string | null;
 };
 
@@ -32,6 +33,7 @@ export type CreateProductPayload = {
   quantity: number;
   reorderLevel?: number;
   supplier?: string;
+  barcode?: string;
 };
 
 export type ProductFilters = {
@@ -57,6 +59,11 @@ export const inventoryService = {
 
   async createProduct(payload: CreateProductPayload): Promise<Product> {
     const { data } = await api.post<Product>('/inventory/products', payload);
+    return data;
+  },
+
+  async getProductByBarcode(barcode: string): Promise<Product> {
+    const { data } = await api.get<Product>(`/inventory/products/barcode/${encodeURIComponent(barcode)}`);
     return data;
   },
 

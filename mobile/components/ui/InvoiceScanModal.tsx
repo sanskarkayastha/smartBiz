@@ -3,7 +3,7 @@ import {
   ScrollView, TextInput, Alert, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from './colors';
 import { scanInvoice, ParsedProduct } from '@/services/ai';
@@ -25,24 +25,15 @@ export default function InvoiceScanModal({ visible, onClose, onSaved, initialPro
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [existingProducts, setExistingProducts] = useState<Product[]>([]);
-  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (visible) {
-      if (initialProducts && initialProducts.length > 0) {
-        loadAndMatch(initialProducts);
-      } else {
-        setStep('camera');
-        setImageUri(null);
-        setRows([]);
-      }
-    }
-  }, [visible]);
-
-  const loadAndMatch = async (products: ParsedProduct[]) => {
+  const loadAndMatch = useCallback(async (products: ParsedProduct[]) => {
     let existing = existingProducts;
     if (existing.length === 0) {
-      try { existing = await inventoryService.getProducts(); setExistingProducts(existing); } catch {}
+      try {
+        const page = await inventoryService.getProducts();
+        existing = page.content ?? [];
+        setExistingProducts(existing);
+      } catch {}
     }
     const matched = products.map((p) => ({
       ...p,
@@ -50,7 +41,23 @@ export default function InvoiceScanModal({ visible, onClose, onSaved, initialPro
     }));
     setRows(matched);
     setStep('review');
-  };
+  }, [existingProducts]);
+
+  useEffect(() => {
+    const syncModalState = async () => {
+      if (initialProducts && initialProducts.length > 0) {
+        await loadAndMatch(initialProducts);
+      } else {
+        setStep('camera');
+        setImageUri(null);
+        setRows([]);
+      }
+    };
+
+    if (visible) {
+      void syncModalState();
+    }
+  }, [visible, initialProducts, loadAndMatch]);
 
   const findMatch = (name: string, products: Product[]): Product | null => {
     const lower = name.toLowerCase().trim();
@@ -105,7 +112,6 @@ export default function InvoiceScanModal({ visible, onClose, onSaved, initialPro
   const handleSave = async () => {
     const validRows = rows.filter((r) => r.name.trim());
     if (validRows.length === 0) { Alert.alert('Nothing to save', 'Add at least one product row.'); return; }
-    setSaving(true);
     setStep('saving');
     let saved = 0;
     for (const row of validRows) {
@@ -128,7 +134,6 @@ export default function InvoiceScanModal({ visible, onClose, onSaved, initialPro
         // continue saving others
       }
     }
-    setSaving(false);
     if (saved > 0) {
       Alert.alert('Saved', `${saved} product${saved > 1 ? 's' : ''} saved to inventory.`);
       onSaved();

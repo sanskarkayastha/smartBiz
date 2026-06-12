@@ -127,13 +127,32 @@ class SalesServiceTest {
                 .thenReturn(ResponseEntity.ok(product));
         when(saleRepository.save(any(Sale.class))).thenReturn(savedSale);
         when(saleItemRepository.saveAll(anyList())).thenReturn(List.of(new SaleItem()));
-        when(restTemplate.exchange(contains("/stock"), eq(HttpMethod.POST), any(), eq(Object.class)))
-                .thenReturn(ResponseEntity.ok(null));
         when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
 
         List<SaleDTO> result = salesService.importSales(1L, new ImportSalesRequest(List.of(request)));
 
         assertThat(result).hasSize(1);
         verify(transactionTemplate).execute(any());
+        verify(restTemplate, never()).exchange(contains("/stock"), eq(HttpMethod.POST), any(), eq(Object.class));
+        verify(restTemplate, never()).exchange(contains("/purchase"), any(), any(), eq(Object.class));
+        verify(restTemplate, never()).exchange(contains("/due"), any(), any(), eq(Object.class));
+    }
+
+    @Test
+    void importSales_marksRecordsAsImported() {
+        when(restTemplate.exchange(contains("/inventory/products/1"), eq(HttpMethod.GET), any(), eq(InventoryProductDTO.class)))
+                .thenReturn(ResponseEntity.ok(product));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> {
+            Sale sale = invocation.getArgument(0);
+            sale.setId(101L);
+            return sale;
+        });
+        when(saleItemRepository.saveAll(anyList())).thenReturn(List.of(new SaleItem()));
+        when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
+
+        List<SaleDTO> result = salesService.importSales(1L, new ImportSalesRequest(List.of(request)));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getStatus()).isEqualTo("IMPORTED");
     }
 }

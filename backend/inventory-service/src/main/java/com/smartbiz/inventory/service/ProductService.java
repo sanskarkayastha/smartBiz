@@ -1,6 +1,7 @@
 package com.smartbiz.inventory.service;
 
 import com.smartbiz.inventory.dto.*;
+import com.smartbiz.inventory.exception.BarcodeAlreadyExistsException;
 import com.smartbiz.inventory.exception.InsufficientStockException;
 import com.smartbiz.inventory.exception.ProductNotFoundException;
 import com.smartbiz.inventory.model.Product;
@@ -48,7 +49,7 @@ public class ProductService {
     }
 
     public ProductDTO findByBarcode(Long userId, String barcode) {
-        return productRepository.findByBarcodeAndUserId(barcode, userId)
+        return productRepository.findByBarcodeAndUserId(normalizeBarcode(barcode), userId)
             .map(ProductDTO::from)
             .orElseThrow(() -> new ProductNotFoundException(-1L));
     }
@@ -61,6 +62,9 @@ public class ProductService {
     @Transactional
     @CacheEvict(value = CACHE_NAME, allEntries = true)
     public ProductDTO create(Long userId, CreateProductRequest request) {
+        String normalizedBarcode = normalizeBarcode(request.barcode());
+        ensureBarcodeAvailable(userId, normalizedBarcode, null);
+
         Product product = Product.builder()
             .userId(userId)
             .name(request.name())
@@ -71,7 +75,7 @@ public class ProductService {
             .quantity(request.quantity())
             .reorderLevel(request.reorderLevel())
             .supplier(request.supplier())
-            .barcode(request.barcode())
+            .barcode(normalizedBarcode)
             .imageUrl(request.imageUrl())
             .build();
 
@@ -101,6 +105,11 @@ public class ProductService {
         if (request.costPrice() != null) product.setCostPrice(request.costPrice());
         if (request.reorderLevel() != null) product.setReorderLevel(request.reorderLevel());
         if (request.supplier() != null) product.setSupplier(request.supplier());
+        if (request.barcode() != null) {
+            String normalizedBarcode = normalizeBarcode(request.barcode());
+            ensureBarcodeAvailable(userId, normalizedBarcode, productId);
+            product.setBarcode(normalizedBarcode);
+        }
         if (request.imageUrl() != null) product.setImageUrl(request.imageUrl());
 
         if (request.quantity() != null && !request.quantity().equals(product.getQuantity())) {
@@ -114,6 +123,24 @@ public class ProductService {
         }
 
         return ProductDTO.from(productRepository.save(product));
+    }
+
+    private void ensureBarcodeAvailable(Long userId, String barcode, Long productId) {
+        if (barcode == null) return;
+
+        boolean exists = productId == null
+            ? productRepository.existsByBarcodeAndUserId(barcode, userId)
+            : productRepository.existsByBarcodeAndUserIdAndIdNot(barcode, userId, productId);
+
+        if (exists) {
+            throw new BarcodeAlreadyExistsException(barcode);
+        }
+    }
+
+    private String normalizeBarcode(String barcode) {
+        if (barcode == null) return null;
+        String normalized = barcode.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     @Transactional

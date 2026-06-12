@@ -22,15 +22,25 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class SalesService {
+    private record SaleProcessingOptions(
+            boolean validateStock,
+            boolean deductStock,
+            boolean updateCustomerTotals,
+            boolean requireCustomerForDue,
+            String status
+    ) {}
+
+    private static final SaleProcessingOptions LIVE_SALE_OPTIONS =
+            new SaleProcessingOptions(true, true, true, true, "COMPLETED");
+    private static final SaleProcessingOptions IMPORTED_SALE_OPTIONS =
+            new SaleProcessingOptions(false, false, false, false, "IMPORTED");
 
     private static final String INVENTORY_BASE = "http://INVENTORY-SERVICE/inventory/products";
     private static final String CRM_BASE = "http://CRM-SERVICE/customers";
@@ -42,15 +52,15 @@ public class SalesService {
 
     @Transactional
     public SaleDTO createSale(Long userId, CreateSaleRequest request) {
-        return createSaleInternal(userId, request);
+        return createSaleInternal(userId, request, LIVE_SALE_OPTIONS);
     }
 
-    private SaleDTO createSaleInternal(Long userId, CreateSaleRequest request) {
-        // 1. Validate stock availability for all items
+    private SaleDTO createSaleInternal(Long userId, CreateSaleRequest request, SaleProcessingOptions options) {
+        // 1. Load referenced products, and validate stock for live sales only.
         List<InventoryProductDTO> products = new ArrayList<>();
         for (SaleItemRequest itemReq : request.getItems()) {
             InventoryProductDTO product = fetchProduct(userId, itemReq.getProductId());
-            if (product.getQuantity() < itemReq.getQuantity()) {
+            if (options.validateStock() && product.getQuantity() < itemReq.getQuantity()) {
                 throw new InsufficientStockException(
                         "Insufficient stock for '" + product.getName() + "'. Available: " + product.getQuantity());
             }
@@ -58,7 +68,7 @@ public class SalesService {
         }
 
         String paymentMethod = request.getPaymentMethod() != null ? request.getPaymentMethod() : "CASH";
-        if ("DUE".equals(paymentMethod) && request.getCustomerId() == null) {
+        if (options.requireCustomerForDue() && "DUE".equals(paymentMethod) && request.getCustomerId() == null) {
             throw new IllegalArgumentException("DUE payment requires a customer to be selected");
         }
 
@@ -68,7 +78,7 @@ public class SalesService {
         sale.setCustomerId(request.getCustomerId());
         sale.setCustomerName(request.getCustomerName());
         sale.setPaymentMethod(paymentMethod);
-        sale.setStatus("COMPLETED");
+        sale.setStatus(options.status());
         sale.setSaleDate(request.getSaleDate() != null ? request.getSaleDate() : LocalDateTime.now());
         sale.setCreatedBy(userId);
 
@@ -100,14 +110,16 @@ public class SalesService {
         }
         saleItemRepository.saveAll(saleItems);
 
-        // 3. Deduct stock (exception here rolls back DB transaction)
-        for (int i = 0; i < request.getItems().size(); i++) {
-            SaleItemRequest itemReq = request.getItems().get(i);
-            deductStock(userId, itemReq.getProductId(), itemReq.getQuantity(), savedSale.getId());
+        // 3. Deduct stock only for live POS sales.
+        if (options.deductStock()) {
+            for (int i = 0; i < request.getItems().size(); i++) {
+                SaleItemRequest itemReq = request.getItems().get(i);
+                deductStock(userId, itemReq.getProductId(), itemReq.getQuantity(), savedSale.getId());
+            }
         }
 
-        // 4. Update CRM customer total + due amount if applicable
-        if (request.getCustomerId() != null) {
+        // 4. Update CRM only for live POS sales.
+        if (options.updateCustomerTotals() && request.getCustomerId() != null) {
             updateCustomerTotal(userId, request.getCustomerId(), total);
             if ("DUE".equals(paymentMethod)) {
                 addCustomerDue(userId, request.getCustomerId(), total);
@@ -123,11 +135,9 @@ public class SalesService {
                 .sorted(Comparator.comparing(sale -> sale.getSaleDate() != null ? sale.getSaleDate() : LocalDateTime.now()))
                 .toList();
 
-        validateImportStock(userId, sales);
-
         List<SaleDTO> results = new ArrayList<>();
         for (CreateSaleRequest sale : sales) {
-            SaleDTO result = transactionTemplate.execute(status -> createSaleInternal(userId, sale));
+            SaleDTO result = transactionTemplate.execute(status -> createSaleInternal(userId, sale, IMPORTED_SALE_OPTIONS));
             if (result == null) {
                 throw new IllegalStateException("Sale import failed before completion");
             }
@@ -215,26 +225,6 @@ public class SalesService {
                 start,
                 endExclusive
         );
-    }
-
-    private void validateImportStock(Long userId, List<CreateSaleRequest> sales) {
-        Map<Long, Integer> requestedByProduct = new HashMap<>();
-
-        for (CreateSaleRequest sale : sales) {
-            for (SaleItemRequest item : sale.getItems()) {
-                requestedByProduct.merge(item.getProductId(), item.getQuantity(), Integer::sum);
-            }
-        }
-
-        for (Map.Entry<Long, Integer> entry : requestedByProduct.entrySet()) {
-            InventoryProductDTO product = fetchProduct(userId, entry.getKey());
-            if (product.getQuantity() < entry.getValue()) {
-                throw new InsufficientStockException(
-                        "Import would overdraw stock for '" + product.getName() + "'. Available: " +
-                                product.getQuantity() + ", needed: " + entry.getValue()
-                );
-            }
-        }
     }
 
     private InventoryProductDTO fetchProduct(Long userId, Long productId) {

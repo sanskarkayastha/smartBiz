@@ -5,7 +5,11 @@ import * as XLSX from 'xlsx'
 
 type Message = { role: 'user' | 'ai'; content: string }
 type ParsedProduct = { name: string; quantity: number; rate: number; category?: string }
+type ParsedSaleItem = { productName: string; quantity: number; unitPrice: number }
+type ParsedSale = { saleDate: string; customerName: string | null; paymentMethod: string; items: ParsedSaleItem[] }
 type ReviewProduct = ParsedProduct & { id?: number; isNew: boolean; unitPrice: number; category?: string }
+type InventoryProduct = { id: number; name: string }
+type ProductListResponse = InventoryProduct[] | { content?: InventoryProduct[] }
 type AttachmentState = {
   label: string;
   image?: string;
@@ -27,7 +31,10 @@ export default function AiPage() {
   const [loading, setLoading] = useState(false)
   const [attachment, setAttachment] = useState<AttachmentState>(null)
   const [reviewProducts, setReviewProducts] = useState<ReviewProduct[] | null>(null)
+  const [reviewSales, setReviewSales] = useState<ParsedSale[] | null>(null)
   const [savingProducts, setSavingProducts] = useState(false)
+  const [savingSales, setSavingSales] = useState(false)
+  const [inventoryProducts, setInventoryProducts] = useState<InventoryProduct[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -88,16 +95,24 @@ export default function AiPage() {
       const data = await res.json()
       setMessages((prev) => [...prev, { role: 'ai', content: data.response ?? 'No response received.' }])
 
-      if (data.products && data.products.length > 0) {
-        const existingRes = await fetch('/api/products')
-        const existing = await existingRes.json().catch(() => [])
-        const reviewed: ReviewProduct[] = data.products.map((p: ParsedProduct) => {
-          const match = existing.find((ex: { id: number; name: string }) =>
-            ex.name.toLowerCase() === p.name.toLowerCase()
-          )
-          return { name: p.name, quantity: p.quantity, rate: p.rate, unitPrice: p.rate, category: p.category, id: match?.id, isNew: !match }
-        })
-        setReviewProducts(reviewed)
+      if ((data.products && data.products.length > 0) || (data.sales && data.sales.length > 0)) {
+        const existing = await loadInventoryProducts()
+
+        if (data.sales && data.sales.length > 0) {
+          setReviewProducts(null)
+          setReviewSales(data.sales)
+        }
+
+        if (data.products && data.products.length > 0) {
+          setReviewSales(null)
+          const reviewed: ReviewProduct[] = data.products.map((p: ParsedProduct) => {
+            const match = existing.find((ex) =>
+              ex.name.toLowerCase() === p.name.toLowerCase()
+            )
+            return { name: p.name, quantity: p.quantity, rate: p.rate, unitPrice: p.rate, category: p.category, id: match?.id, isNew: !match }
+          })
+          setReviewProducts(reviewed)
+        }
       }
     } catch {
       setMessages((prev) => [...prev, { role: 'ai', content: 'Something went wrong. Please try again.' }])
@@ -110,32 +125,148 @@ export default function AiPage() {
     if (!reviewProducts) return
     setSavingProducts(true)
     let saved = 0
+    const failed: ReviewProduct[] = []
+    const errors: string[] = []
     try {
       for (const p of reviewProducts) {
+        let res: Response
         if (p.isNew) {
-          await fetch('/api/products', {
+          res = await fetch('/api/products', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: p.name, quantity: p.quantity, price: p.unitPrice, costPrice: p.unitPrice, category: p.category || undefined }),
           })
         } else if (p.id) {
-          await fetch(`/api/products/${p.id}/stock`, {
+          res = await fetch(`/api/products/${p.id}/stock`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ quantityChange: p.quantity, type: 'RESTOCK', reason: 'AI extraction' }),
           })
+        } else {
+          failed.push(p)
+          errors.push(`${p.name}: product match is missing`)
+          continue
         }
+
+        if (!res.ok) {
+          failed.push(p)
+          errors.push(`${p.name}: ${await readErrorMessage(res)}`)
+          continue
+        }
+
         saved++
       }
-      setReviewProducts(null)
+      setReviewProducts(failed.length > 0 ? failed : null)
+
+      if (failed.length === 0) {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'ai', content: `Done! ${saved} product${saved !== 1 ? 's' : ''} updated in inventory.` },
+        ])
+        return
+      }
+
+      const firstError = errors[0] ?? 'Unknown error'
       setMessages((prev) => [
         ...prev,
-        { role: 'ai', content: `Done! ${saved} product${saved !== 1 ? 's' : ''} updated in inventory.` },
+        {
+          role: 'ai',
+          content: saved > 0
+            ? `Saved ${saved} product${saved !== 1 ? 's' : ''}, but ${failed.length} still need${failed.length === 1 ? 's' : ''} attention. First issue: ${firstError}.`
+            : `I couldn't save the extracted products yet. First issue: ${firstError}.`,
+        },
       ])
-    } catch {
-      alert('Some products failed to save. Please check your inventory.')
     } finally {
       setSavingProducts(false)
+    }
+  }
+
+  async function loadInventoryProducts(): Promise<InventoryProduct[]> {
+    const existingRes = await fetch('/api/products')
+    const existingData: ProductListResponse = await existingRes.json().catch(() => [])
+    const existing = extractInventoryProducts(existingData)
+    setInventoryProducts(existing)
+    return existing
+  }
+
+  async function saveReviewedSales() {
+    if (!reviewSales) return
+    setSavingSales(true)
+
+    try {
+      const availableProducts = inventoryProducts.length > 0 ? inventoryProducts : await loadInventoryProducts()
+      const productMap = buildInventoryProductMap(availableProducts)
+      const missingProducts = new Set<string>()
+      const payloadSales = []
+
+      for (const sale of reviewSales) {
+        if (!sale.saleDate?.trim()) {
+          throw new Error('Every imported sale needs a date before you can save.')
+        }
+
+        const items = sale.items.map((item) => {
+          const matched = findMatchingInventoryProduct(item.productName, productMap)
+          if (!matched) {
+            missingProducts.add(item.productName)
+            return null
+          }
+
+          const quantity = Math.round(Number(item.quantity))
+          const unitPrice = Number(item.unitPrice)
+
+          if (!Number.isFinite(quantity) || quantity <= 0) {
+            throw new Error(`"${item.productName}" needs a quantity greater than 0.`)
+          }
+
+          if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+            throw new Error(`"${item.productName}" needs a valid unit price.`)
+          }
+
+          return {
+            productId: matched.id,
+            quantity,
+            unitPrice,
+          }
+        }).filter(Boolean)
+
+        if (items.length === 0) {
+          throw new Error('Each imported sale needs at least one valid item.')
+        }
+
+        payloadSales.push({
+          customerName: sale.customerName?.trim() || null,
+          paymentMethod: normalizeSalePaymentMethod(sale.paymentMethod),
+          saleDate: `${sale.saleDate}T12:00:00`,
+          items,
+        })
+      }
+
+      if (missingProducts.size > 0) {
+        throw new Error(`These product names do not match inventory yet: ${Array.from(missingProducts).join(', ')}`)
+      }
+
+      const res = await fetch('/api/sales/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sales: payloadSales }),
+      })
+
+      if (!res.ok) {
+        throw new Error(await readErrorMessage(res))
+      }
+
+      setReviewSales(null)
+      setMessages((prev) => [
+        ...prev,
+        { role: 'ai', content: `Imported ${reviewSales.length} historical sale${reviewSales.length === 1 ? '' : 's'} successfully.` },
+      ])
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'ai', content: err instanceof Error ? err.message : 'Sales import failed.' },
+      ])
+    } finally {
+      setSavingSales(false)
     }
   }
 
@@ -157,7 +288,40 @@ export default function AiPage() {
     })
   }
 
+  function updateReviewSale(idx: number, field: keyof ParsedSale, value: string) {
+    setReviewSales((prev) => {
+      if (!prev) return prev
+      const copy = [...prev]
+      copy[idx] = { ...copy[idx], [field]: value }
+      return copy
+    })
+  }
+
+  function updateReviewSaleItem(saleIndex: number, itemIndex: number, field: keyof ParsedSaleItem, value: string) {
+    setReviewSales((prev) => {
+      if (!prev) return prev
+      const copy = [...prev]
+      const sale = copy[saleIndex]
+      const items = [...sale.items]
+      items[itemIndex] = {
+        ...items[itemIndex],
+        [field]: field === 'productName' ? value : Number(value),
+      }
+      copy[saleIndex] = { ...sale, items }
+      return copy
+    })
+  }
+
+  function removeReviewSale(idx: number) {
+    setReviewSales((prev) => {
+      if (!prev) return prev
+      const copy = prev.filter((_, i) => i !== idx)
+      return copy.length > 0 ? copy : null
+    })
+  }
+
   const canSend = (!!input.trim() || !!attachment) && !loading
+  const inventoryProductMap = buildInventoryProductMap(inventoryProducts)
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
@@ -301,6 +465,97 @@ export default function AiPage() {
         </div>
       )}
 
+      {/* Sales Review Panel */}
+      {reviewSales && (
+        <div className="shrink-0 border-t border-gray-100 bg-slate-50 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-800">Review Extracted Sales ({reviewSales.length})</p>
+            <button onClick={() => setReviewSales(null)} className="text-gray-400 hover:text-gray-600">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div className="space-y-3 max-h-72 overflow-y-auto">
+            {reviewSales.map((sale, saleIndex) => (
+              <section key={saleIndex} className="rounded-2xl border border-slate-200 bg-white p-3 space-y-3">
+                <div className="grid gap-2 md:grid-cols-[150px_1fr_150px_auto]">
+                  <input
+                    type="date"
+                    value={sale.saleDate}
+                    onChange={(e) => updateReviewSale(saleIndex, 'saleDate', e.target.value)}
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                  />
+                  <input
+                    value={sale.customerName ?? ''}
+                    onChange={(e) => updateReviewSale(saleIndex, 'customerName', e.target.value)}
+                    placeholder="Customer"
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                  />
+                  <select
+                    value={normalizeSalePaymentMethod(sale.paymentMethod)}
+                    onChange={(e) => updateReviewSale(saleIndex, 'paymentMethod', e.target.value)}
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                  >
+                    {['CASH', 'CARD', 'DIGITAL', 'DUE'].map((method) => (
+                      <option key={method} value={method}>{method}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => removeReviewSale(saleIndex)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:border-red-200 hover:text-red-500">
+                    Remove
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {sale.items.map((item, itemIndex) => {
+                    const matched = findMatchingInventoryProduct(item.productName, inventoryProductMap)
+                    return (
+                      <div key={itemIndex} className="grid gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 md:grid-cols-[1fr_110px_140px_auto]">
+                        <div>
+                          <input
+                            value={item.productName}
+                            onChange={(e) => updateReviewSaleItem(saleIndex, itemIndex, 'productName', e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                          />
+                          <p className={`mt-1 text-xs ${matched ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            {matched ? `Matched to inventory: ${matched.name}` : 'No inventory match yet'}
+                          </p>
+                        </div>
+                        <input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => updateReviewSaleItem(saleIndex, itemIndex, 'quantity', e.target.value)}
+                          className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                        />
+                        <input
+                          type="number"
+                          value={item.unitPrice}
+                          onChange={(e) => updateReviewSaleItem(saleIndex, itemIndex, 'unitPrice', e.target.value)}
+                          className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                        />
+                        <div className="flex items-center justify-end text-sm font-semibold text-gray-700">
+                          NPR {(Number(item.quantity) * Number(item.unitPrice)).toLocaleString()}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setReviewSales(null)} className="flex-1 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={saveReviewedSales}
+              disabled={savingSales}
+              className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 disabled:opacity-60 transition-colors"
+            >
+              {savingSales ? 'Importing…' : 'Save Historical Sales'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Input Row */}
       <div className="shrink-0 pt-3 border-t border-gray-100">
         {/* Attachment chip */}
@@ -358,7 +613,7 @@ export default function AiPage() {
             </svg>
           </button>
         </div>
-        <p className="text-xs text-gray-400 mt-1.5 px-1">Attach an image or .xlsx file to extract products · Enter to send</p>
+        <p className="text-xs text-gray-400 mt-1.5 px-1">Attach an image or .xlsx file to extract products or historical sales · Enter to send</p>
       </div>
     </div>
   )
@@ -374,4 +629,52 @@ function fileToBase64(file: File): Promise<string> {
     }
     reader.onerror = reject
   })
+}
+
+function extractInventoryProducts(data: ProductListResponse): InventoryProduct[] {
+  if (Array.isArray(data)) return data
+  if (data && Array.isArray(data.content)) return data.content
+  return []
+}
+
+function normalizeName(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function lookupKeys(value: string) {
+  const normalized = normalizeName(value)
+  const compact = normalized.replace(/[^a-z0-9]/g, '')
+  return compact && compact !== normalized ? [normalized, compact] : [normalized]
+}
+
+function buildInventoryProductMap(products: InventoryProduct[]) {
+  const map = new Map<string, InventoryProduct>()
+  for (const product of products) {
+    for (const key of lookupKeys(product.name)) {
+      map.set(key, product)
+    }
+  }
+  return map
+}
+
+function findMatchingInventoryProduct(name: string, productMap: Map<string, InventoryProduct>) {
+  return lookupKeys(name).map((key) => productMap.get(key)).find(Boolean)
+}
+
+function normalizeSalePaymentMethod(paymentMethod: string) {
+  return ['CASH', 'CARD', 'DIGITAL', 'DUE'].includes(paymentMethod) ? paymentMethod : 'CASH'
+}
+
+async function readErrorMessage(res: Response): Promise<string> {
+  const body = await res.json().catch(() => null) as
+    | { error?: string; details?: Record<string, string> }
+    | null
+
+  if (body?.details) {
+    const detail = Object.values(body.details)[0]
+    if (detail) return detail
+  }
+
+  if (body?.error) return body.error
+  return `Request failed with status ${res.status}`
 }

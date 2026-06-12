@@ -118,6 +118,7 @@ public class AuthController {
 
     private String resolveCallbackBaseUrl(HttpServletRequest request) {
         return googleOAuthService.resolveCallbackBaseUrl(
+            request.getHeader("Forwarded"),
             request.getHeader("X-Forwarded-Proto"),
             request.getHeader("X-Forwarded-Host"),
             request.getHeader("X-Forwarded-Port"),

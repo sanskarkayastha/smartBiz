@@ -17,6 +17,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findAllByUserId(Long userId, Pageable pageable);
     Optional<Product> findByIdAndUserId(Long id, Long userId);
     Optional<Product> findByBarcodeAndUserId(String barcode, Long userId);
+    boolean existsByBarcodeAndUserId(String barcode, Long userId);
+    boolean existsByBarcodeAndUserIdAndIdNot(String barcode, Long userId, Long id);
     boolean existsBySkuAndUserId(String sku, Long userId);
 
     List<Product> findByUserIdAndSupplierIgnoreCase(Long userId, String supplier);

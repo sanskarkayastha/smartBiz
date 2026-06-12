@@ -72,7 +72,8 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
     apiFetch<{ content: Product[] }>('/inventory/products?page=0&size=1000', session),
   ])
 
-  const inStockProducts = (productsData?.content ?? []).filter((product) => product.quantity > 0)
+  const allProducts = productsData?.content ?? []
+  const inStockProducts = allProducts.filter((product) => product.quantity > 0)
   const saleList = sales ?? []
 
   const groupedSales = saleList.reduce<Array<{ key: string; label: string; items: Sale[]; total: number }>>((groups, sale) => {
@@ -120,7 +121,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
           <p className="mt-2 text-sm text-ink-2">{filterSummary}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <ImportSalesModal products={inStockProducts} />
+          <ImportSalesModal products={allProducts} />
           <AddSaleModal products={inStockProducts} />
         </div>
       </div>

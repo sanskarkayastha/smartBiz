@@ -22,7 +22,9 @@ import * as XLSX from 'xlsx';
 import { Colors } from '@/components/ui/colors';
 import VoiceButton from '@/components/ui/VoiceButton';
 import InvoiceScanModal from '@/components/ui/InvoiceScanModal';
-import { queryAi, getDailyInsight, type ChatMessage, type ParsedProduct } from '@/services/ai';
+import ImportSalesModal from '@/components/ui/ImportSalesModal';
+import { inventoryService, type Product } from '@/services/inventory';
+import { queryAi, getDailyInsight, type ChatMessage, type ParsedProduct, type ParsedSale } from '@/services/ai';
 
 type Message = ChatMessage;
 type AttachmentState = {
@@ -50,6 +52,9 @@ export default function AiScreen() {
   const [attachment, setAttachment] = useState<AttachmentState | null>(null);
   const [showScanModal, setShowScanModal] = useState(false);
   const [scanProducts, setScanProducts] = useState<ParsedProduct[] | null>(null);
+  const [showSalesImportModal, setShowSalesImportModal] = useState(false);
+  const [salesImportProducts, setSalesImportProducts] = useState<Product[]>([]);
+  const [salesImportData, setSalesImportData] = useState<ParsedSale[] | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   // Android-only: manually track keyboard height to avoid edge-to-edge KAV issues
@@ -128,7 +133,7 @@ export default function AiScreen() {
     const asset = result.assets[0];
     try {
       const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       });
       const wb = XLSX.read(base64, { type: 'base64' });
       const ws = wb.Sheets[wb.SheetNames[0]];
@@ -160,8 +165,25 @@ export default function AiScreen() {
       const result = await queryAi(updatedMessages, attachPayload);
       setMessages((prev) => [...prev, { role: 'ai', text: result.response }]);
       if (result.products && result.products.length > 0) {
+        setShowSalesImportModal(false);
+        setSalesImportData(null);
         setScanProducts(result.products);
         setShowScanModal(true);
+      }
+      if (result.sales && result.sales.length > 0) {
+        setShowScanModal(false);
+        setScanProducts(null);
+        try {
+          const productsResponse = await inventoryService.getProducts(0, 1000);
+          setSalesImportProducts(productsResponse.content);
+          setSalesImportData(result.sales);
+          setShowSalesImportModal(true);
+        } catch {
+          setMessages((prev) => [
+            ...prev,
+            { role: 'ai', text: 'I found sales in that sheet, but I could not load inventory to review them right now.' },
+          ]);
+        }
       }
     } catch {
       setMessages((prev) => [
@@ -274,6 +296,23 @@ export default function AiScreen() {
         initialProducts={scanProducts ?? undefined}
         onClose={() => { setShowScanModal(false); setScanProducts(null); }}
         onSaved={() => { setShowScanModal(false); setScanProducts(null); }}
+      />
+      <ImportSalesModal
+        visible={showSalesImportModal}
+        products={salesImportProducts}
+        initialSales={salesImportData}
+        onClose={() => {
+          setShowSalesImportModal(false);
+          setSalesImportData(null);
+        }}
+        onImported={() => {
+          setShowSalesImportModal(false);
+          setSalesImportData(null);
+          setMessages((prev) => [
+            ...prev,
+            { role: 'ai', text: 'Historical sales were imported successfully.' },
+          ]);
+        }}
       />
     </>
   );

@@ -26,7 +26,7 @@ export type ParsedSale = {
   items: ParsedSaleItem[];
 };
 
-export type QueryAiResponse = { response: string; products?: ParsedProduct[] };
+export type QueryAiResponse = { response: string; products?: ParsedProduct[]; sales?: ParsedSale[] };
 type Attachment = { image?: string; mimeType?: string; fileText?: string };
 
 export const queryAi = (messages: ChatMessage[], attachment?: Attachment): Promise<QueryAiResponse> =>

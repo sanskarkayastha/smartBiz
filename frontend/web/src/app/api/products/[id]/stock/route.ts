@@ -8,7 +8,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
   const body = await req.json()
   const res = await fetch(`${process.env.API_GATEWAY_URL}/inventory/products/${id}/stock`, {
-    method: 'PUT',
+    method: 'POST',
     headers: {
       Authorization: `Bearer ${session.token}`,
       'X-User-Id': String(session.userId),

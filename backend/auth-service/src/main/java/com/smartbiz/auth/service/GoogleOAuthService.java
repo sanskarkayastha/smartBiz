@@ -15,11 +15,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -97,6 +101,9 @@ public class GoogleOAuthService {
                 .body(form)
                 .retrieve()
                 .body(GoogleTokenResponse.class);
+        } catch (RestClientResponseException e) {
+            log.warn("Google token exchange failed with status {} and body {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new InvalidCredentialsException("Google sign-in failed. Check your Google client secret and redirect URI.");
         } catch (Exception e) {
             log.warn("Google token exchange failed", e);
             throw new InvalidCredentialsException("Google sign-in failed");
@@ -113,6 +120,9 @@ public class GoogleOAuthService {
                 .header("Authorization", "Bearer " + tokenResponse.accessToken())
                 .retrieve()
                 .body(GoogleUserInfoResponse.class);
+        } catch (RestClientResponseException e) {
+            log.warn("Google userinfo lookup failed with status {} and body {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new InvalidCredentialsException("Google sign-in failed while loading your Google profile.");
         } catch (Exception e) {
             log.warn("Google userinfo lookup failed", e);
             throw new InvalidCredentialsException("Google sign-in failed");
@@ -139,17 +149,25 @@ public class GoogleOAuthService {
         }
     }
 
-    public String resolveCallbackBaseUrl(String forwardedProto, String forwardedHost, String forwardedPort, String scheme, String serverName, int serverPort) {
+    public String resolveCallbackBaseUrl(String forwardedHeader, String forwardedProto, String forwardedHost, String forwardedPort, String scheme, String serverName, int serverPort) {
+        Map<String, String> forwarded = parseForwardedHeader(forwardedHeader);
+        String protoFromForwarded = forwarded.get("proto");
+        String hostFromForwarded = forwarded.get("host");
+
         String proto = firstValue(forwardedProto);
         String hostValue = firstValue(forwardedHost);
         String portValue = firstValue(forwardedPort);
 
-        String resolvedScheme = (proto == null || proto.isBlank()) ? scheme : proto;
+        String resolvedScheme = (protoFromForwarded == null || protoFromForwarded.isBlank())
+            ? ((proto == null || proto.isBlank()) ? scheme : proto)
+            : protoFromForwarded;
         String resolvedHost = serverName;
         int resolvedPort = serverPort;
 
-        if (hostValue != null && !hostValue.isBlank()) {
-            String hostPart = hostValue;
+        String preferredHost = (hostFromForwarded == null || hostFromForwarded.isBlank()) ? hostValue : hostFromForwarded;
+
+        if (preferredHost != null && !preferredHost.isBlank()) {
+            String hostPart = preferredHost;
             if (hostPart.contains(":")) {
                 String[] pieces = hostPart.split(":", 2);
                 resolvedHost = pieces[0];
@@ -193,6 +211,30 @@ public class GoogleOAuthService {
         }
         int commaIndex = headerValue.indexOf(',');
         return commaIndex >= 0 ? headerValue.substring(0, commaIndex).trim() : headerValue.trim();
+    }
+
+    private Map<String, String> parseForwardedHeader(String forwardedHeader) {
+        Map<String, String> values = new HashMap<>();
+        String first = firstValue(forwardedHeader);
+        if (first == null || first.isBlank()) {
+            return values;
+        }
+
+        for (String part : first.split(";")) {
+            String[] pieces = part.split("=", 2);
+            if (pieces.length != 2) {
+                continue;
+            }
+
+            String key = pieces[0].trim().toLowerCase(Locale.ROOT);
+            String value = pieces[1].trim();
+            if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
+                value = value.substring(1, value.length() - 1);
+            }
+            values.put(key, value);
+        }
+
+        return values;
     }
 
     private void validateRedirectUri(String redirectUri) {

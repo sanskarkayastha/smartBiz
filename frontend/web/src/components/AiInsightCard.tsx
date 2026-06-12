@@ -37,9 +37,9 @@ export default function AiInsightCard() {
   }
 
   return (
-    <section className="rounded-[30px] border border-paper-3 bg-[linear-gradient(180deg,rgba(235,241,255,0.92),rgba(255,255,255,0.96))] p-6 shadow-[0_18px_50px_rgba(48,69,112,0.08)]">
+    <section className="rounded-[26px] border border-paper-3 bg-[linear-gradient(180deg,rgba(235,241,255,0.92),rgba(255,255,255,0.98))] p-5 shadow-[0_12px_30px_rgba(48,69,112,0.045)]">
       <div className="flex flex-wrap items-start gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-night text-white shadow-[0_12px_30px_rgba(33,45,70,0.22)]">
+        <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-night text-white shadow-[0_8px_18px_rgba(33,45,70,0.14)]">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 0 0 .95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 0 0-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 0 0-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 0 0-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 0 0 .951-.69l1.07-3.292z" />
           </svg>
@@ -52,32 +52,32 @@ export default function AiInsightCard() {
             </span>
           </div>
           <h2
-            className="mt-3 text-2xl font-extrabold tracking-[-0.04em] text-ink"
+            className="mt-3 text-xl font-extrabold tracking-[-0.04em] text-ink"
             style={{ fontFamily: 'var(--font-display)' }}
           >
-            Ask for a sharper read on the business.
+            Ask for a sharper read on the day.
           </h2>
           <p className="mt-2 max-w-xl text-sm leading-6 text-ink-2">
-            Use plain language. SmartBiz will pull today&apos;s sales, weekly movement, low stock, and due customers into the answer.
+            Use plain language. SmartBiz will pull sales, low stock, and due follow-ups into one practical answer.
           </p>
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         {PROMPTS.map((prompt) => (
           <button
             key={prompt}
             type="button"
             onClick={() => ask(prompt)}
             disabled={loading}
-            className="rounded-full border border-paper-3 bg-white px-3 py-2 text-xs font-semibold text-ink transition hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-full border border-paper-3 bg-white px-3 py-2 text-xs font-semibold text-ink transition duration-200 hover:border-brand/30 hover:bg-paper hover:text-brand disabled:cursor-not-allowed disabled:opacity-60"
           >
             {prompt}
           </button>
         ))}
       </div>
 
-      <div className="mt-5 rounded-[24px] border border-white/80 bg-white/88 p-4">
+      <div className="mt-4 rounded-[20px] border border-white/80 bg-white/88 p-4">
         {answer ? (
           <p className="whitespace-pre-line text-sm leading-7 text-ink">{answer}</p>
         ) : loading ? (
@@ -100,12 +100,12 @@ export default function AiInsightCard() {
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && ask()}
           placeholder="Ask about stock, sales, due customers, or momentum"
-          className="min-w-0 flex-1 rounded-2xl border border-paper-3 bg-white px-4 py-3 text-sm text-ink outline-none transition placeholder:text-ink-3 focus:border-brand"
+          className="min-w-0 flex-1 rounded-[18px] border border-paper-3 bg-white px-4 py-3 text-sm text-ink outline-none transition placeholder:text-ink-3 focus:border-brand"
         />
         <button
           onClick={() => ask()}
           disabled={!question.trim() || loading}
-          className="inline-flex items-center justify-center rounded-2xl bg-night px-5 py-3 text-sm font-semibold text-snow transition hover:bg-night-2 disabled:cursor-not-allowed disabled:opacity-55"
+          className="inline-flex items-center justify-center rounded-[18px] bg-night px-5 py-3 text-sm font-semibold text-snow transition duration-200 hover:bg-night-2 disabled:cursor-not-allowed disabled:opacity-55"
         >
           {loading ? 'Thinking...' : 'Ask SmartBiz AI'}
         </button>

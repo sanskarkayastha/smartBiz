@@ -50,7 +50,7 @@ public class AiService {
             ? messages.subList(messages.size() - 10, messages.size()) : messages;
         if (image != null && !image.isBlank()) return processWithImage(context, window, image, mimeType);
         if (fileText != null && !fileText.isBlank()) return processWithFileText(context, window, fileText);
-        return new AiQueryResponse(callGemini(context, window), null);
+        return new AiQueryResponse(callGemini(context, window), null, null);
     }
 
     private AiQueryResponse processWithImage(String context, List<AiQueryRequest.ChatMessage> messages, String image, String mimeType) {
@@ -60,6 +60,7 @@ public class AiService {
             "BUSINESS DATA:\n" + context + "\n\n" +
             "User message: " + userPrompt + "\n\n" +
             "Respond helpfully to the user's message about this image. Use NPR for currency. Be concise and practical.\n" +
+            "Do not claim that products were added, updated, or saved already. If the user wants inventory changes, say the products were extracted and are ready for review or saving.\n" +
             "IMPORTANT: If the user wants to add products to inventory (e.g. 'add these', 'update stock', 'I bought these'), " +
             "extract all products from the image and append EXACTLY the following after your response text — no markdown, no extra text:\n" +
             "PRODUCTS_JSON:[{\"name\":\"product name\",\"quantity\":1.0,\"rate\":0.0,\"category\":\"General\"}]\n" +
@@ -76,11 +77,19 @@ public class AiService {
     private AiQueryResponse processWithFileText(String context, List<AiQueryRequest.ChatMessage> messages, String fileText) {
         String userPrompt = messages.isEmpty() ? "Extract products from this data"
             : messages.get(messages.size() - 1).text();
+        if (shouldExtractSales(userPrompt, fileText)) {
+            List<ParsedSale> sales = parseSalesFile(new ParseSalesFileRequest(fileText)).sales();
+            if (!sales.isEmpty()) {
+                return new AiQueryResponse(buildSalesReviewMessage(sales), null, sales);
+            }
+        }
+
         String fullPrompt =
             "BUSINESS DATA:\n" + context + "\n\n" +
             "User message: " + userPrompt + "\n\n" +
             "Spreadsheet/file content:\n" + fileText + "\n\n" +
             "Respond helpfully to the user's message about this data. Use NPR for currency. Be concise and practical.\n" +
+            "Do not claim that products were added, updated, or saved already. If the user wants inventory changes, say the products were extracted and are ready for review or saving.\n" +
             "IMPORTANT: If the user wants to add products to inventory, extract all products and append EXACTLY the following after your response — no markdown, no extra text:\n" +
             "PRODUCTS_JSON:[{\"name\":\"product name\",\"quantity\":1.0,\"rate\":0.0,\"category\":\"General\"}]\n" +
             "Infer a short category (1-2 words, e.g. 'Electronics', 'Food & Beverages', 'Clothing') for each product based on its name. " +
@@ -99,10 +108,10 @@ public class AiService {
             String json = raw.substring(idx + "PRODUCTS_JSON:".length()).trim();
             List<ParsedProduct> products = parseProductJson(json);
             if (!products.isEmpty()) {
-                return new AiQueryResponse(text.isEmpty() ? "Products extracted successfully." : text, products);
+                return new AiQueryResponse(text.isEmpty() ? "Products extracted successfully." : text, products, null);
             }
         }
-        return new AiQueryResponse(raw, null);
+        return new AiQueryResponse(raw, null, null);
     }
 
     public String getDailyInsight(Long userId) {
@@ -165,9 +174,7 @@ public class AiService {
 
     public ParseSalesFileResponse parseSalesFile(ParseSalesFileRequest request) {
         List<ParsedSale> heuristicSales = parseStructuredSalesFile(request.fileText());
-        if (!heuristicSales.isEmpty()) {
-            return new ParseSalesFileResponse(heuristicSales);
-        }
+        boolean likelyBsDates = containsLikelyBsDates(heuristicSales);
 
         String todayDate = LocalDate.now().toString();
         String prompt =
@@ -180,17 +187,24 @@ public class AiService {
             "]. " +
             "Rules: " +
             "1. Group rows into one sale when they clearly belong to the same sale or invoice. " +
-            "2. Convert dates to ISO format YYYY-MM-DD. " +
+            "2. Convert dates to ISO format YYYY-MM-DD. If the sheet uses Nepali Bikram Sambat (B.S.) dates, including shorthand like 1/3/83 for Baishakh-era records, convert them to Gregorian A.D. dates before returning them. " +
             "3. Payment method must be one of CASH, CARD, DIGITAL, DUE. Default to CASH only if the sheet is unclear. " +
             "4. Customer name can be null if missing. " +
             "5. Every sale must contain at least one item. " +
             "6. Use the product names exactly as they appear when possible. " +
             "7. If quantity or price is missing, infer only when obvious; otherwise use 0. " +
+            "8. Ignore summary, closed/open day markers, totals, profit rows, and non-sale rows. " +
             "Spreadsheet content:\n" + request.fileText();
 
-        String json = callGeminiTextOnly(prompt);
-        List<ParsedSale> aiSales = parseSalesJson(json);
-        return new ParseSalesFileResponse(!aiSales.isEmpty() ? aiSales : parseStructuredSalesFile(request.fileText()));
+        if (heuristicSales.isEmpty() || likelyBsDates) {
+            String json = callGeminiTextOnly(prompt);
+            List<ParsedSale> aiSales = parseSalesJson(json);
+            if (!aiSales.isEmpty()) {
+                return new ParseSalesFileResponse(aiSales);
+            }
+        }
+
+        return new ParseSalesFileResponse(heuristicSales);
     }
 
     // ─── Context building ─────────────────────────────────────────────────────
@@ -474,47 +488,30 @@ public class AiService {
     private List<ParsedSale> parseStructuredSalesFile(String fileText) {
         if (fileText == null || fileText.isBlank()) return List.of();
 
-        List<String> rows = Arrays.stream(fileText.split("\\r?\\n"))
-                .filter(row -> row != null && !row.isBlank())
+        List<List<String>> rows = Arrays.stream(fileText.split("\\r?\\n"))
+                .map(this::parseCsvLine)
                 .toList();
         if (rows.size() < 2) return List.of();
 
-        List<String> headers = parseCsvLine(rows.get(0));
-        int dateIndex = findHeaderIndex(headers, header ->
-                header.contains("date sold") ||
-                header.contains("sold date") ||
-                header.equals("date") ||
-                header.contains("sale date"));
-        int productIndex = findHeaderIndex(headers, header ->
-                (header.contains("item") || header.contains("product")) &&
-                !header.contains("cost") &&
-                !header.contains("price"));
-        int quantityIndex = findHeaderIndex(headers, header ->
-                header.equals("qty") || header.contains("quantity"));
-        int soldPriceIndex = findHeaderIndex(headers, header ->
-                header.contains("sold price") ||
-                header.contains("selling price") ||
-                header.contains("sale price") ||
-                header.contains("sell price") ||
-                header.contains("unit price") ||
-                header.contains("price sold"));
-        int genericPriceIndex = findHeaderIndex(headers, header ->
-                header.contains("price") &&
-                !header.contains("cost") &&
-                !header.contains("purchase"));
-        int customerIndex = findHeaderIndex(headers, header ->
-                header.contains("customer") ||
-                header.contains("client") ||
-                header.contains("buyer"));
-        int paymentIndex = findHeaderIndex(headers, header ->
-                header.contains("payment") || header.equals("method"));
+        int headerRowIndex = findSalesHeaderRow(rows);
+        if (headerRowIndex < 0) return List.of();
+
+        List<String> headers = rows.get(headerRowIndex);
+        int dateIndex = findDateHeaderIndex(headers);
+        int productIndex = findProductHeaderIndex(headers);
+        int quantityIndex = findQuantityHeaderIndex(headers);
+        int soldPriceIndex = findSoldPriceHeaderIndex(headers);
+        int genericPriceIndex = findGenericPriceHeaderIndex(headers);
+        int totalAmountIndex = findTotalAmountHeaderIndex(headers);
+        int customerIndex = findCustomerHeaderIndex(headers);
+        int paymentIndex = findPaymentHeaderIndex(headers);
 
         int unitPriceIndex = soldPriceIndex >= 0 ? soldPriceIndex : genericPriceIndex;
-        if (dateIndex < 0 || productIndex < 0 || unitPriceIndex < 0) return List.of();
+        if (dateIndex < 0 || productIndex < 0 || (unitPriceIndex < 0 && totalAmountIndex < 0)) return List.of();
 
         List<ParsedSale> sales = new ArrayList<>();
-        for (int i = 1; i < rows.size(); i++) {
-            List<String> columns = parseCsvLine(rows.get(i));
+        for (int i = headerRowIndex + 1; i < rows.size(); i++) {
+            List<String> columns = rows.get(i);
             String rawDate = getColumn(columns, dateIndex);
             String productName = getColumn(columns, productIndex);
             if (rawDate.isBlank() && productName.isBlank()) continue;
@@ -522,8 +519,15 @@ public class AiService {
             LocalDate saleDate = parseFlexibleDate(rawDate);
             if (saleDate == null || productName.isBlank()) continue;
 
-            int quantity = quantityIndex >= 0 ? parseQuantity(getColumn(columns, quantityIndex)) : 1;
-            double unitPrice = parseAmount(getColumn(columns, unitPriceIndex));
+            String rawQuantity = quantityIndex >= 0 ? getColumn(columns, quantityIndex) : "";
+            String rawUnitPrice = unitPriceIndex >= 0 ? getColumn(columns, unitPriceIndex) : "";
+            String rawTotalAmount = totalAmountIndex >= 0 ? getColumn(columns, totalAmountIndex) : "";
+            if (isSkippableSalesDataRow(productName, rawQuantity, rawUnitPrice, rawTotalAmount)) continue;
+
+            int quantity = quantityIndex >= 0 ? parseQuantity(rawQuantity) : 1;
+            double unitPrice = unitPriceIndex >= 0
+                    ? parseAmount(rawUnitPrice)
+                    : deriveUnitPrice(rawTotalAmount, quantity);
             String customerName = trimToNull(getColumn(columns, customerIndex));
             String paymentMethod = normalizePaymentMethod(getColumn(columns, paymentIndex));
 
@@ -536,6 +540,139 @@ public class AiService {
         }
 
         return sales;
+    }
+
+    private int findSalesHeaderRow(List<List<String>> rows) {
+        int limit = Math.min(rows.size(), 25);
+        for (int i = 0; i < limit; i++) {
+            List<String> row = rows.get(i);
+            int dateIndex = findDateHeaderIndex(row);
+            int productIndex = findProductHeaderIndex(row);
+            int soldPriceIndex = findSoldPriceHeaderIndex(row);
+            int genericPriceIndex = findGenericPriceHeaderIndex(row);
+            int totalAmountIndex = findTotalAmountHeaderIndex(row);
+            int unitPriceIndex = soldPriceIndex >= 0 ? soldPriceIndex : genericPriceIndex;
+            if (dateIndex >= 0 && productIndex >= 0 && (unitPriceIndex >= 0 || totalAmountIndex >= 0)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int findDateHeaderIndex(List<String> headers) {
+        return findHeaderIndex(headers, header ->
+                header.contains("date sold") ||
+                header.contains("sold date") ||
+                header.contains("bill date") ||
+                header.contains("invoice date") ||
+                header.contains("transaction date") ||
+                header.contains("entry date") ||
+                header.equals("date") ||
+                header.equals("day") ||
+                header.contains("sale date"));
+    }
+
+    private int findProductHeaderIndex(List<String> headers) {
+        return findHeaderIndex(headers, header ->
+                (header.contains("item") ||
+                        header.contains("product") ||
+                        header.contains("service") ||
+                        header.contains("description") ||
+                        header.contains("particular") ||
+                        header.contains("goods") ||
+                        header.equals("name")) &&
+                !header.contains("cost") &&
+                !header.contains("price"));
+    }
+
+    private int findQuantityHeaderIndex(List<String> headers) {
+        return findHeaderIndex(headers, header ->
+                header.equals("qty") ||
+                        header.equals("qty.") ||
+                        header.equals("qnty") ||
+                        header.equals("pieces") ||
+                        header.equals("pcs") ||
+                        header.equals("units") ||
+                        header.contains("quantity"));
+    }
+
+    private int findSoldPriceHeaderIndex(List<String> headers) {
+        return findHeaderIndex(headers, header ->
+                header.contains("sold price") ||
+                header.contains("selling price") ||
+                header.contains("sale price") ||
+                header.contains("sell price") ||
+                header.contains("unit price") ||
+                header.contains("price sold") ||
+                header.equals("rate") ||
+                header.contains("unit rate"));
+    }
+
+    private int findGenericPriceHeaderIndex(List<String> headers) {
+        return findHeaderIndex(headers, header ->
+                header.contains("price") &&
+                !header.contains("cost") &&
+                !header.contains("purchase"));
+    }
+
+    private int findTotalAmountHeaderIndex(List<String> headers) {
+        return findHeaderIndex(headers, header ->
+                (header.contains("amount") ||
+                        header.contains("line total") ||
+                        header.contains("sales total") ||
+                        header.contains("item total")) &&
+                        !header.contains("discount") &&
+                        !header.contains("due") &&
+                        !header.contains("paid"));
+    }
+
+    private int findCustomerHeaderIndex(List<String> headers) {
+        return findHeaderIndex(headers, header ->
+                header.contains("customer") ||
+                header.contains("client") ||
+                header.contains("buyer") ||
+                header.contains("party"));
+    }
+
+    private int findPaymentHeaderIndex(List<String> headers) {
+        return findHeaderIndex(headers, header ->
+                header.contains("payment") ||
+                        header.equals("method") ||
+                        header.contains("payment mode") ||
+                        header.equals("mode"));
+    }
+
+    private boolean isSkippableSalesDataRow(String productName, String rawQuantity, String rawUnitPrice, String rawTotalAmount) {
+        String normalizedProduct = normalizeHeader(productName).replaceAll("[^a-z0-9 ]", "");
+        if (normalizedProduct.isBlank()) return true;
+        if (rawQuantity.isBlank() && rawUnitPrice.isBlank() && rawTotalAmount.isBlank()) return true;
+        if (normalizedProduct.equals("closed") || normalizedProduct.equals("open") || normalizedProduct.equals("holiday")) {
+            return true;
+        }
+        return normalizedProduct.contains("total") ||
+                normalizedProduct.contains("subtotal") ||
+                normalizedProduct.contains("profit") ||
+                normalizedProduct.contains("average") ||
+                normalizedProduct.contains("opening") ||
+                normalizedProduct.contains("closing");
+    }
+
+    private boolean containsLikelyBsDates(List<ParsedSale> sales) {
+        if (sales.isEmpty()) return false;
+
+        int suspicious = 0;
+        for (ParsedSale sale : sales) {
+            try {
+                LocalDate date = LocalDate.parse(sale.saleDate());
+                if (date.getYear() > LocalDate.now().getYear() + 2 || date.getYear() < 2000) {
+                    suspicious++;
+                }
+            } catch (Exception ignored) {
+                suspicious++;
+            }
+        }
+
+        return suspicious > 0;
     }
 
     private List<String> parseCsvLine(String line) {
@@ -610,6 +747,12 @@ public class AiService {
         }
     }
 
+    private double deriveUnitPrice(String rawTotalAmount, int quantity) {
+        double totalAmount = parseAmount(rawTotalAmount);
+        if (quantity <= 0) return totalAmount;
+        return totalAmount / quantity;
+    }
+
     private String normalizePaymentMethod(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ENGLISH);
         return switch (normalized) {
@@ -634,12 +777,19 @@ public class AiService {
 
         List<DateTimeFormatter> formatters = List.of(
                 DateTimeFormatter.ISO_LOCAL_DATE,
+                DateTimeFormatter.ofPattern("yyyy/M/d"),
+                DateTimeFormatter.ofPattern("yyyy-M-d"),
+                DateTimeFormatter.ofPattern("yyyy.MM.dd"),
                 DateTimeFormatter.ofPattern("M/d/yyyy"),
                 DateTimeFormatter.ofPattern("M/d/yy"),
                 DateTimeFormatter.ofPattern("d/M/yyyy"),
                 DateTimeFormatter.ofPattern("d/M/yy"),
                 DateTimeFormatter.ofPattern("M-d-yyyy"),
+                DateTimeFormatter.ofPattern("M-d-yy"),
                 DateTimeFormatter.ofPattern("d-M-yyyy"),
+                DateTimeFormatter.ofPattern("d-M-yy"),
+                DateTimeFormatter.ofPattern("d.M.yyyy"),
+                DateTimeFormatter.ofPattern("d.M.yy"),
                 DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH),
                 DateTimeFormatter.ofPattern("MMM d yyyy", Locale.ENGLISH),
                 DateTimeFormatter.ofPattern("d MMM, yyyy", Locale.ENGLISH),
@@ -654,5 +804,50 @@ public class AiService {
         }
 
         return null;
+    }
+
+    private boolean shouldExtractSales(String userPrompt, String fileText) {
+        String normalizedPrompt = normalizeHeader(userPrompt);
+        boolean mentionsSales = containsAny(normalizedPrompt,
+                "sale", "sales", "sold", "transaction", "transactions", "invoice", "billing", "history");
+        boolean mentionsInventory = containsAny(normalizedPrompt,
+                "inventory", "stock", "product", "products", "supplier", "purchase", "restock");
+        return mentionsSales || (looksLikeSalesFile(fileText) && !mentionsInventory);
+    }
+
+    private boolean looksLikeSalesFile(String fileText) {
+        if (fileText == null || fileText.isBlank()) return false;
+
+        List<List<String>> rows = Arrays.stream(fileText.split("\\r?\\n"))
+                .map(this::parseCsvLine)
+                .toList();
+        if (findSalesHeaderRow(rows) >= 0) return true;
+
+        String normalizedText = normalizeHeader(fileText);
+        int keywordHits = 0;
+        if (normalizedText.contains("invoice")) keywordHits++;
+        if (normalizedText.contains("bill")) keywordHits++;
+        if (normalizedText.contains("qty")) keywordHits++;
+        if (normalizedText.contains("amount")) keywordHits++;
+        if (normalizedText.contains("payment")) keywordHits++;
+        return keywordHits >= 3;
+    }
+
+    private boolean containsAny(String text, String... tokens) {
+        for (String token : tokens) {
+            if (text.contains(token)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String buildSalesReviewMessage(List<ParsedSale> sales) {
+        int itemCount = sales.stream()
+                .mapToInt(sale -> sale.items() != null ? sale.items().size() : 0)
+                .sum();
+        return "I found " + sales.size() + " historical sale" + (sales.size() == 1 ? "" : "s") +
+                " with " + itemCount + " line item" + (itemCount == 1 ? "" : "s") +
+                ". Review the dates, customers, payment methods, and product matches below before saving them.";
     }
 }

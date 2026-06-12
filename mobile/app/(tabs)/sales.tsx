@@ -11,6 +11,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,7 @@ import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { Colors } from '@/components/ui/colors';
 import ImportSalesModal from '@/components/ui/ImportSalesModal';
+import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
 import { inventoryService, type Product } from '@/services/inventory';
 import { salesService, type Sale } from '@/services/sales';
 import { customersService, type Customer } from '@/services/customers';
@@ -47,6 +49,8 @@ export default function Sales() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [saleDateInput, setSaleDateInput] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [scannedProduct, setScannedProduct] = useState<Product | null>(null);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -56,16 +60,17 @@ export default function Sales() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [refreshingHistory, setRefreshingHistory] = useState(false);
+  const availableProducts = allProducts.filter((product) => product.quantity > 0);
 
   const loadPOS = useCallback(async () => {
     setLoading(true);
     try {
       const [productsResponse, customersResponse] = await Promise.all([
-        inventoryService.getProducts(),
-        customersService.getCustomers(),
+        inventoryService.getProducts(0, 1000),
+        customersService.getCustomers(0, 1000),
       ]);
 
-      setAllProducts(productsResponse.content.filter((product) => product.quantity > 0));
+      setAllProducts(productsResponse.content);
       setCustomers(customersResponse.content);
     } catch {
       Alert.alert('Loading Failed', 'Could not load products and customers right now.');
@@ -99,7 +104,7 @@ export default function Sales() {
   );
 
   const searchResults = productSearch.trim()
-    ? allProducts.filter(
+    ? availableProducts.filter(
         (product) =>
           product.name.toLowerCase().includes(productSearch.toLowerCase()) ||
           product.sku?.toLowerCase().includes(productSearch.toLowerCase()),
@@ -168,6 +173,21 @@ export default function Sales() {
     setPaymentMethod('CASH');
     setSaleDateInput('');
     setShowCustomerDropdown(false);
+  };
+
+  const handleBarcodeLookup = async (code: string) => {
+    setShowBarcodeScanner(false);
+    try {
+      const product = await inventoryService.getProductByBarcode(code);
+      setScannedProduct(product);
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        Alert.alert('Product Not Found', 'No inventory product is linked to that code yet.');
+        return;
+      }
+
+      Alert.alert('Scan Failed', 'Could not look up that code right now.');
+    }
   };
 
   const handleSelectCustomer = (customer: Customer) => {
@@ -341,25 +361,33 @@ export default function Sales() {
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.searchSection}>
-              <View style={styles.searchBox}>
-                <Ionicons
-                  name="search-outline"
-                  size={18}
-                  color={Colors.textMuted}
-                  style={styles.searchIcon}
-                />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Search product by name or SKU..."
-                  placeholderTextColor={Colors.textMuted}
-                  value={productSearch}
-                  onChangeText={setProductSearch}
-                />
-                {productSearch.length > 0 ? (
-                  <Pressable onPress={() => setProductSearch('')}>
-                    <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
-                  </Pressable>
-                ) : null}
+              <View style={styles.searchRow}>
+                <View style={styles.searchBox}>
+                  <Ionicons
+                    name="search-outline"
+                    size={18}
+                    color={Colors.textMuted}
+                    style={styles.searchIcon}
+                  />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search product by name or SKU..."
+                    placeholderTextColor={Colors.textMuted}
+                    value={productSearch}
+                    onChangeText={setProductSearch}
+                  />
+                  {productSearch.length > 0 ? (
+                    <Pressable onPress={() => setProductSearch('')}>
+                      <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+                    </Pressable>
+                  ) : null}
+                </View>
+                <Pressable
+                  style={({ pressed }) => [styles.scanBtn, pressed && { opacity: 0.82 }]}
+                  onPress={() => setShowBarcodeScanner(true)}
+                >
+                  <Ionicons name="scan-outline" size={20} color={Colors.textOnPrimary} />
+                </Pressable>
               </View>
 
               {productSearch.trim().length > 0 ? (
@@ -649,7 +677,6 @@ export default function Sales() {
       <ImportSalesModal
         visible={showImportModal}
         products={allProducts}
-        customers={customers}
         onClose={() => setShowImportModal(false)}
         onImported={() => {
           setShowImportModal(false);
@@ -659,6 +686,68 @@ export default function Sales() {
           Alert.alert('Import Complete', 'Historical sales were imported successfully.');
         }}
       />
+
+      <BarcodeScannerModal
+        visible={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScanned={(value) => void handleBarcodeLookup(value)}
+        title="Scan product for POS"
+        subtitle="Scan a product barcode or QR code to open its details before adding it to the cart."
+      />
+
+      <Modal visible={!!scannedProduct} animationType="slide" transparent onRequestClose={() => setScannedProduct(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Scanned Product</Text>
+                <Text style={styles.modalSubtitle}>Review the product before adding it to the cart.</Text>
+              </View>
+              <Pressable onPress={() => setScannedProduct(null)}>
+                <Ionicons name="close" size={22} color={Colors.textDark} />
+              </Pressable>
+            </View>
+
+            {scannedProduct ? (
+              <View style={styles.productDetailCard}>
+                <Text style={styles.productDetailName}>{scannedProduct.name}</Text>
+                <Text style={styles.productDetailMeta}>
+                  {[scannedProduct.sku, scannedProduct.category].filter(Boolean).join(' | ') || 'No SKU or category'}
+                </Text>
+                <View style={styles.productDetailRow}>
+                  <Text style={styles.productDetailLabel}>Price</Text>
+                  <Text style={styles.productDetailValue}>Rs. {scannedProduct.price.toLocaleString()}</Text>
+                </View>
+                <View style={styles.productDetailRow}>
+                  <Text style={styles.productDetailLabel}>Stock</Text>
+                  <Text style={styles.productDetailValue}>{scannedProduct.quantity} units</Text>
+                </View>
+                <View style={styles.productDetailRow}>
+                  <Text style={styles.productDetailLabel}>Barcode</Text>
+                  <Text style={styles.productDetailValue} numberOfLines={1}>
+                    {scannedProduct.barcode || 'Not saved'}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.modalActions}>
+              <Pressable style={styles.modalSecondaryBtn} onPress={() => setScannedProduct(null)}>
+                <Text style={styles.modalSecondaryBtnText}>Close</Text>
+              </Pressable>
+              <Pressable
+                style={styles.modalPrimaryBtn}
+                onPress={() => {
+                  if (scannedProduct) addToCart(scannedProduct);
+                  setScannedProduct(null);
+                }}
+              >
+                <Text style={styles.modalPrimaryBtnText}>Add to Cart</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -700,7 +789,9 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 100 },
 
   searchSection: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
+  searchRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   searchBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -713,6 +804,14 @@ const styles = StyleSheet.create({
   },
   searchIcon: { marginRight: 2 },
   searchInput: { flex: 1, fontSize: 14, color: Colors.textDark },
+  scanBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   searchResults: {
     backgroundColor: Colors.card,
     borderRadius: 12,
@@ -970,4 +1069,46 @@ const styles = StyleSheet.create({
   historyItemName: { fontSize: 12, color: Colors.textDark, flex: 1 },
   historyItemQty: { fontSize: 11, color: Colors.textMuted, marginLeft: 8 },
   historyMore: { fontSize: 11, color: Colors.primary, fontWeight: '500', marginTop: 6 },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+  modalSheet: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 20,
+    gap: 18,
+  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  modalTitle: { fontSize: 19, fontWeight: '700', color: Colors.textDark },
+  modalSubtitle: { fontSize: 13, color: Colors.textMuted, marginTop: 4, lineHeight: 18 },
+  productDetailCard: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 16,
+    backgroundColor: Colors.background,
+    padding: 16,
+    gap: 10,
+  },
+  productDetailName: { fontSize: 18, fontWeight: '700', color: Colors.textDark },
+  productDetailMeta: { fontSize: 12, color: Colors.textMuted },
+  productDetailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  productDetailLabel: { fontSize: 13, color: Colors.textMuted },
+  productDetailValue: { flex: 1, textAlign: 'right', fontSize: 13, fontWeight: '600', color: Colors.textDark },
+  modalActions: { flexDirection: 'row', gap: 10 },
+  modalSecondaryBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalSecondaryBtnText: { fontSize: 14, fontWeight: '700', color: Colors.textMuted },
+  modalPrimaryBtn: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+  },
+  modalPrimaryBtnText: { fontSize: 14, fontWeight: '700', color: Colors.textOnPrimary },
 });
