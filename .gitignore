@@ -154,3 +154,4 @@ ENV/
 env/
 venv.bak/
 .env/
+.tmp/
