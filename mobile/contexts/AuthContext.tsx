@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { authService, type LoginResponse, type SignupResponse } from '@/services/auth';
+import { authService, type EmailActionResponse, type LoginResponse, type SignupResponse } from '@/services/auth';
 
 type AuthUser = {
   token: string;
@@ -16,6 +16,8 @@ type AuthContextType = {
   register: (email: string, password: string, fullName: string) => Promise<SignupResponse>;
   verifyEmail: (email: string, code: string) => Promise<void>;
   resendVerification: (email: string) => Promise<SignupResponse>;
+  requestPasswordReset: (email: string) => Promise<EmailActionResponse>;
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<EmailActionResponse>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<Pick<AuthUser, 'fullName'>>) => Promise<void>;
@@ -73,6 +75,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return authService.resendVerification(email);
   }
 
+  async function requestPasswordReset(email: string) {
+    return authService.requestPasswordReset(email);
+  }
+
+  async function resetPassword(email: string, code: string, newPassword: string) {
+    return authService.resetPassword(email, code, newPassword);
+  }
+
   async function loginWithGoogle() {
     const data = await authService.loginWithGoogle();
     await saveSession(data);
@@ -93,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, verifyEmail, resendVerification, loginWithGoogle, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, verifyEmail, resendVerification, requestPasswordReset, resetPassword, loginWithGoogle, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

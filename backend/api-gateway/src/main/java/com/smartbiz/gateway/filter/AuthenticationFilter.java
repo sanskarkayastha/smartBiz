@@ -30,6 +30,8 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             "/auth/signup",
             "/auth/verify-email",
             "/auth/resend-verification",
+            "/auth/forgot-password",
+            "/auth/reset-password",
             "/auth/google/start",
             "/auth/google/callback"
     );

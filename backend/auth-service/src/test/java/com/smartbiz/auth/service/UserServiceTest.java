@@ -1,20 +1,25 @@
 package com.smartbiz.auth.service;
 
 import com.smartbiz.auth.config.JwtUtil;
+import com.smartbiz.auth.dto.ForgotPasswordRequest;
 import com.smartbiz.auth.dto.GoogleUserProfile;
 import com.smartbiz.auth.dto.LoginRequest;
 import com.smartbiz.auth.dto.LoginResponse;
 import com.smartbiz.auth.dto.ResendVerificationRequest;
+import com.smartbiz.auth.dto.ResetPasswordRequest;
 import com.smartbiz.auth.dto.SignupRequest;
 import com.smartbiz.auth.dto.SignupResponse;
 import com.smartbiz.auth.dto.VerifyEmailRequest;
 import com.smartbiz.auth.exception.DuplicateEmailException;
 import com.smartbiz.auth.exception.EmailNotVerifiedException;
 import com.smartbiz.auth.exception.InvalidCredentialsException;
+import com.smartbiz.auth.exception.PasswordResetException;
 import com.smartbiz.auth.exception.VerificationCodeException;
 import com.smartbiz.auth.model.EmailVerificationCode;
+import com.smartbiz.auth.model.PasswordResetCode;
 import com.smartbiz.auth.model.User;
 import com.smartbiz.auth.repository.EmailVerificationCodeRepository;
+import com.smartbiz.auth.repository.PasswordResetCodeRepository;
 import com.smartbiz.auth.repository.RefreshTokenRepository;
 import com.smartbiz.auth.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +42,7 @@ class UserServiceTest {
 
     @Mock UserRepository userRepository;
     @Mock EmailVerificationCodeRepository emailVerificationCodeRepository;
+    @Mock PasswordResetCodeRepository passwordResetCodeRepository;
     @Mock RefreshTokenRepository refreshTokenRepository;
     @Mock PasswordEncoder passwordEncoder;
     @Mock JwtUtil jwtUtil;
@@ -48,6 +54,8 @@ class UserServiceTest {
     private LoginRequest loginRequest;
     private VerifyEmailRequest verifyEmailRequest;
     private ResendVerificationRequest resendVerificationRequest;
+    private ForgotPasswordRequest forgotPasswordRequest;
+    private ResetPasswordRequest resetPasswordRequest;
     private User savedUser;
 
     @BeforeEach
@@ -56,6 +64,8 @@ class UserServiceTest {
         loginRequest = new LoginRequest("test@test.com", "password123");
         verifyEmailRequest = new VerifyEmailRequest("test@test.com", "123456");
         resendVerificationRequest = new ResendVerificationRequest("test@test.com");
+        forgotPasswordRequest = new ForgotPasswordRequest("test@test.com");
+        resetPasswordRequest = new ResetPasswordRequest("test@test.com", "123456", "newpassword123");
 
         savedUser = User.builder()
                 .email("test@test.com")
@@ -160,6 +170,62 @@ class UserServiceTest {
 
         assertThatThrownBy(() -> userService.resendVerificationCode(resendVerificationRequest))
                 .isInstanceOf(VerificationCodeException.class);
+    }
+
+    @Test
+    void requestPasswordReset_verifiedLocalAccount_sendsCode() {
+        when(userRepository.findByEmailIgnoreCase("test@test.com")).thenReturn(Optional.of(savedUser));
+        when(passwordResetCodeRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed-reset-code");
+
+        var response = userService.requestPasswordReset(forgotPasswordRequest);
+
+        assertThat(response.email()).isEqualTo("test@test.com");
+        verify(passwordResetCodeRepository).save(any(PasswordResetCode.class));
+        verify(verificationEmailService).sendPasswordResetCode(eq("test@test.com"), eq("Test User"), anyString());
+    }
+
+    @Test
+    void resetPassword_validCode_updatesPasswordAndDeletesResetCode() {
+        PasswordResetCode code = PasswordResetCode.builder()
+                .id(1L)
+                .userId(1L)
+                .codeHash("hashed-reset-code")
+                .expiresAt(LocalDateTime.now().plusMinutes(5))
+                .build();
+
+        when(userRepository.findByEmailIgnoreCase("test@test.com")).thenReturn(Optional.of(savedUser));
+        when(passwordResetCodeRepository.findByUserId(1L)).thenReturn(Optional.of(code));
+        when(passwordEncoder.matches("123456", "hashed-reset-code")).thenReturn(true);
+        when(passwordEncoder.encode("newpassword123")).thenReturn("new-password-hash");
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+
+        var response = userService.resetPassword(resetPasswordRequest);
+
+        assertThat(response.message()).contains("Password updated successfully");
+        assertThat(savedUser.getPasswordHash()).isEqualTo("new-password-hash");
+        verify(passwordResetCodeRepository).delete(code);
+        verify(refreshTokenRepository).deleteByUserId(1L);
+    }
+
+    @Test
+    void resetPassword_invalidCode_throwsPasswordResetException() {
+        PasswordResetCode code = PasswordResetCode.builder()
+                .id(1L)
+                .userId(1L)
+                .codeHash("hashed-reset-code")
+                .expiresAt(LocalDateTime.now().plusMinutes(5))
+                .build();
+
+        when(userRepository.findByEmailIgnoreCase("test@test.com")).thenReturn(Optional.of(savedUser));
+        when(passwordResetCodeRepository.findByUserId(1L)).thenReturn(Optional.of(code));
+        when(passwordEncoder.matches("123456", "hashed-reset-code")).thenReturn(false);
+
+        assertThatThrownBy(() -> userService.resetPassword(resetPasswordRequest))
+                .isInstanceOf(PasswordResetException.class)
+                .hasMessageContaining("Invalid password reset code");
+
+        verify(userRepository, never()).save(any());
     }
 
     @Test

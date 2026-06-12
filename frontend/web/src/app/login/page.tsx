@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const urlError = searchParams.get('error') ?? ''
+  const urlMessage = searchParams.get('message') ?? ''
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -86,11 +87,20 @@ export default function LoginPage() {
             placeholder="Enter your password"
             className="w-full rounded-2xl border border-paper-3 bg-white px-4 py-3 text-sm text-ink outline-none transition placeholder:text-ink-3 focus:border-brand"
           />
+          <div className="mt-3 flex justify-end">
+            <Link href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`} className="text-sm font-semibold text-brand hover:text-night">
+              Forgot password?
+            </Link>
+          </div>
         </div>
 
         {error ? (
           <p className="rounded-2xl bg-rose/16 px-4 py-3 text-sm font-medium text-ink">
             {error}
+          </p>
+        ) : urlMessage ? (
+          <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+            {urlMessage}
           </p>
         ) : urlError ? (
           <p className="rounded-2xl bg-rose/16 px-4 py-3 text-sm font-medium text-ink">

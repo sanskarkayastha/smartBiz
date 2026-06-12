@@ -92,6 +92,9 @@ export default function Login() {
             onChangeText={setPassword}
             secureTextEntry
           />
+          <Pressable onPress={() => router.push({ pathname: '/forgot-password', params: { email: email.trim() } })}>
+            <Text style={styles.helperLink}>Forgot password?</Text>
+          </Pressable>
         </View>
 
         <Pressable
@@ -141,5 +144,6 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: Colors.textOnPrimary, fontSize: 16, fontWeight: '700' },
+  helperLink: { textAlign: 'right', fontSize: 14, color: Colors.primary, fontWeight: '600' },
   link: { textAlign: 'center', fontSize: 14, color: Colors.textMuted },
 });

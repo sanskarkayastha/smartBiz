@@ -51,6 +51,7 @@ export default function Inventory() {
   const [showScanModal, setShowScanModal] = useState(false);
   const [voiceProducts, setVoiceProducts] = useState<ParsedProduct[] | undefined>(undefined);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [missingBarcode, setMissingBarcode] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
 
@@ -178,17 +179,7 @@ export default function Inventory() {
       openEditModal(product);
     } catch (err: any) {
       if (err?.response?.status === 404) {
-        Alert.alert(
-          'Code not found',
-          'This barcode or QR code is not linked to a product yet. Create one now?',
-          [
-            { text: 'Not now', style: 'cancel' },
-            {
-              text: 'Create Product',
-              onPress: () => router.push({ pathname: '/add-product', params: { barcode: code } }),
-            },
-          ],
-        );
+        setMissingBarcode(code);
         return;
       }
 
@@ -381,6 +372,42 @@ export default function Inventory() {
         title="Find product by code"
         subtitle="Scan a product barcode or QR code to open its details."
       />
+
+      <Modal visible={!!missingBarcode} animationType="fade" transparent onRequestClose={() => setMissingBarcode(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmSheet}>
+            <View style={styles.confirmIcon}>
+              <Ionicons name="scan-outline" size={24} color={Colors.primary} />
+            </View>
+            <Text style={styles.confirmTitle}>Code not found</Text>
+            <Text style={styles.confirmText}>
+              This barcode or QR code is not linked to a product yet. Would you like to create one now?
+            </Text>
+            {missingBarcode ? (
+              <Text style={styles.confirmCode} numberOfLines={1}>
+                {missingBarcode}
+              </Text>
+            ) : null}
+            <View style={styles.confirmActions}>
+              <Pressable style={styles.confirmSecondaryBtn} onPress={() => setMissingBarcode(null)}>
+                <Text style={styles.confirmSecondaryText}>Not now</Text>
+              </Pressable>
+              <Pressable
+                style={styles.confirmPrimaryBtn}
+                onPress={() => {
+                  const code = missingBarcode;
+                  setMissingBarcode(null);
+                  if (code) {
+                    router.push({ pathname: '/add-product', params: { barcode: code } });
+                  }
+                }}
+              >
+                <Text style={styles.confirmPrimaryText}>Add Product</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Edit Product Modal */}
       <Modal visible={showEditModal} animationType="slide" transparent onRequestClose={() => setShowEditModal(false)}>
@@ -575,6 +602,55 @@ const styles = StyleSheet.create({
   fabSecondary: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', opacity: 0.85, elevation: 4 },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   modalSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 16, maxHeight: '90%' },
+  confirmSheet: {
+    backgroundColor: Colors.card,
+    marginHorizontal: 20,
+    marginBottom: 32,
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+  },
+  confirmIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  confirmTitle: { fontSize: 18, fontWeight: '700', color: Colors.textDark, marginBottom: 8 },
+  confirmText: { fontSize: 14, lineHeight: 21, color: Colors.textMuted, textAlign: 'center' },
+  confirmCode: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    fontSize: 12,
+    color: Colors.textDark,
+    overflow: 'hidden',
+  },
+  confirmActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
+  confirmSecondaryBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  confirmSecondaryText: { fontSize: 14, fontWeight: '700', color: Colors.textMuted },
+  confirmPrimaryBtn: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  confirmPrimaryText: { fontSize: 14, fontWeight: '700', color: Colors.textOnPrimary },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textDark },
   label: { fontSize: 13, fontWeight: '600', color: Colors.textDark, marginBottom: 4, marginTop: 10 },

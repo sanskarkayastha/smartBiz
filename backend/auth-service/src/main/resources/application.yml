@@ -51,6 +51,8 @@ app:
   auth:
     verification:
       code-expiry-minutes: ${AUTH_VERIFICATION_CODE_EXPIRY_MINUTES:10}
+    password-reset:
+      code-expiry-minutes: ${AUTH_PASSWORD_RESET_CODE_EXPIRY_MINUTES:10}
     email:
       enabled: ${AUTH_EMAIL_ENABLED:false}
       from: ${AUTH_EMAIL_FROM:no-reply@smartbiz.app}

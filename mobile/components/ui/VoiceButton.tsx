@@ -92,7 +92,9 @@ export default function VoiceButton({ onResult, size = 22, style, color = Colors
       }
       setRecording(true);
       startPulse();
-      ExpoSpeechRecognitionModule.start({ lang: 'en-US', interimResults: false });
+      await Promise.resolve(
+        ExpoSpeechRecognitionModule.start({ lang: 'en-US', interimResults: false })
+      );
     } catch {
       setRecording(false);
       stopPulse();

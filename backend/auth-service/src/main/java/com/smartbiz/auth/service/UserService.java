@@ -1,9 +1,12 @@
 package com.smartbiz.auth.service;
 
+import com.smartbiz.auth.dto.EmailActionResponse;
+import com.smartbiz.auth.dto.ForgotPasswordRequest;
 import com.smartbiz.auth.dto.LoginRequest;
 import com.smartbiz.auth.dto.LoginResponse;
 import com.smartbiz.auth.dto.GoogleUserProfile;
 import com.smartbiz.auth.dto.ResendVerificationRequest;
+import com.smartbiz.auth.dto.ResetPasswordRequest;
 import com.smartbiz.auth.dto.SignupRequest;
 import com.smartbiz.auth.dto.SignupResponse;
 import com.smartbiz.auth.dto.UpdateProfileRequest;
@@ -11,13 +14,16 @@ import com.smartbiz.auth.dto.VerifyEmailRequest;
 import com.smartbiz.auth.exception.DuplicateEmailException;
 import com.smartbiz.auth.exception.EmailNotVerifiedException;
 import com.smartbiz.auth.exception.InvalidCredentialsException;
+import com.smartbiz.auth.exception.PasswordResetException;
 import com.smartbiz.auth.exception.UnsupportedAuthProviderException;
 import com.smartbiz.auth.exception.VerificationCodeException;
 import com.smartbiz.auth.model.User;
 import com.smartbiz.auth.config.JwtUtil;
 import com.smartbiz.auth.model.EmailVerificationCode;
+import com.smartbiz.auth.model.PasswordResetCode;
 import com.smartbiz.auth.model.RefreshToken;
 import com.smartbiz.auth.repository.EmailVerificationCodeRepository;
+import com.smartbiz.auth.repository.PasswordResetCodeRepository;
 import com.smartbiz.auth.repository.RefreshTokenRepository;
 import com.smartbiz.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +45,7 @@ import java.util.UUID;
 public class UserService {
     private final UserRepository userRepository;
     private final EmailVerificationCodeRepository emailVerificationCodeRepository;
+    private final PasswordResetCodeRepository passwordResetCodeRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
@@ -46,6 +53,9 @@ public class UserService {
 
     @Value("${app.auth.verification.code-expiry-minutes:10}")
     private int verificationCodeExpiryMinutes;
+
+    @Value("${app.auth.password-reset.code-expiry-minutes:10}")
+    private int passwordResetCodeExpiryMinutes;
 
     @Transactional
     public SignupResponse signup(SignupRequest request) {
@@ -145,6 +155,43 @@ public class UserService {
     }
 
     @Transactional
+    public EmailActionResponse requestPasswordReset(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
+            .orElseThrow(() -> new PasswordResetException("No local account found for this email."));
+
+        ensureLocalVerifiedAccount(user);
+        createAndSendPasswordResetCode(user);
+        return new EmailActionResponse("Password reset code sent to your email", user.getEmail());
+    }
+
+    @Transactional
+    public EmailActionResponse resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
+            .orElseThrow(() -> new PasswordResetException("No password reset request found for this email."));
+
+        ensureLocalVerifiedAccount(user);
+
+        PasswordResetCode resetCode = passwordResetCodeRepository.findByUserId(user.getId())
+            .orElseThrow(() -> new PasswordResetException("Password reset code expired. Please request a new code."));
+
+        if (resetCode.getExpiresAt().isBefore(LocalDateTime.now())) {
+            passwordResetCodeRepository.delete(resetCode);
+            throw new PasswordResetException("Password reset code expired. Please request a new code.");
+        }
+        if (!passwordEncoder.matches(request.code(), resetCode.getCodeHash())) {
+            throw new PasswordResetException("Invalid password reset code.");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+        passwordResetCodeRepository.delete(resetCode);
+        refreshTokenRepository.deleteByUserId(user.getId());
+
+        log.info("Password reset completed for {}", user.getEmail());
+        return new EmailActionResponse("Password updated successfully. Please sign in.", user.getEmail());
+    }
+
+    @Transactional
     public LoginResponse loginWithGoogleProfile(GoogleUserProfile profile) {
         String email = normalizeEmail(profile.email());
         User user = userRepository.findByGoogleSubject(profile.subject())
@@ -215,6 +262,27 @@ public class UserService {
         code.setExpiresAt(LocalDateTime.now().plusMinutes(verificationCodeExpiryMinutes));
         emailVerificationCodeRepository.save(code);
         verificationEmailService.sendVerificationCode(user.getEmail(), user.getFullName(), rawCode);
+    }
+
+    private void createAndSendPasswordResetCode(User user) {
+        String rawCode = generateSixDigitCode();
+
+        PasswordResetCode code = passwordResetCodeRepository.findByUserId(user.getId())
+            .orElseGet(() -> PasswordResetCode.builder().userId(user.getId()).build());
+
+        code.setCodeHash(passwordEncoder.encode(rawCode));
+        code.setExpiresAt(LocalDateTime.now().plusMinutes(passwordResetCodeExpiryMinutes));
+        passwordResetCodeRepository.save(code);
+        verificationEmailService.sendPasswordResetCode(user.getEmail(), user.getFullName(), rawCode);
+    }
+
+    private void ensureLocalVerifiedAccount(User user) {
+        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+            throw new UnsupportedAuthProviderException("This account uses Google sign-in. Please continue with Google.");
+        }
+        if (!user.isEmailVerified()) {
+            throw new EmailNotVerifiedException("Please verify your email before resetting your password.");
+        }
     }
 
     private User mergeGoogleProfile(User user, GoogleUserProfile profile, String normalizedEmail) {

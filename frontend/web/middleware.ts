@@ -9,7 +9,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  if ((pathname === '/login' || pathname === '/signup' || pathname === '/verify-email') && session) {
+  if (
+    (pathname === '/login'
+      || pathname === '/signup'
+      || pathname === '/verify-email'
+      || pathname === '/forgot-password'
+      || pathname === '/reset-password')
+    && session
+  ) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
@@ -17,5 +24,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login', '/signup', '/verify-email'],
+  matcher: ['/dashboard/:path*', '/login', '/signup', '/verify-email', '/forgot-password', '/reset-password'],
 }

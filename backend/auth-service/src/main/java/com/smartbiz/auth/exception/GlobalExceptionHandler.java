@@ -38,6 +38,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error(e.getMessage(), "INVALID_VERIFICATION_CODE"));
     }
 
+    @ExceptionHandler(PasswordResetException.class)
+    public ResponseEntity<Map<String, String>> handlePasswordReset(PasswordResetException e) {
+        log.warn("Password reset issue: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error(e.getMessage(), "PASSWORD_RESET_FAILED"));
+    }
+
     @ExceptionHandler(UnsupportedAuthProviderException.class)
     public ResponseEntity<Map<String, String>> handleUnsupportedProvider(UnsupportedAuthProviderException e) {
         log.warn("Unsupported auth provider: {}", e.getMessage());

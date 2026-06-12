@@ -26,10 +26,33 @@ public class VerificationEmailService {
     @Value("${app.auth.verification.code-expiry-minutes:10}")
     private int codeExpiryMinutes;
 
+    @Value("${app.auth.password-reset.code-expiry-minutes:10}")
+    private int passwordResetCodeExpiryMinutes;
+
     public void sendVerificationCode(String email, String fullName, String code) {
+        sendEmail(
+            email,
+            "Verify your SmartBiz email",
+            buildVerificationBody(fullName, code),
+            "verification",
+            code
+        );
+    }
+
+    public void sendPasswordResetCode(String email, String fullName, String code) {
+        sendEmail(
+            email,
+            "Reset your SmartBiz password",
+            buildPasswordResetBody(fullName, code),
+            "password reset",
+            code
+        );
+    }
+
+    private void sendEmail(String email, String subject, String body, String emailType, String code) {
         if (!emailEnabled) {
             if (devLogOtp) {
-                log.warn("Email delivery disabled. OTP for {} is {}", email, code);
+                log.warn("Email delivery disabled. {} OTP for {} is {}", emailType, email, code);
             }
             return;
         }
@@ -37,17 +60,17 @@ public class VerificationEmailService {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(fromEmail);
         message.setTo(email);
-        message.setSubject("Verify your SmartBiz email");
-        message.setText(buildBody(fullName, code));
+        message.setSubject(subject);
+        message.setText(body);
 
         try {
             mailSender.send(message);
         } catch (MailException e) {
-            throw new IllegalStateException("Could not send verification email right now");
+            throw new IllegalStateException("Could not send email right now");
         }
     }
 
-    private String buildBody(String fullName, String code) {
+    private String buildVerificationBody(String fullName, String code) {
         String safeName = (fullName == null || fullName.isBlank()) ? "there" : fullName;
         return """
             Hi %s,
@@ -60,5 +83,20 @@ public class VerificationEmailService {
 
             If you did not create this account, you can ignore this email.
             """.formatted(safeName, code, codeExpiryMinutes);
+    }
+
+    private String buildPasswordResetBody(String fullName, String code) {
+        String safeName = (fullName == null || fullName.isBlank()) ? "there" : fullName;
+        return """
+            Hi %s,
+
+            We received a request to reset your SmartBiz password.
+
+            Your password reset code is: %s
+
+            This code expires in %d minutes.
+
+            If you did not request a password reset, you can ignore this email.
+            """.formatted(safeName, code, passwordResetCodeExpiryMinutes);
     }
 }

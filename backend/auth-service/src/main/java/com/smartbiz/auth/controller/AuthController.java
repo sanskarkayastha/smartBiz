@@ -1,8 +1,11 @@
 package com.smartbiz.auth.controller;
 
+import com.smartbiz.auth.dto.EmailActionResponse;
+import com.smartbiz.auth.dto.ForgotPasswordRequest;
 import com.smartbiz.auth.dto.LoginRequest;
 import com.smartbiz.auth.dto.LoginResponse;
 import com.smartbiz.auth.dto.ResendVerificationRequest;
+import com.smartbiz.auth.dto.ResetPasswordRequest;
 import com.smartbiz.auth.dto.SignupRequest;
 import com.smartbiz.auth.dto.SignupResponse;
 import com.smartbiz.auth.dto.UpdateProfileRequest;
@@ -49,6 +52,18 @@ public class AuthController {
     @PostMapping("/resend-verification")
     public ResponseEntity<SignupResponse> resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
         SignupResponse response = userService.resendVerificationCode(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<EmailActionResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        EmailActionResponse response = userService.requestPasswordReset(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<EmailActionResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        EmailActionResponse response = userService.resetPassword(request);
         return ResponseEntity.ok(response);
     }
 

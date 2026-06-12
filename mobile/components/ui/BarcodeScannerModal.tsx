@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, type BarcodeType, useCameraPermissions } from 'expo-camera';
@@ -31,17 +31,21 @@ export default function BarcodeScannerModal({
 }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [hasScanned, setHasScanned] = useState(false);
+  const scanLockedRef = useRef(false);
 
   useEffect(() => {
     if (!visible) {
+      scanLockedRef.current = false;
       setHasScanned(false);
     }
   }, [visible]);
 
   const handleScanned = (result: { data: string; type: string }) => {
-    if (hasScanned) return;
+    if (scanLockedRef.current) return;
     const value = result.data.trim();
     if (!value) return;
+
+    scanLockedRef.current = true;
     setHasScanned(true);
     onScanned(value, result.type);
   };
@@ -77,7 +81,7 @@ export default function BarcodeScannerModal({
                 style={styles.camera}
                 facing="back"
                 barcodeScannerSettings={{ barcodeTypes: SUPPORTED_TYPES }}
-                onBarcodeScanned={handleScanned}
+                onBarcodeScanned={hasScanned ? undefined : handleScanned}
               />
               <View pointerEvents="none" style={styles.frameWrap}>
                 <View style={styles.frame} />

@@ -18,6 +18,11 @@ export type SignupResponse = {
   requiresVerification: boolean;
 };
 
+export type EmailActionResponse = {
+  message: string;
+  email: string;
+};
+
 export const authService = {
   async login(email: string, password: string): Promise<LoginResponse> {
     const { data } = await api.post<LoginResponse>('/auth/login', { email, password });
@@ -36,6 +41,16 @@ export const authService = {
 
   async resendVerification(email: string): Promise<SignupResponse> {
     const { data } = await api.post<SignupResponse>('/auth/resend-verification', { email });
+    return data;
+  },
+
+  async requestPasswordReset(email: string): Promise<EmailActionResponse> {
+    const { data } = await api.post<EmailActionResponse>('/auth/forgot-password', { email });
+    return data;
+  },
+
+  async resetPassword(email: string, code: string, newPassword: string): Promise<EmailActionResponse> {
+    const { data } = await api.post<EmailActionResponse>('/auth/reset-password', { email, code, newPassword });
     return data;
   },
 
