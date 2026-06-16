@@ -1,6 +1,7 @@
 package com.smartbiz.inventory.service;
 
 import com.smartbiz.inventory.dto.*;
+import com.smartbiz.inventory.model.Product;
 import com.smartbiz.inventory.model.Supplier;
 import com.smartbiz.inventory.repository.ProductRepository;
 import com.smartbiz.inventory.repository.SupplierRepository;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -16,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -33,8 +37,58 @@ public class SupplierService {
         Pageable pageable = PageRequest.of(page, clampedSize, Sort.by("name").ascending());
         String s = (search != null && !search.isBlank()) ? search.trim().toLowerCase() : "";
         boolean hb = hasBalance != null && hasBalance;
-        return PagedResponse.of(
-            supplierRepository.findWithFilters(userId, s, hb, pageable).map(SupplierDTO::from)
+        Page<Supplier> supplierPage = supplierRepository.findWithFilters(userId, s, hb, pageable);
+        Map<String, SupplierMetrics> metricsBySupplier = getMetricsBySupplier(userId, supplierPage.getContent());
+
+        List<SupplierDTO> suppliers = supplierPage.getContent().stream()
+            .map(supplier -> {
+                SupplierMetrics metrics = metricsBySupplier.getOrDefault(normalizeSupplierKey(supplier.getName()), SupplierMetrics.EMPTY);
+                return SupplierDTO.from(
+                    supplier,
+                    metrics.productCount(),
+                    metrics.totalUnits(),
+                    metrics.lowStockCount(),
+                    metrics.outOfStockCount()
+                );
+            })
+            .toList();
+
+        return new PagedResponse<>(
+            suppliers,
+            supplierPage.getNumber(),
+            supplierPage.getTotalPages(),
+            supplierPage.getTotalElements(),
+            supplierPage.hasNext()
+        );
+    }
+
+    @Cacheable(value = CACHE_NAME, key = "#userId + ':summary'")
+    public SupplierSummaryDTO getSummary(Long userId) {
+        List<Supplier> suppliers = supplierRepository.findAllByUserIdOrderByNameAsc(userId);
+        Map<String, SupplierMetrics> metricsBySupplier = getMetricsBySupplier(userId, suppliers);
+
+        int linkedProducts = metricsBySupplier.values().stream().mapToInt(SupplierMetrics::productCount).sum();
+        int lowStockProducts = metricsBySupplier.values().stream().mapToInt(SupplierMetrics::lowStockCount).sum();
+        int outOfStockProducts = metricsBySupplier.values().stream().mapToInt(SupplierMetrics::outOfStockCount).sum();
+        int suppliersNeedingRestock = (int) suppliers.stream()
+            .map(supplier -> metricsBySupplier.getOrDefault(normalizeSupplierKey(supplier.getName()), SupplierMetrics.EMPTY))
+            .filter(metrics -> metrics.lowStockCount() > 0 || metrics.outOfStockCount() > 0)
+            .count();
+        long suppliersWithBalance = suppliers.stream()
+            .filter(supplier -> supplier.getBalanceOwed() != null && supplier.getBalanceOwed().compareTo(BigDecimal.ZERO) > 0)
+            .count();
+        BigDecimal totalBalanceOwed = suppliers.stream()
+            .map(supplier -> supplier.getBalanceOwed() != null ? supplier.getBalanceOwed() : BigDecimal.ZERO)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new SupplierSummaryDTO(
+            suppliers.size(),
+            suppliersWithBalance,
+            totalBalanceOwed,
+            linkedProducts,
+            suppliersNeedingRestock,
+            lowStockProducts,
+            outOfStockProducts
         );
     }
 
@@ -89,7 +143,65 @@ public class SupplierService {
             .orElseThrow(() -> new EntityNotFoundException("Supplier not found: " + supplierId));
         return productRepository.findByUserIdAndSupplierIgnoreCase(userId, supplier.getName())
             .stream()
-            .map(p -> new SupplierProductDTO(p.getId(), p.getName(), p.getSku(), p.getCategory(), p.getPrice(), p.getQuantity()))
+            .map(p -> new SupplierProductDTO(
+                p.getId(),
+                p.getName(),
+                p.getSku(),
+                p.getCategory(),
+                p.getPrice(),
+                p.getQuantity(),
+                p.getReorderLevel(),
+                p.getReorderLevel() != null && p.getQuantity() <= p.getReorderLevel()
+            ))
             .toList();
+    }
+
+    private Map<String, SupplierMetrics> getMetricsBySupplier(Long userId, List<Supplier> suppliers) {
+        List<String> supplierKeys = suppliers.stream()
+            .map(Supplier::getName)
+            .map(this::normalizeSupplierKey)
+            .filter(key -> !key.isEmpty())
+            .distinct()
+            .toList();
+
+        if (supplierKeys.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, SupplierMetrics> metricsBySupplier = new HashMap<>();
+        for (Product product : productRepository.findByUserIdAndSupplierNameIn(userId, supplierKeys)) {
+            String key = normalizeSupplierKey(product.getSupplier());
+            if (key.isEmpty()) {
+                continue;
+            }
+            SupplierMetrics current = metricsBySupplier.getOrDefault(key, SupplierMetrics.EMPTY);
+            metricsBySupplier.put(key, current.add(product));
+        }
+        return metricsBySupplier;
+    }
+
+    private String normalizeSupplierKey(String name) {
+        return name == null ? "" : name.trim().toLowerCase();
+    }
+
+    private record SupplierMetrics(
+        int productCount,
+        int totalUnits,
+        int lowStockCount,
+        int outOfStockCount
+    ) {
+        private static final SupplierMetrics EMPTY = new SupplierMetrics(0, 0, 0, 0);
+
+        private SupplierMetrics add(Product product) {
+            int quantity = product.getQuantity() != null ? product.getQuantity() : 0;
+            boolean lowStock = product.getReorderLevel() != null && quantity <= product.getReorderLevel();
+            boolean outOfStock = quantity == 0;
+            return new SupplierMetrics(
+                productCount + 1,
+                totalUnits + quantity,
+                lowStockCount + (lowStock ? 1 : 0),
+                outOfStockCount + (outOfStock ? 1 : 0)
+            );
+        }
     }
 }

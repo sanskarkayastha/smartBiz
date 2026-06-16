@@ -9,6 +9,10 @@ export type Supplier = {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  productCount: number;
+  totalUnits: number;
+  lowStockCount: number;
+  outOfStockCount: number;
 };
 
 export type SupplierProduct = {
@@ -18,6 +22,18 @@ export type SupplierProduct = {
   category: string | null;
   price: number;
   quantity: number;
+  reorderLevel: number | null;
+  lowStock: boolean;
+};
+
+export type SupplierSummary = {
+  totalSuppliers: number;
+  suppliersWithBalance: number;
+  totalBalanceOwed: number;
+  linkedProducts: number;
+  suppliersNeedingRestock: number;
+  lowStockProducts: number;
+  outOfStockProducts: number;
 };
 
 export type PagedResponse<T> = {
@@ -59,6 +75,11 @@ export const supplierService = {
 
   async createSupplier(payload: CreateSupplierPayload): Promise<Supplier> {
     const { data } = await api.post<Supplier>('/inventory/suppliers', payload);
+    return data;
+  },
+
+  async getSupplierSummary(): Promise<SupplierSummary> {
+    const { data } = await api.get<SupplierSummary>('/inventory/suppliers/summary');
     return data;
   },
 

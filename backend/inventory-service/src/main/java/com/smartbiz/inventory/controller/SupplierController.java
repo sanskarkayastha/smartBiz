@@ -32,6 +32,11 @@ public class SupplierController {
         return ResponseEntity.status(201).body(supplierService.createSupplier(userId, request));
     }
 
+    @GetMapping("/summary")
+    public ResponseEntity<SupplierSummaryDTO> getSummary(@RequestHeader("X-User-Id") Long userId) {
+        return ResponseEntity.ok(supplierService.getSummary(userId));
+    }
+
     @GetMapping("/{id}/products")
     public ResponseEntity<List<SupplierProductDTO>> getProducts(
         @RequestHeader("X-User-Id") Long userId,

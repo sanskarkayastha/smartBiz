@@ -21,7 +21,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     boolean existsByBarcodeAndUserIdAndIdNot(String barcode, Long userId, Long id);
     boolean existsBySkuAndUserId(String sku, Long userId);
 
-    List<Product> findByUserIdAndSupplierIgnoreCase(Long userId, String supplier);
+    @Query("SELECT p FROM Product p WHERE p.userId = :userId AND LOWER(TRIM(COALESCE(p.supplier, ''))) = LOWER(TRIM(:supplier))")
+    List<Product> findByUserIdAndSupplierIgnoreCase(@Param("userId") Long userId, @Param("supplier") String supplier);
+
+    @Query("SELECT p FROM Product p WHERE p.userId = :userId AND LOWER(TRIM(COALESCE(p.supplier, ''))) IN :supplierNames")
+    List<Product> findByUserIdAndSupplierNameIn(
+        @Param("userId") Long userId,
+        @Param("supplierNames") List<String> supplierNames);
 
     @Query("SELECT p FROM Product p WHERE p.userId = :userId AND p.reorderLevel IS NOT NULL AND p.quantity <= p.reorderLevel")
     List<Product> findLowStockByUserId(Long userId);

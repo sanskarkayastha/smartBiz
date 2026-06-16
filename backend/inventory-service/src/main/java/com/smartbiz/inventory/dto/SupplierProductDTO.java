@@ -8,5 +8,7 @@ public record SupplierProductDTO(
     String sku,
     String category,
     BigDecimal price,
-    Integer quantity
+    Integer quantity,
+    Integer reorderLevel,
+    boolean lowStock
 ) {}

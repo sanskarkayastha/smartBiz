@@ -14,13 +14,27 @@ public record SupplierDTO(
     BigDecimal balanceOwed,
     String notes,
     LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    LocalDateTime updatedAt,
+    int productCount,
+    int totalUnits,
+    int lowStockCount,
+    int outOfStockCount
 ) {
     public static SupplierDTO from(Supplier s) {
         return new SupplierDTO(
             s.getId(), s.getUserId(), s.getName(),
             s.getPhone(), s.getEmail(), s.getBalanceOwed(),
-            s.getNotes(), s.getCreatedAt(), s.getUpdatedAt()
+            s.getNotes(), s.getCreatedAt(), s.getUpdatedAt(),
+            0, 0, 0, 0
+        );
+    }
+
+    public static SupplierDTO from(Supplier s, int productCount, int totalUnits, int lowStockCount, int outOfStockCount) {
+        return new SupplierDTO(
+            s.getId(), s.getUserId(), s.getName(),
+            s.getPhone(), s.getEmail(), s.getBalanceOwed(),
+            s.getNotes(), s.getCreatedAt(), s.getUpdatedAt(),
+            productCount, totalUnits, lowStockCount, outOfStockCount
         );
     }
 }
