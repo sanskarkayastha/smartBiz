@@ -38,6 +38,7 @@ export default async function InventoryPage({
 
   return (
     <InventoryClient
+      key={`${page}:${search}:${category}:${stockStatus}:${data?.totalElements ?? 0}`}
       initialProducts={data?.content ?? []}
       currentPage={page}
       totalPages={data?.totalPages ?? 1}

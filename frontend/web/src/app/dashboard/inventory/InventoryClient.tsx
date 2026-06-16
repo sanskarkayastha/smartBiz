@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AddProductModal from '@/src/components/AddProductModal'
 import Pagination from '@/src/components/Pagination'
@@ -55,6 +55,8 @@ export default function InventoryClient({
   const [category, setCategory] = useState(initialCategory)
   const [stockStatus, setStockStatus] = useState(initialStockStatus)
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [showManageCategories, setShowManageCategories] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -117,6 +119,23 @@ export default function InventoryClient({
     router.push(`/dashboard/inventory${qs ? `?${qs}` : ''}`)
   }
 
+  function syncInventoryAfterDelete(successfulDeletes: number) {
+    if (successfulDeletes <= 0) return
+
+    const nextTotal = Math.max(0, totalElements - successfulDeletes)
+    const nextTotalPages = Math.max(1, Math.ceil(nextTotal / pageSize))
+    const targetPage = Math.min(currentPage, nextTotalPages - 1)
+    const qs = buildParams(search, category, stockStatus, targetPage)
+    const url = `/dashboard/inventory${qs ? `?${qs}` : ''}`
+
+    if (targetPage !== currentPage) {
+      router.push(url)
+      return
+    }
+
+    router.refresh()
+  }
+
   async function handleDelete(product: Product) {
     if (!confirm(`Delete "${product.name}"? This cannot be undone.`)) return
     setDeleting(product.id)
@@ -124,9 +143,63 @@ export default function InventoryClient({
       const res = await fetch(`/api/products/${product.id}`, { method: 'DELETE' })
       if (res.ok || res.status === 204) {
         setProducts((prev) => prev.filter((p) => p.id !== product.id))
+        setSelectedIds((prev) => prev.filter((id) => id !== product.id))
+        syncInventoryAfterDelete(1)
       }
     } finally {
       setDeleting(null)
+    }
+  }
+
+  function toggleSelection(productId: number) {
+    setSelectedIds((prev) =>
+      prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId]
+    )
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.length === products.length) {
+      setSelectedIds([])
+      return
+    }
+    setSelectedIds(products.map((product) => product.id))
+  }
+
+  async function handleBulkDelete() {
+    if (selectedIds.length === 0) return
+
+    const selectedProducts = products.filter((product) => selectedIds.includes(product.id))
+    const visibleNames = selectedProducts.slice(0, 3).map((product) => product.name)
+    const extraCount = selectedProducts.length - visibleNames.length
+    const detail = visibleNames.length
+      ? ` (${visibleNames.join(', ')}${extraCount > 0 ? `, +${extraCount} more` : ''})`
+      : ''
+
+    if (!confirm(`Delete ${selectedIds.length} products${detail}? This cannot be undone.`)) return
+
+    setBulkDeleting(true)
+    try {
+      const results = await Promise.all(
+        selectedIds.map(async (id) => {
+          const res = await fetch(`/api/products/${id}`, { method: 'DELETE' })
+          return { id, ok: res.ok || res.status === 204 }
+        })
+      )
+
+      const deletedIds = results.filter((result) => result.ok).map((result) => result.id)
+      if (deletedIds.length > 0) {
+        setProducts((prev) => prev.filter((product) => !deletedIds.includes(product.id)))
+      }
+      setSelectedIds((prev) => prev.filter((id) => !deletedIds.includes(id)))
+      syncInventoryAfterDelete(deletedIds.length)
+
+      if (deletedIds.length !== results.length) {
+        alert('Some selected products could not be deleted. Please try again for the remaining items.')
+      }
+    } finally {
+      setBulkDeleting(false)
     }
   }
 
@@ -135,6 +208,7 @@ export default function InventoryClient({
   if (search) extraParams.search = search
   if (category) extraParams.category = category
   if (stockStatus) extraParams.stockStatus = stockStatus
+  const allSelected = products.length > 0 && selectedIds.length === products.length
 
   return (
     <div className="space-y-6">
@@ -224,11 +298,51 @@ export default function InventoryClient({
         )}
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
+          <div>
+            <p className="text-sm font-semibold text-red-700">
+              {selectedIds.length} product{selectedIds.length === 1 ? '' : 's'} selected
+            </p>
+            <p className="text-xs text-red-600">Delete them together instead of repeating single-product deletes.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedIds([])}
+              className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+            >
+              Clear Selection
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {bulkDeleting ? (
+                <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" opacity=".3"/><path d="M12 2a10 10 0 0110 10"/></svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              )}
+              Delete Selected
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {products.length > 0 ? (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="px-5 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Select all products on this page"
+                    className="h-4 w-4 rounded border-gray-300 text-[#135BEC] focus:ring-[#135BEC]"
+                  />
+                </th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Product</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">SKU</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</th>
@@ -242,8 +356,18 @@ export default function InventoryClient({
             <tbody>
               {products.map((p, i) => {
                 const status = statusLabel(p.quantity, p.reorderLevel)
+                const selected = selectedIds.includes(p.id)
                 return (
-                  <tr key={p.id} className={`border-b border-gray-50 ${i % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
+                  <tr key={p.id} className={`border-b border-gray-50 ${selected ? 'bg-blue-50/60' : i % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
+                    <td className="px-5 py-3 align-top">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleSelection(p.id)}
+                        aria-label={`Select ${p.name}`}
+                        className="mt-1 h-4 w-4 rounded border-gray-300 text-[#135BEC] focus:ring-[#135BEC]"
+                      />
+                    </td>
                     <td className="px-5 py-3">
                       <p className="font-medium text-gray-900">{p.name}</p>
                       {p.supplier && <p className="text-xs text-gray-400">{p.supplier}</p>}
@@ -265,7 +389,7 @@ export default function InventoryClient({
                         <AddProductModal product={p} onClose={() => router.refresh()} categories={categories.map((c) => c.name)} />
                         <button
                           onClick={() => handleDelete(p)}
-                          disabled={deleting === p.id}
+                          disabled={deleting === p.id || bulkDeleting}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
                         >
                           {deleting === p.id ? (

@@ -2,7 +2,28 @@
 
 import { useState } from 'react'
 
-type Product = { id: number; name: string; sku: string | null; category: string | null; price: number; quantity: number }
+type Product = {
+  id: number
+  name: string
+  sku: string | null
+  category: string | null
+  price: number
+  quantity: number
+  reorderLevel: number | null
+  lowStock: boolean
+}
+
+function getProductTone(product: Product) {
+  if (product.quantity === 0) return 'bg-red-50 text-red-700'
+  if (product.lowStock) return 'bg-amber-50 text-amber-700'
+  return 'bg-emerald-50 text-emerald-700'
+}
+
+function getProductLabel(product: Product) {
+  if (product.quantity === 0) return 'Out of stock'
+  if (product.lowStock) return 'Low stock'
+  return 'In stock'
+}
 
 export default function ViewSupplierProductsModal({ supplierId, supplierName }: { supplierId: number; supplierName: string }) {
   const [open, setOpen] = useState(false)
@@ -21,11 +42,14 @@ export default function ViewSupplierProductsModal({ supplierId, supplierName }: 
     }
   }
 
+  const lowStockCount = products.filter((product) => product.lowStock && product.quantity > 0).length
+  const outOfStockCount = products.filter((product) => product.quantity === 0).length
+
   return (
     <>
       <button
         onClick={handleOpen}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#135BEC] border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+        className="flex items-center gap-1.5 rounded-xl border border-blue-200 px-3 py-1.5 text-xs font-medium text-[#135BEC] transition-colors hover:bg-blue-50"
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
@@ -34,55 +58,69 @@ export default function ViewSupplierProductsModal({ supplierId, supplierName }: 
       </button>
 
       {open && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setOpen(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[70vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4 shrink-0">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">Products from {supplierName}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{products.length} product{products.length !== 1 ? 's' : ''}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setOpen(false)}>
+          <div className="flex max-h-[76vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="border-b border-slate-100 px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">{supplierName}</h3>
+                  <p className="mt-1 text-sm text-slate-500">Products from this supplier</p>
+                </div>
+                <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
               </div>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
+
+              {!loading && products.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="rounded-full bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700">
+                    {products.length} product{products.length !== 1 ? 's' : ''}
+                  </div>
+                  <div className="rounded-full bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+                    {lowStockCount} low stock
+                  </div>
+                  <div className="rounded-full bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                    {outOfStockCount} out of stock
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="overflow-y-auto flex-1">
+            <div className="flex-1 overflow-y-auto px-6 py-5">
               {loading ? (
-                <div className="flex items-center justify-center py-12 text-gray-400 text-sm">Loading...</div>
+                <div className="flex items-center justify-center py-16 text-sm text-slate-400">Loading products...</div>
               ) : products.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
                   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-2">
                     <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
                   </svg>
-                  <p className="text-sm font-medium">No products from this supplier</p>
+                  <p className="text-sm font-medium">No products from this supplier yet</p>
                 </div>
               ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50">
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Product</th>
-                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Price</th>
-                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.map((p, i) => (
-                      <tr key={p.id} className={`border-b border-gray-50 ${i % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-gray-900">{p.name}</p>
-                          {p.sku && <p className="text-xs text-gray-400 font-mono">{p.sku}</p>}
-                          {p.category && <p className="text-xs text-gray-400">{p.category}</p>}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-gray-900">NPR {Number(p.price).toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${p.quantity === 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
-                            {p.quantity}
+                <div className="space-y-3">
+                  {products.map((product) => (
+                    <div key={product.id} className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900">{product.name}</p>
+                          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                            {product.sku && <span className="font-mono">{product.sku}</span>}
+                            {product.category && <span>{product.category}</span>}
+                            {product.reorderLevel != null && <span>Reorder at {product.reorderLevel}</span>}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-start gap-2 sm:items-end">
+                          <p className="text-sm font-semibold text-slate-900">NPR {Number(product.price).toLocaleString()}</p>
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getProductTone(product)}`}>
+                            {getProductLabel(product)}
                           </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          <p className="text-xs text-slate-500">{product.quantity} left</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
