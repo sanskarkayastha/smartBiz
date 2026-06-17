@@ -79,7 +79,7 @@ public class SalesService {
         sale.setCustomerName(request.getCustomerName());
         sale.setPaymentMethod(paymentMethod);
         sale.setStatus(options.status());
-        sale.setSaleDate(request.getSaleDate() != null ? request.getSaleDate() : LocalDateTime.now());
+        sale.setSaleDate(resolveSaleDate(request));
         sale.setCreatedBy(userId);
 
         BigDecimal total = BigDecimal.ZERO;
@@ -87,9 +87,7 @@ public class SalesService {
         for (int i = 0; i < request.getItems().size(); i++) {
             SaleItemRequest itemReq = request.getItems().get(i);
             InventoryProductDTO product = products.get(i);
-            BigDecimal effectivePrice = (itemReq.getUnitPrice() != null)
-                    ? itemReq.getUnitPrice()
-                    : product.getPrice();
+            BigDecimal effectivePrice = resolveUnitPrice(itemReq, product);
             BigDecimal subtotal = effectivePrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
 
             SaleItem item = new SaleItem();
@@ -132,7 +130,10 @@ public class SalesService {
 
     public List<SaleDTO> importSales(Long userId, ImportSalesRequest request) {
         List<CreateSaleRequest> sales = request.sales().stream()
-                .sorted(Comparator.comparing(sale -> sale.getSaleDate() != null ? sale.getSaleDate() : LocalDateTime.now()))
+                .sorted(Comparator.comparing(sale -> {
+                    LocalDateTime parsedSaleDate = sale.parseSaleDate();
+                    return parsedSaleDate != null ? parsedSaleDate : LocalDateTime.now();
+                }))
                 .toList();
 
         List<SaleDTO> results = new ArrayList<>();
@@ -225,6 +226,19 @@ public class SalesService {
                 start,
                 endExclusive
         );
+    }
+
+    private LocalDateTime resolveSaleDate(CreateSaleRequest request) {
+        LocalDateTime parsedSaleDate = request.parseSaleDate();
+        return parsedSaleDate != null ? parsedSaleDate : LocalDateTime.now();
+    }
+
+    private BigDecimal resolveUnitPrice(SaleItemRequest itemReq, InventoryProductDTO product) {
+        BigDecimal effectivePrice = itemReq.getUnitPrice() != null ? itemReq.getUnitPrice() : product.getPrice();
+        if (effectivePrice == null || effectivePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Unit price must be greater than 0");
+        }
+        return effectivePrice;
     }
 
     private InventoryProductDTO fetchProduct(Long userId, Long productId) {

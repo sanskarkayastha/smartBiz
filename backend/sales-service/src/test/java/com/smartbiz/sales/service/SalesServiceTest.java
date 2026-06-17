@@ -19,6 +19,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
@@ -37,7 +38,6 @@ class SalesServiceTest {
 
     private InventoryProductDTO product;
     private CreateSaleRequest request;
-    private Sale savedSale;
 
     @BeforeEach
     void setUp() {
@@ -54,21 +54,19 @@ class SalesServiceTest {
         request = new CreateSaleRequest();
         request.setItems(List.of(itemReq));
         request.setPaymentMethod("CASH");
-
-        savedSale = new Sale();
-        savedSale.setId(100L);
-        savedSale.setUserId(1L);
-        savedSale.setTotalAmount(new BigDecimal("200.00"));
-        savedSale.setStatus("COMPLETED");
-        savedSale.setSaleDate(LocalDateTime.now());
     }
 
     @Test
     void createSale_success_returnsSaleDTO() {
         when(restTemplate.exchange(contains("/inventory/products/1"), eq(HttpMethod.GET), any(), eq(InventoryProductDTO.class)))
                 .thenReturn(ResponseEntity.ok(product));
-        when(saleRepository.save(any(Sale.class))).thenReturn(savedSale);
-        when(saleItemRepository.saveAll(anyList())).thenReturn(List.of(new SaleItem()));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> {
+            Sale sale = invocation.getArgument(0);
+            sale.setId(100L);
+            sale.setCreatedAt(LocalDateTime.now());
+            return sale;
+        });
+        when(saleItemRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
         when(restTemplate.exchange(contains("/stock"), eq(HttpMethod.POST), any(), eq(Object.class)))
                 .thenReturn(ResponseEntity.ok(null));
 
@@ -77,6 +75,50 @@ class SalesServiceTest {
         assertThat(result.getId()).isEqualTo(100L);
         assertThat(result.getTotalAmount()).isEqualByComparingTo(new BigDecimal("200.00"));
         verify(saleRepository).save(any(Sale.class));
+    }
+
+    @Test
+    void createSale_withHistoricalSaleDate_preservesRequestedDate() {
+        LocalDateTime historicalDate = LocalDateTime.of(2024, 5, 10, 14, 30, 0);
+        request.setSaleDate("2024-05-10T14:30");
+
+        when(restTemplate.exchange(contains("/inventory/products/1"), eq(HttpMethod.GET), any(), eq(InventoryProductDTO.class)))
+                .thenReturn(ResponseEntity.ok(product));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> {
+            Sale sale = invocation.getArgument(0);
+            sale.setId(101L);
+            sale.setCreatedAt(LocalDateTime.now());
+            return sale;
+        });
+        when(saleItemRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(restTemplate.exchange(contains("/stock"), eq(HttpMethod.POST), any(), eq(Object.class)))
+                .thenReturn(ResponseEntity.ok(null));
+
+        SaleDTO result = salesService.createSale(1L, request);
+
+        assertThat(result.getSaleDate()).isEqualTo(historicalDate);
+    }
+
+    @Test
+    void createSale_withoutSaleDate_defaultsToCurrentTime() {
+        when(restTemplate.exchange(contains("/inventory/products/1"), eq(HttpMethod.GET), any(), eq(InventoryProductDTO.class)))
+                .thenReturn(ResponseEntity.ok(product));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> {
+            Sale sale = invocation.getArgument(0);
+            sale.setId(102L);
+            sale.setCreatedAt(LocalDateTime.now());
+            return sale;
+        });
+        when(saleItemRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(restTemplate.exchange(contains("/stock"), eq(HttpMethod.POST), any(), eq(Object.class)))
+                .thenReturn(ResponseEntity.ok(null));
+
+        LocalDateTime before = LocalDateTime.now().minusSeconds(1);
+        SaleDTO result = salesService.createSale(1L, request);
+        LocalDateTime after = LocalDateTime.now().plusSeconds(1);
+
+        assertThat(result.getSaleDate()).isAfterOrEqualTo(before.truncatedTo(ChronoUnit.SECONDS));
+        assertThat(result.getSaleDate()).isBeforeOrEqualTo(after.truncatedTo(ChronoUnit.SECONDS));
     }
 
     @Test
@@ -97,7 +139,12 @@ class SalesServiceTest {
     void createSale_stockDeductionFails_throwsException() {
         when(restTemplate.exchange(contains("/inventory/products/1"), eq(HttpMethod.GET), any(), eq(InventoryProductDTO.class)))
                 .thenReturn(ResponseEntity.ok(product));
-        when(saleRepository.save(any(Sale.class))).thenReturn(savedSale);
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> {
+            Sale sale = invocation.getArgument(0);
+            sale.setId(100L);
+            sale.setCreatedAt(LocalDateTime.now());
+            return sale;
+        });
         when(saleItemRepository.saveAll(anyList())).thenReturn(List.of());
         when(restTemplate.exchange(contains("/stock"), eq(HttpMethod.POST), any(), eq(Object.class)))
                 .thenThrow(HttpClientErrorException.create(HttpStatus.BAD_REQUEST, "Bad Request",
@@ -105,6 +152,44 @@ class SalesServiceTest {
 
         assertThatThrownBy(() -> salesService.createSale(1L, request))
                 .isInstanceOf(InsufficientStockException.class);
+    }
+
+    @Test
+    void createSale_customUnitPriceOverridesProductPrice() {
+        request.getItems().get(0).setUnitPrice(new BigDecimal("175.50"));
+
+        when(restTemplate.exchange(contains("/inventory/products/1"), eq(HttpMethod.GET), any(), eq(InventoryProductDTO.class)))
+                .thenReturn(ResponseEntity.ok(product));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> {
+            Sale sale = invocation.getArgument(0);
+            sale.setId(103L);
+            sale.setCreatedAt(LocalDateTime.now());
+            return sale;
+        });
+        when(saleItemRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(restTemplate.exchange(contains("/stock"), eq(HttpMethod.POST), any(), eq(Object.class)))
+                .thenReturn(ResponseEntity.ok(null));
+
+        SaleDTO result = salesService.createSale(1L, request);
+
+        assertThat(result.getItems()).hasSize(1);
+        assertThat(result.getItems().get(0).getUnitPrice()).isEqualByComparingTo(new BigDecimal("175.50"));
+        assertThat(result.getItems().get(0).getSubtotal()).isEqualByComparingTo(new BigDecimal("351.00"));
+        assertThat(result.getTotalAmount()).isEqualByComparingTo(new BigDecimal("351.00"));
+    }
+
+    @Test
+    void createSale_invalidUnitPrice_rejected() {
+        request.getItems().get(0).setUnitPrice(BigDecimal.ZERO);
+
+        when(restTemplate.exchange(contains("/inventory/products/1"), eq(HttpMethod.GET), any(), eq(InventoryProductDTO.class)))
+                .thenReturn(ResponseEntity.ok(product));
+
+        assertThatThrownBy(() -> salesService.createSale(1L, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Unit price must be greater than 0");
+
+        verify(saleRepository, never()).save(any());
     }
 
     @Test
@@ -125,8 +210,13 @@ class SalesServiceTest {
     void importSales_usesTransactionTemplateForEachSale() {
         when(restTemplate.exchange(contains("/inventory/products/1"), eq(HttpMethod.GET), any(), eq(InventoryProductDTO.class)))
                 .thenReturn(ResponseEntity.ok(product));
-        when(saleRepository.save(any(Sale.class))).thenReturn(savedSale);
-        when(saleItemRepository.saveAll(anyList())).thenReturn(List.of(new SaleItem()));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> {
+            Sale sale = invocation.getArgument(0);
+            sale.setId(100L);
+            sale.setCreatedAt(LocalDateTime.now());
+            return sale;
+        });
+        when(saleItemRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
         when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
 
         List<SaleDTO> result = salesService.importSales(1L, new ImportSalesRequest(List.of(request)));
@@ -145,9 +235,10 @@ class SalesServiceTest {
         when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> {
             Sale sale = invocation.getArgument(0);
             sale.setId(101L);
+            sale.setCreatedAt(LocalDateTime.now());
             return sale;
         });
-        when(saleItemRepository.saveAll(anyList())).thenReturn(List.of(new SaleItem()));
+        when(saleItemRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
         when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
 
         List<SaleDTO> result = salesService.importSales(1L, new ImportSalesRequest(List.of(request)));

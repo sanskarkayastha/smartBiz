@@ -154,6 +154,9 @@ services:
       - "8887:8085"
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: ${AI_DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       INVENTORY_SERVICE_URL: http://inventory-service:8082

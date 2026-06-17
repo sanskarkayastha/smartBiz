@@ -52,7 +52,9 @@ export default function SalesFilters({ initialDate, initialDateFrom, initialDate
     }
 
     const query = params.toString()
-    router.push(query ? `${pathname}?${query}` : pathname)
+    const href = query ? `${pathname}?${query}` : pathname
+    router.push(href)
+    router.refresh()
   }
 
   function applyFilters() {

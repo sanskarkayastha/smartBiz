@@ -4,9 +4,13 @@ import com.smartbiz.ai.dto.AiQueryRequest;
 import com.smartbiz.ai.dto.AiQueryResponse;
 import com.smartbiz.ai.dto.ParseSalesFileRequest;
 import com.smartbiz.ai.dto.ParseSalesFileResponse;
+import com.smartbiz.ai.repository.ImportArtifactRepository;
+import com.smartbiz.ai.repository.ImportSessionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 
@@ -18,12 +22,16 @@ class AiServiceTest {
 
     @BeforeEach
     void setUp() {
-        aiService = new AiService();
+        aiService = new AiService(
+                new RestTemplate(),
+                new com.fasterxml.jackson.databind.ObjectMapper(),
+                Mockito.mock(RemoteBusinessClient.class),
+                Mockito.mock(InsightService.class),
+                Mockito.mock(ImportSessionRepository.class),
+                Mockito.mock(ImportArtifactRepository.class)
+        );
         ReflectionTestUtils.setField(aiService, "geminiApiKey", "");
         ReflectionTestUtils.setField(aiService, "geminiUrl", "");
-        ReflectionTestUtils.setField(aiService, "inventoryBase", "");
-        ReflectionTestUtils.setField(aiService, "salesBase", "");
-        ReflectionTestUtils.setField(aiService, "crmBase", "");
     }
 
     @Test
@@ -58,7 +66,8 @@ class AiServiceTest {
                 List.of(new AiQueryRequest.ChatMessage("user", "Please add these sales from the sheet")),
                 null,
                 null,
-                fileText
+                fileText,
+                null
         );
 
         assertThat(response.products()).isNull();

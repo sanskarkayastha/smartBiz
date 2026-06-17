@@ -6,7 +6,8 @@ public record AiQueryRequest(
     List<ChatMessage> messages,
     String image,
     String mimeType,
-    String fileText
+    String fileText,
+    Long importSessionId
 ) {
     public record ChatMessage(String role, String text) {}
 }

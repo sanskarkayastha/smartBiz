@@ -11,8 +11,8 @@ type CustomerApiResponse = CustomerSuggestion[] | { content?: CustomerSuggestion
 
 const PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'CARD', 'DIGITAL', 'DUE']
 
-function normalizeSaleDateTime(value: string) {
-  return value ? `${value}:00` : undefined
+function hasInvalidSalePrice(cart: CartItem[]) {
+  return cart.some((item) => !Number.isFinite(item.unitPrice) || item.unitPrice <= 0)
 }
 
 function parseCustomers(data: CustomerApiResponse): CustomerSuggestion[] {
@@ -137,6 +137,11 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
       return
     }
 
+    if (hasInvalidSalePrice(cart)) {
+      setError('Every sale item needs a price greater than 0.')
+      return
+    }
+
     if (paymentMethod === 'DUE' && !selectedCustomer && !customerSearch.trim()) {
       setError('Customer is required for DUE payment.')
       return
@@ -162,7 +167,7 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
           paymentMethod,
           customerId: resolvedCustomer?.id ?? null,
           customerName: customerName || null,
-          saleDate: normalizeSaleDateTime(saleDate) ?? null,
+          saleDate: saleDate || null,
         }),
       })
 
@@ -203,7 +208,7 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
             <div className="flex items-center justify-between border-b border-paper-3 px-6 py-4">
               <div>
                 <h2 className="text-lg font-bold text-ink">Record Sale</h2>
-                <p className="mt-1 text-xs text-ink-2">Use today for normal sales, or set a previous date for historical entry.</p>
+                <p className="mt-1 text-xs text-ink-2">Pick the real sale date for backfilled entries and adjust each line if this customer paid a different price.</p>
               </div>
               <button onClick={() => setOpen(false)} className="text-ink-3 transition hover:text-ink">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -311,15 +316,18 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
                           </div>
                         </div>
                         <div className="mt-2 flex items-center gap-2 text-xs text-ink-3">
-                          <span>Price</span>
+                          <span>Sale price</span>
                           <input
                             type="number"
                             value={item.unitPrice}
                             onChange={(e) => updatePrice(item.product.id, e.target.value)}
-                            className="w-20 rounded-lg border border-paper-3 bg-white px-2 py-1 text-xs text-ink outline-none focus:border-brand"
+                            min="0.01"
+                            step="0.01"
+                            className="w-24 rounded-lg border border-paper-3 bg-white px-2 py-1 text-xs text-ink outline-none focus:border-brand"
                           />
                           <span className="ml-auto font-semibold text-ink">NPR {(item.unitPrice * item.quantity).toLocaleString()}</span>
                         </div>
+                        <p className="mt-2 text-[11px] text-ink-3">Sale price for this transaction. It starts from the product price, but you can change it here.</p>
                       </div>
                     ))
                   )}

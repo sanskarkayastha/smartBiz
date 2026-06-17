@@ -23,8 +23,17 @@ import { Colors } from '@/components/ui/colors';
 import VoiceButton from '@/components/ui/VoiceButton';
 import InvoiceScanModal from '@/components/ui/InvoiceScanModal';
 import ImportSalesModal from '@/components/ui/ImportSalesModal';
-import { inventoryService, type Product } from '@/services/inventory';
-import { queryAi, getDailyInsight, type ChatMessage, type ParsedProduct, type ParsedSale } from '@/services/ai';
+import {
+  addImportArtifact,
+  analyzeImportSession,
+  createImportSession,
+  getDailyInsight,
+  getInsightCards,
+  queryAi,
+  type ChatMessage,
+  type ImportSession,
+  type InsightCard,
+} from '@/services/ai';
 
 type Message = ChatMessage;
 type AttachmentState = {
@@ -36,28 +45,29 @@ type AttachmentState = {
 };
 
 const QUICK_PROMPTS = [
-  'Top selling products',
-  'What to reorder?',
-  'Revenue this week',
-  'Best customers',
+  'What should I restock this week?',
+  'What inventory is moving slowly?',
+  'What products sell together most often?',
+  'How risky are my due payments right now?',
 ];
 
 export default function AiScreen() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'ai', text: 'Hi! Ask me anything about your business — or attach an image or Excel file and tell me what to do with it.' },
+    {
+      role: 'ai',
+      text: 'Hi! Ask me about your business, attach a bill or spreadsheet, or start a guided import below.',
+    },
   ]);
   const [input, setInput] = useState('');
   const [inputKey, setInputKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [attachment, setAttachment] = useState<AttachmentState | null>(null);
   const [showScanModal, setShowScanModal] = useState(false);
-  const [scanProducts, setScanProducts] = useState<ParsedProduct[] | null>(null);
   const [showSalesImportModal, setShowSalesImportModal] = useState(false);
-  const [salesImportProducts, setSalesImportProducts] = useState<Product[]>([]);
-  const [salesImportData, setSalesImportData] = useState<ParsedSale[] | null>(null);
+  const [activeImportSession, setActiveImportSession] = useState<ImportSession | null>(null);
+  const [insightCards, setInsightCards] = useState<InsightCard[]>([]);
   const scrollRef = useRef<ScrollView>(null);
 
-  // Android-only: manually track keyboard height to avoid edge-to-edge KAV issues
   const keyboardPad = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (Platform.OS !== 'android') return;
@@ -75,8 +85,23 @@ export default function AiScreen() {
         useNativeDriver: false,
       }).start();
     });
-    return () => { show.remove(); hide.remove(); };
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [keyboardPad]);
+
+  useEffect(() => {
+    void refreshInsightCards();
   }, []);
+
+  const refreshInsightCards = async () => {
+    try {
+      setInsightCards(await getInsightCards());
+    } catch {
+      setInsightCards([]);
+    }
+  };
 
   const fetchInsight = async () => {
     if (loading) return;
@@ -115,7 +140,7 @@ export default function AiScreen() {
     const asset = result.assets[0];
     setAttachment({
       type: 'image',
-      label: 'Image',
+      label: asset.fileName ?? 'Image',
       image: asset.base64 ?? undefined,
       mimeType: asset.mimeType ?? 'image/jpeg',
     });
@@ -135,13 +160,45 @@ export default function AiScreen() {
       const base64 = await FileSystem.readAsStringAsync(asset.uri, {
         encoding: 'base64',
       });
-      const wb = XLSX.read(base64, { type: 'base64' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const csvText = XLSX.utils.sheet_to_csv(ws);
-      setAttachment({ type: 'excel', label: asset.name ?? 'spreadsheet.xlsx', fileText: csvText });
+      const workbook = XLSX.read(base64, { type: 'base64' });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const csvText = XLSX.utils.sheet_to_csv(worksheet);
+      setAttachment({
+        type: 'excel',
+        label: asset.name ?? 'spreadsheet.xlsx',
+        fileText: csvText,
+      });
     } catch {
       Alert.alert('Error', 'Could not read the Excel file. Please try a different file.');
     }
+  };
+
+  const openSessionFromAttachment = async (currentAttachment: AttachmentState) => {
+    const mode = currentAttachment.type === 'excel' ? 'SALES' : 'INVENTORY';
+    const created = await createImportSession(
+      mode,
+      mode === 'SALES' ? 'Historical sales import' : 'Inventory import',
+      false,
+    );
+    const artifactSession = await addImportArtifact(created.id, {
+      kind: currentAttachment.type === 'excel' ? 'SHEET' : 'IMAGE',
+      label: currentAttachment.label,
+      image: currentAttachment.image,
+      mimeType: currentAttachment.mimeType,
+      fileText: currentAttachment.fileText,
+      sourceIntent: mode === 'SALES' ? 'HISTORICAL_SALES' : 'PURCHASE_BILL',
+    });
+    const artifactId = artifactSession.artifacts.at(-1)?.id;
+    const analyzed = await analyzeImportSession(created.id, artifactId);
+    setActiveImportSession(analyzed);
+    if (mode === 'SALES') {
+      setShowSalesImportModal(true);
+      setShowScanModal(false);
+    } else {
+      setShowScanModal(true);
+      setShowSalesImportModal(false);
+    }
+    return analyzed;
   };
 
   const send = async (text: string) => {
@@ -153,38 +210,30 @@ export default function AiScreen() {
     setInputKey((k) => k + 1);
     setAttachment(null);
 
-    const displayText = question || `📎 ${currentAttachment!.label}`;
+    const displayText = question || `Attachment: ${currentAttachment!.label}`;
     const updatedMessages: Message[] = [...messages, { role: 'user', text: displayText }];
     setMessages(updatedMessages);
     setLoading(true);
 
     try {
+      let sessionForChat = activeImportSession;
+      if (currentAttachment) {
+        sessionForChat = await openSessionFromAttachment(currentAttachment);
+      }
+
       const attachPayload = currentAttachment
-        ? { image: currentAttachment.image, mimeType: currentAttachment.mimeType, fileText: currentAttachment.fileText }
-        : undefined;
+        ? {
+            image: currentAttachment.image,
+            mimeType: currentAttachment.mimeType,
+            fileText: currentAttachment.fileText,
+            importSessionId: sessionForChat?.id,
+          }
+        : sessionForChat
+          ? { importSessionId: sessionForChat.id }
+          : undefined;
+
       const result = await queryAi(updatedMessages, attachPayload);
       setMessages((prev) => [...prev, { role: 'ai', text: result.response }]);
-      if (result.products && result.products.length > 0) {
-        setShowSalesImportModal(false);
-        setSalesImportData(null);
-        setScanProducts(result.products);
-        setShowScanModal(true);
-      }
-      if (result.sales && result.sales.length > 0) {
-        setShowScanModal(false);
-        setScanProducts(null);
-        try {
-          const productsResponse = await inventoryService.getProducts(0, 1000);
-          setSalesImportProducts(productsResponse.content);
-          setSalesImportData(result.sales);
-          setShowSalesImportModal(true);
-        } catch {
-          setMessages((prev) => [
-            ...prev,
-            { role: 'ai', text: 'I found sales in that sheet, but I could not load inventory to review them right now.' },
-          ]);
-        }
-      }
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -200,7 +249,6 @@ export default function AiScreen() {
 
   const content = (
     <>
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons name="sparkles" size={20} color={Colors.primary} />
@@ -209,7 +257,19 @@ export default function AiScreen() {
         <Text style={styles.headerSub}>Powered by Gemini</Text>
       </View>
 
-      {/* Quick prompts */}
+      <View style={styles.importStrip}>
+        <Pressable style={styles.importCard} onPress={() => setShowSalesImportModal(true)}>
+          <Ionicons name="document-text-outline" size={18} color={Colors.primary} />
+          <Text style={styles.importCardTitle}>Import Sales</Text>
+          <Text style={styles.importCardText}>Bring old sales sheets into SmartBiz.</Text>
+        </Pressable>
+        <Pressable style={styles.importCard} onPress={() => setShowScanModal(true)}>
+          <Ionicons name="camera-outline" size={18} color={Colors.primary} />
+          <Text style={styles.importCardTitle}>Import Bills</Text>
+          <Text style={styles.importCardText}>Scan purchase bills and update inventory.</Text>
+        </Pressable>
+      </View>
+
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -218,7 +278,7 @@ export default function AiScreen() {
       >
         <Pressable style={[styles.chip, styles.insightChip]} onPress={fetchInsight} disabled={loading}>
           <Ionicons name="sparkles" size={12} color={Colors.primary} />
-          <Text style={styles.chipText}>Daily Insight</Text>
+          <Text style={styles.chipText}>Insight Summary</Text>
         </Pressable>
         {QUICK_PROMPTS.map((q) => (
           <Pressable key={q} style={styles.chip} onPress={() => send(q)}>
@@ -227,7 +287,34 @@ export default function AiScreen() {
         ))}
       </ScrollView>
 
-      {/* Messages */}
+      {!!insightCards.length && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.insightRail}
+          contentContainerStyle={styles.insightRailContent}
+        >
+          {insightCards.map((card) => (
+            <View key={card.type} style={styles.insightCard}>
+              <Text style={styles.insightTitle}>{card.title}</Text>
+              <Text style={styles.insightText}>{card.message}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+
+      {activeImportSession && (
+        <View style={styles.sessionBanner}>
+          <Ionicons name="folder-open-outline" size={16} color={Colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sessionTitle}>
+              Active session: {activeImportSession.title}
+            </Text>
+            <Text style={styles.sessionText}>{activeImportSession.summary}</Text>
+          </View>
+        </View>
+      )}
+
       <ScrollView
         ref={scrollRef}
         style={styles.messages}
@@ -235,13 +322,21 @@ export default function AiScreen() {
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
         keyboardShouldPersistTaps="handled"
       >
-        {messages.map((m, i) => (
-          <View key={i} style={[styles.bubble, m.role === 'user' ? styles.userBubble : styles.aiBubble]}>
-            {m.role === 'ai' && (
+        {messages.map((message, index) => (
+          <View
+            key={index}
+            style={[styles.bubble, message.role === 'user' ? styles.userBubble : styles.aiBubble]}
+          >
+            {message.role === 'ai' && (
               <Ionicons name="sparkles" size={13} color={Colors.primary} style={styles.aiIcon} />
             )}
-            <Text style={[styles.bubbleText, m.role === 'user' ? styles.userBubbleText : styles.aiBubbleText]}>
-              {m.text}
+            <Text
+              style={[
+                styles.bubbleText,
+                message.role === 'user' ? styles.userBubbleText : styles.aiBubbleText,
+              ]}
+            >
+              {message.text}
             </Text>
           </View>
         ))}
@@ -252,7 +347,6 @@ export default function AiScreen() {
         )}
       </ScrollView>
 
-      {/* Attachment chip */}
       {attachment && (
         <View style={styles.attachmentChip}>
           <Ionicons
@@ -260,23 +354,27 @@ export default function AiScreen() {
             size={14}
             color={Colors.primary}
           />
-          <Text style={styles.attachmentLabel} numberOfLines={1}>{attachment.label}</Text>
+          <Text style={styles.attachmentLabel} numberOfLines={1}>
+            {attachment.label}
+          </Text>
           <Pressable onPress={() => setAttachment(null)} hitSlop={8}>
             <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
           </Pressable>
         </View>
       )}
 
-      {/* Input */}
       <View style={styles.inputRow}>
         <Pressable style={styles.inputIconBtn} onPress={pickAttachment} disabled={loading}>
           <Ionicons name="attach" size={20} color={Colors.textMuted} />
         </Pressable>
-        <VoiceButton onResult={(text) => setInput((prev) => prev ? prev + ' ' + text : text)} size={18} />
+        <VoiceButton
+          onResult={(text) => setInput((prev) => (prev ? prev + ' ' + text : text))}
+          size={18}
+        />
         <TextInput
           key={inputKey}
           style={styles.input}
-          placeholder="Ask anything, or attach a file…"
+          placeholder="Ask about your business, or attach a file..."
           placeholderTextColor={Colors.textMuted}
           value={input}
           onChangeText={setInput}
@@ -293,25 +391,32 @@ export default function AiScreen() {
 
       <InvoiceScanModal
         visible={showScanModal}
-        initialProducts={scanProducts ?? undefined}
-        onClose={() => { setShowScanModal(false); setScanProducts(null); }}
-        onSaved={() => { setShowScanModal(false); setScanProducts(null); }}
+        initialSession={activeImportSession?.mode === 'INVENTORY' ? activeImportSession : null}
+        onSessionChange={setActiveImportSession}
+        onClose={() => setShowScanModal(false)}
+        onSaved={() => {
+          setShowScanModal(false);
+          setMessages((prev) => [
+            ...prev,
+            { role: 'ai', text: 'The purchase bill was imported into inventory successfully.' },
+          ]);
+          void refreshInsightCards();
+        }}
       />
+
       <ImportSalesModal
         visible={showSalesImportModal}
-        products={salesImportProducts}
-        initialSales={salesImportData}
-        onClose={() => {
-          setShowSalesImportModal(false);
-          setSalesImportData(null);
-        }}
+        products={[]}
+        initialSession={activeImportSession?.mode === 'SALES' ? activeImportSession : null}
+        onSessionChange={setActiveImportSession}
+        onClose={() => setShowSalesImportModal(false)}
         onImported={() => {
           setShowSalesImportModal(false);
-          setSalesImportData(null);
           setMessages((prev) => [
             ...prev,
             { role: 'ai', text: 'Historical sales were imported successfully.' },
           ]);
+          void refreshInsightCards();
         }}
       />
     </>
@@ -324,9 +429,7 @@ export default function AiScreen() {
           {content}
         </KeyboardAvoidingView>
       ) : (
-        <Animated.View style={[styles.flex, { paddingBottom: keyboardPad }]}>
-          {content}
-        </Animated.View>
+        <Animated.View style={[styles.flex, { paddingBottom: keyboardPad }]}>{content}</Animated.View>
       )}
     </SafeAreaView>
   );
@@ -348,7 +451,30 @@ const styles = StyleSheet.create({
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerTitle: { fontSize: 17, fontWeight: '700', color: Colors.textDark },
   headerSub: { fontSize: 11, color: Colors.textMuted },
-  chips: { maxHeight: 44, backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  importStrip: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    backgroundColor: Colors.card,
+  },
+  importCard: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: Colors.primaryLight,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+    gap: 6,
+  },
+  importCardTitle: { fontSize: 14, fontWeight: '700', color: Colors.primary },
+  importCardText: { fontSize: 12, lineHeight: 18, color: Colors.textMuted },
+  chips: {
+    maxHeight: 48,
+    backgroundColor: Colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
   chipsContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexDirection: 'row' },
   chip: {
     backgroundColor: Colors.primaryLight,
@@ -358,19 +484,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
   },
-  insightChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
+  insightChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   chipText: { fontSize: 12, color: Colors.primary, fontWeight: '500' },
+  insightRail: { maxHeight: 132 },
+  insightRailContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 10, flexDirection: 'row' },
+  insightCard: {
+    width: 240,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  insightTitle: { fontSize: 13, fontWeight: '700', color: Colors.textDark },
+  insightText: { marginTop: 6, fontSize: 12, lineHeight: 18, color: Colors.textMuted },
+  sessionBanner: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-start',
+    marginHorizontal: 12,
+    marginBottom: 6,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  sessionTitle: { fontSize: 13, fontWeight: '700', color: Colors.textDark },
+  sessionText: { marginTop: 2, fontSize: 12, lineHeight: 18, color: Colors.textMuted },
   messages: { flex: 1 },
   messagesContent: { padding: 16, gap: 10 },
-  bubble: {
-    maxWidth: '80%',
-    padding: 12,
-    borderRadius: 16,
-  },
+  bubble: { maxWidth: '80%', padding: 12, borderRadius: 16 },
   aiBubble: {
     backgroundColor: Colors.card,
     alignSelf: 'flex-start',
@@ -405,12 +549,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     maxWidth: '80%',
   },
-  attachmentLabel: {
-    flex: 1,
-    fontSize: 12,
-    color: Colors.primary,
-    fontWeight: '500',
-  },
+  attachmentLabel: { flex: 1, fontSize: 12, color: Colors.primary, fontWeight: '500' },
   inputRow: {
     flexDirection: 'row',
     padding: 12,

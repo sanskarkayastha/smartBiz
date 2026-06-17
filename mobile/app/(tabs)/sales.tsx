@@ -38,6 +38,10 @@ function normalizeSaleDate(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed}T12:00:00` : null;
 }
 
+function hasInvalidSalePrice(cart: CartItem[]) {
+  return cart.some((item) => !Number.isFinite(item.unitPrice) || item.unitPrice <= 0);
+}
+
 export default function Sales() {
   const [tab, setTab] = useState<'pos' | 'history'>('pos');
 
@@ -209,6 +213,11 @@ export default function Sales() {
     const normalizedSaleDate = normalizeSaleDate(saleDateInput);
     if (saleDateInput.trim() && !normalizedSaleDate) {
       Alert.alert('Invalid Date', 'Use YYYY-MM-DD for the sale date.');
+      return;
+    }
+
+    if (hasInvalidSalePrice(cart)) {
+      Alert.alert('Invalid Price', 'Each sale item needs a sale price greater than 0.');
       return;
     }
 
@@ -448,7 +457,7 @@ export default function Sales() {
                         {item.product.name}
                       </Text>
                       <View style={styles.cartPriceRow}>
-                        <Text style={styles.cartPriceLabel}>Price:</Text>
+                        <Text style={styles.cartPriceLabel}>Sale price:</Text>
                         <TextInput
                           style={styles.cartPriceInput}
                           keyboardType="decimal-pad"
@@ -460,6 +469,9 @@ export default function Sales() {
                           = Rs. {(item.unitPrice * item.quantity).toLocaleString()}
                         </Text>
                       </View>
+                      <Text style={styles.cartPriceHint}>
+                        This sale can use a different selling price than the product default.
+                      </Text>
                     </View>
 
                     <View style={styles.cartControls}>
@@ -516,7 +528,7 @@ export default function Sales() {
                   ) : null}
                 </View>
                 <Text style={styles.dateHint}>
-                  Leave blank for today, or enter a previous date to backfill older sales.
+                  Leave blank for today, or enter the real past date to backfill an older sale.
                 </Text>
 
                 <View style={styles.divider} />
@@ -876,6 +888,7 @@ const styles = StyleSheet.create({
     minWidth: 50,
   },
   cartSubtotal: { fontSize: 11, color: Colors.textMuted },
+  cartPriceHint: { fontSize: 11, color: Colors.textMuted, marginTop: 4 },
   cartControls: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   stepBtn: {
     width: 26,
