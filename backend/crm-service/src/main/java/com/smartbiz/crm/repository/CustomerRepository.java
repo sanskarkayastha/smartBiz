@@ -24,14 +24,14 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     List<Customer> findByUserIdAndDueAmountGreaterThan(Long userId, java.math.BigDecimal amount);
 
     @Query("SELECT c FROM Customer c WHERE c.userId = :userId " +
-           "AND (:search IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "AND (:search = '' OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "     OR LOWER(COALESCE(c.phone, '')) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "     OR LOWER(COALESCE(c.email, '')) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:hasDue IS NULL OR :hasDue = false OR c.dueAmount > 0) " +
+           "AND (:hasDue = false OR c.dueAmount > 0) " +
            "ORDER BY c.createdAt DESC")
     Page<Customer> findWithFilters(
         @Param("userId") Long userId,
         @Param("search") String search,
-        @Param("hasDue") Boolean hasDue,
+        @Param("hasDue") boolean hasDue,
         Pageable pageable);
 }

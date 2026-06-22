@@ -34,9 +34,10 @@ public class CrmService {
     public PagedResponse<CustomerDTO> findByUserId(Long userId, int page, int size, String search, Boolean hasDue) {
         int clampedSize = Math.min(size, 100);
         Pageable pageable = PageRequest.of(page, clampedSize, Sort.by("createdAt").descending());
-        String s = (search != null && !search.isBlank()) ? search.trim() : null;
+        String s = (search != null && !search.isBlank()) ? search.trim() : "";
+        boolean dueOnly = Boolean.TRUE.equals(hasDue);
         return PagedResponse.of(
-            customerRepository.findWithFilters(userId, s, hasDue, pageable).map(this::toDTO)
+            customerRepository.findWithFilters(userId, s, dueOnly, pageable).map(this::toDTO)
         );
     }
 
