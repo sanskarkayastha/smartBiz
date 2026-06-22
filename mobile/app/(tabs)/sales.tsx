@@ -324,7 +324,7 @@ export default function Sales() {
   );
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.stickyTop}>
         <View style={styles.header}>
           <Text style={styles.title}>Sales</Text>
@@ -360,11 +360,12 @@ export default function Sales() {
 
       {tab === 'pos' ? (
         <KeyboardAvoidingView
-          style={{ flex: 1 }}
+          style={styles.posLayout}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 92 : 0}
         >
           <ScrollView
+            style={styles.posScroll}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scroll}
             keyboardShouldPersistTaps="handled"
@@ -452,47 +453,68 @@ export default function Sales() {
 
                 {cart.map((item) => (
                   <View key={item.product.id} style={styles.cartRow}>
-                    <View style={styles.cartInfo}>
-                      <Text style={styles.cartName} numberOfLines={1}>
-                        {item.product.name}
-                      </Text>
-                      <View style={styles.cartPriceRow}>
-                        <Text style={styles.cartPriceLabel}>Sale price:</Text>
-                        <TextInput
-                          style={styles.cartPriceInput}
-                          keyboardType="decimal-pad"
-                          value={String(item.unitPrice)}
-                          onChangeText={(value) => updateCartPrice(item.product.id, value)}
-                          selectTextOnFocus
-                        />
-                        <Text style={styles.cartSubtotal}>
-                          = Rs. {(item.unitPrice * item.quantity).toLocaleString()}
+                    <View style={styles.cartHeaderRow}>
+                      <View style={styles.cartInfo}>
+                        <Text style={styles.cartName} numberOfLines={1}>
+                          {item.product.name}
+                        </Text>
+                        <Text style={styles.cartDefaultPrice}>
+                          Default: NPR {item.product.price.toLocaleString()}
                         </Text>
                       </View>
-                      <Text style={styles.cartPriceHint}>
-                        This sale can use a different selling price than the product default.
-                      </Text>
+                      <View style={styles.cartSubtotalWrap}>
+                        <Text style={styles.cartSubtotalLabel}>Line total</Text>
+                        <Text style={styles.cartSubtotalValue}>
+                          NPR {(item.unitPrice * item.quantity).toLocaleString()}
+                        </Text>
+                      </View>
                     </View>
 
-                    <View style={styles.cartControls}>
-                      <Pressable
-                        style={styles.stepBtn}
-                        onPress={() => updateCartQty(item.product.id, -1)}
-                      >
-                        <Ionicons name="remove" size={14} color={Colors.textDark} />
-                      </Pressable>
-                      <Text style={styles.stepCount}>{item.quantity}</Text>
-                      <Pressable
-                        style={[styles.stepBtn, styles.stepBtnActive]}
-                        onPress={() => updateCartQty(item.product.id, 1)}
-                      >
-                        <Ionicons name="add" size={14} color={Colors.textOnPrimary} />
-                      </Pressable>
+                    <View style={styles.cartEditorRow}>
+                      <View style={styles.cartPriceColumn}>
+                        <View style={styles.cartPriceLabelRow}>
+                          <Text style={styles.cartPriceLabel}>Selling price</Text>
+                          <Pressable
+                            style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+                            onPress={() => updateCartPrice(item.product.id, String(item.product.price))}
+                          >
+                            <Text style={styles.resetPriceLink}>Reset</Text>
+                          </Pressable>
+                        </View>
+                        <View style={styles.cartPriceInputWrap}>
+                          <Text style={styles.cartPricePrefix}>NPR</Text>
+                          <TextInput
+                            style={styles.cartPriceInput}
+                            keyboardType="decimal-pad"
+                            value={String(item.unitPrice)}
+                            onChangeText={(value) => updateCartPrice(item.product.id, value)}
+                            selectTextOnFocus
+                            returnKeyType="done"
+                          />
+                        </View>
+                      </View>
+
+                      <View style={styles.cartControls}>
+                        <Pressable
+                          style={styles.stepBtn}
+                          onPress={() => updateCartQty(item.product.id, -1)}
+                        >
+                          <Ionicons name="remove" size={14} color={Colors.textDark} />
+                        </Pressable>
+                        <Text style={styles.stepCount}>{item.quantity}</Text>
+                        <Pressable
+                          style={[styles.stepBtn, styles.stepBtnActive]}
+                          onPress={() => updateCartQty(item.product.id, 1)}
+                        >
+                          <Ionicons name="add" size={14} color={Colors.textOnPrimary} />
+                        </Pressable>
+                      </View>
+
                       <Pressable
                         style={styles.removeBtn}
                         onPress={() => removeFromCart(item.product.id)}
                       >
-                        <Ionicons name="trash-outline" size={14} color={Colors.danger} />
+                        <Ionicons name="trash-outline" size={16} color={Colors.danger} />
                       </Pressable>
                     </View>
                   </View>
@@ -631,6 +653,28 @@ export default function Sales() {
               </View>
             )}
           </ScrollView>
+
+          <View style={styles.footer}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.completeBtn,
+                (cart.length === 0 || submitting) && styles.completeBtnDisabled,
+                pressed && !submitting && cart.length > 0 && { opacity: 0.85 },
+              ]}
+              onPress={handleCompleteSale}
+              disabled={cart.length === 0 || submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color={Colors.textOnPrimary} />
+              ) : (
+                <Text style={styles.completeBtnText}>
+                  {cart.length === 0
+                    ? 'Add items to complete sale'
+                    : `Complete Sale | NPR ${totalAmount.toLocaleString()}`}
+                </Text>
+              )}
+            </Pressable>
+          </View>
         </KeyboardAvoidingView>
       ) : (
         <FlatList
@@ -661,30 +705,6 @@ export default function Sales() {
           renderItem={renderHistoryItem}
         />
       )}
-
-      {tab === 'pos' ? (
-        <View style={styles.footer}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.completeBtn,
-              (cart.length === 0 || submitting) && styles.completeBtnDisabled,
-              pressed && !submitting && cart.length > 0 && { opacity: 0.85 },
-            ]}
-            onPress={handleCompleteSale}
-            disabled={cart.length === 0 || submitting}
-          >
-            {submitting ? (
-              <ActivityIndicator color={Colors.textOnPrimary} />
-            ) : (
-              <Text style={styles.completeBtnText}>
-                {cart.length === 0
-                  ? 'Add items to complete sale'
-                  : `Complete Sale | NPR ${totalAmount.toLocaleString()}`}
-              </Text>
-            )}
-          </Pressable>
-        </View>
-      ) : null}
 
       <ImportSalesModal
         visible={showImportModal}
@@ -798,7 +818,9 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomColor: Colors.primary },
   tabText: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
   tabTextActive: { color: Colors.primary },
-  scroll: { paddingBottom: 100 },
+  posLayout: { flex: 1 },
+  posScroll: { flex: 1 },
+  scroll: { paddingBottom: 18 },
 
   searchSection: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
   searchRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
@@ -866,30 +888,72 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cartRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    gap: 10,
+  },
+  cartInfo: { flex: 1, minWidth: 0, marginRight: 8 },
+  cartHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  cartName: { fontSize: 14, fontWeight: '700', color: Colors.textDark },
+  cartDefaultPrice: { fontSize: 11, color: Colors.textMuted, marginTop: 4 },
+  cartSubtotalWrap: {
+    alignItems: 'flex-end',
+    minWidth: 92,
+  },
+  cartSubtotalLabel: { fontSize: 10, fontWeight: '600', color: Colors.textMuted },
+  cartSubtotalValue: { fontSize: 13, fontWeight: '800', color: Colors.primary, marginTop: 3 },
+  cartEditorRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+  },
+  cartPriceColumn: { flex: 1 },
+  cartPriceLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
+    marginBottom: 6,
   },
-  cartInfo: { flex: 1, minWidth: 0 },
-  cartName: { fontSize: 13, fontWeight: '600', color: Colors.textDark, marginBottom: 4 },
-  cartPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cartPriceLabel: { fontSize: 11, color: Colors.textMuted },
+  cartPriceLabel: { fontSize: 12, fontWeight: '700', color: Colors.textDark },
+  resetPriceLink: { fontSize: 11, fontWeight: '700', color: Colors.primary },
+  cartPriceInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    backgroundColor: Colors.cardMuted,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+    paddingHorizontal: 12,
+    height: 46,
+  },
+  cartPricePrefix: { fontSize: 12, fontWeight: '700', color: Colors.textMuted, marginRight: 8 },
   cartPriceInput: {
-    fontSize: 13,
-    fontWeight: '600',
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '800',
     color: Colors.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.primary,
     paddingVertical: 0,
-    paddingHorizontal: 2,
-    minWidth: 50,
+    paddingHorizontal: 0,
+    minWidth: 70,
   },
-  cartSubtotal: { fontSize: 11, color: Colors.textMuted },
-  cartPriceHint: { fontSize: 11, color: Colors.textMuted, marginTop: 4 },
-  cartControls: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cartControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 46,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.cardMuted,
+  },
   stepBtn: {
     width: 26,
     height: 26,
@@ -909,9 +973,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   removeBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
+    width: 46,
+    height: 46,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.dangerBorder,
     backgroundColor: Colors.dangerLight,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1019,12 +1085,10 @@ const styles = StyleSheet.create({
   emptyCartText: { fontSize: 13, color: Colors.textMuted },
 
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: Colors.background,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    backgroundColor: Colors.card,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },
