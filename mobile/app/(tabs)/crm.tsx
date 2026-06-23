@@ -64,7 +64,7 @@ export default function CrmHub() {
   const openLeads = () => router.push('/(tabs)/leads');
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
@@ -171,7 +171,7 @@ export default function CrmHub() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-  scroll: { padding: 16, paddingBottom: 32 },
+  scroll: { padding: 16, paddingBottom: 10 },
   header: { marginBottom: 18 },
   eyebrow: {
     fontSize: 11,

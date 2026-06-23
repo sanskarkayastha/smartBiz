@@ -362,7 +362,7 @@ export default function Sales() {
         <KeyboardAvoidingView
           style={styles.posLayout}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 92 : 0}
+          keyboardVerticalOffset={0}
         >
           <ScrollView
             style={styles.posScroll}

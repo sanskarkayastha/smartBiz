@@ -425,7 +425,7 @@ export default function AiScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {Platform.OS === 'ios' ? (
-        <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={80}>
+        <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={0}>
           {content}
         </KeyboardAvoidingView>
       ) : (

@@ -238,7 +238,7 @@ export default function Inventory() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Inventory</Text>
         <Pressable><Ionicons name="notifications-outline" size={24} color={Colors.textDark} /></Pressable>
@@ -580,8 +580,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
   title: { fontSize: 22, fontWeight: 'bold', color: Colors.textDark },
-  list: { paddingHorizontal: 16, paddingBottom: 100 },
-  listEmpty: { flex: 1, paddingHorizontal: 16 },
+  list: { paddingHorizontal: 16, paddingBottom: 84 },
+  listEmpty: { flex: 1, paddingHorizontal: 16, paddingBottom: 12 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 8 },
   emptyTitle: { fontSize: 16, fontWeight: '600', color: Colors.textDark },
   emptyText: { fontSize: 13, color: Colors.textMuted, textAlign: 'center' },
