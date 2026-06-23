@@ -58,7 +58,7 @@ export default function MoreHub() {
     .slice(0, 2) ?? 'SB';
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
@@ -75,7 +75,7 @@ export default function MoreHub() {
             <Text style={styles.accountName}>{user?.fullName ?? 'SmartBiz'}</Text>
             <Text style={styles.accountEmail}>{user?.email ?? 'Business account'}</Text>
           </View>
-          <Pressable style={styles.settingsButton} onPress={() => router.push('/(tabs)/settings')}>
+          <Pressable style={styles.settingsButton} onPress={() => router.push('/(tabs)/more/settings')}>
             <Ionicons name="settings-outline" size={18} color={Colors.primary} />
           </Pressable>
         </View>
@@ -85,7 +85,7 @@ export default function MoreHub() {
           <Text style={styles.sectionSubtitle}>The extra places that do not need to stay in the main bottom bar.</Text>
         </View>
 
-        <Pressable style={styles.linkCard} onPress={() => router.push('/(tabs)/suppliers')}>
+        <Pressable style={styles.linkCard} onPress={() => router.push('/(tabs)/more/suppliers')}>
           <View style={styles.linkIcon}>
             <Ionicons name="business-outline" size={22} color={Colors.primary} />
           </View>
@@ -118,7 +118,7 @@ export default function MoreHub() {
           </View>
         </Pressable>
 
-        <Pressable style={styles.linkCard} onPress={() => router.push('/(tabs)/ai')}>
+        <Pressable style={styles.linkCard} onPress={() => router.push('/(tabs)/more/ai')}>
           <View style={[styles.linkIcon, styles.linkIconSoft]}>
             <Ionicons name="sparkles-outline" size={22} color={Colors.primary} />
           </View>
@@ -133,7 +133,7 @@ export default function MoreHub() {
           </View>
         </Pressable>
 
-        <Pressable style={styles.linkCard} onPress={() => router.push('/(tabs)/settings')}>
+        <Pressable style={styles.linkCard} onPress={() => router.push('/(tabs)/more/settings')}>
           <View style={[styles.linkIcon, styles.linkIconNeutral]}>
             <Ionicons name="person-circle-outline" size={22} color={Colors.primary} />
           </View>

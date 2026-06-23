@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Colors } from '@/components/ui/colors';
+import ParentTabBackLink from '@/components/ui/ParentTabBackLink';
 import SearchBar from '@/components/ui/SearchBar';
 import { customersService, Customer, CreateCustomerPayload, CustomerFilters } from '@/services/customers';
 import { salesService, Sale } from '@/services/sales';
@@ -73,7 +74,6 @@ export default function Customers() {
       setLoading(false);
       setRefreshing(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadMore = async () => {
@@ -218,7 +218,8 @@ export default function Customers() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      <ParentTabBackLink />
       <View style={styles.header}>
         <Text style={styles.title}>Customers</Text>
         <Pressable style={styles.addBtn} onPress={openAdd}>

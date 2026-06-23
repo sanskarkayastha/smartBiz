@@ -180,12 +180,12 @@ export default function Home() {
     {
       icon: 'people-outline' as const,
       label: 'Customers',
-      onPress: () => router.push('/(tabs)/customers'),
+      onPress: () => router.push('/(tabs)/crm/customers'),
     },
     {
       icon: 'git-branch-outline' as const,
       label: 'Leads',
-      onPress: () => router.push('/(tabs)/leads'),
+      onPress: () => router.push('/(tabs)/crm/leads'),
     },
   ];
 
@@ -383,7 +383,7 @@ export default function Home() {
               stackAiCard && styles.aiButtonStacked,
               insightLoading && { opacity: 0.7 },
             ]}
-            onPress={aiInsight ? () => router.push('/(tabs)/ai') : fetchInsight}
+            onPress={aiInsight ? () => router.push('/(tabs)/more/ai') : fetchInsight}
             disabled={insightLoading}
           >
             {insightLoading ? (

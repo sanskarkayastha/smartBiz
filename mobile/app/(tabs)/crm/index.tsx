@@ -60,8 +60,8 @@ export default function CrmHub() {
     }, [load]),
   );
 
-  const openCustomers = () => router.push('/(tabs)/customers');
-  const openLeads = () => router.push('/(tabs)/leads');
+  const openCustomers = () => router.push('/(tabs)/crm/customers');
+  const openLeads = () => router.push('/(tabs)/crm/leads');
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>

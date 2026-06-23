@@ -20,6 +20,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as XLSX from 'xlsx';
 import { Colors } from '@/components/ui/colors';
+import ParentTabBackLink from '@/components/ui/ParentTabBackLink';
 import VoiceButton from '@/components/ui/VoiceButton';
 import InvoiceScanModal from '@/components/ui/InvoiceScanModal';
 import ImportSalesModal from '@/components/ui/ImportSalesModal';
@@ -249,6 +250,7 @@ export default function AiScreen() {
 
   const content = (
     <>
+      <ParentTabBackLink />
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons name="sparkles" size={20} color={Colors.primary} />
@@ -423,7 +425,7 @@ export default function AiScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       {Platform.OS === 'ios' ? (
         <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={0}>
           {content}

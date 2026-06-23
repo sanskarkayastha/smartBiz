@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { Colors } from '@/components/ui/colors';
+import ParentTabBackLink from '@/components/ui/ParentTabBackLink';
 import SearchBar from '@/components/ui/SearchBar';
 import {
   supplierService, Supplier, SupplierProduct, SupplierFilters, SupplierSummary,
@@ -289,7 +290,8 @@ export default function Suppliers() {
         : 'All linked supplier products are stocked and no urgent supplier balances are open.';
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      <ParentTabBackLink />
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Suppliers</Text>

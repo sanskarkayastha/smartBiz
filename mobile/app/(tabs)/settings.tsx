@@ -9,7 +9,6 @@
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { Colors } from '@/components/ui/colors';
+import ParentTabBackLink from '@/components/ui/ParentTabBackLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/auth';
 import { inventoryService, type Category } from '@/services/inventory';
@@ -144,7 +144,8 @@ export default function Settings() {
   ];
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      <ParentTabBackLink />
       <Text style={styles.title}>Settings</Text>
 
       <View style={styles.profileCard}>

@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Colors } from '@/components/ui/colors';
+import ParentTabBackLink from '@/components/ui/ParentTabBackLink';
 import VoiceButton from '@/components/ui/VoiceButton';
 import { leadsService, Lead, LeadStage, LeadSource, LeadFilters, CreateLeadPayload } from '@/services/leads';
 import { parseVoiceForLead } from '@/services/ai';
@@ -43,7 +44,7 @@ const SOURCE_LABELS: Record<LeadSource, string> = {
   OTHER:        'Other',
 };
 
-const STAGE_TABS: Array<LeadStage | 'ALL'> = ['ALL', 'NEW', 'CONTACTED', 'INTERESTED', 'PROPOSAL', 'WON', 'LOST'];
+const STAGE_TABS: (LeadStage | 'ALL')[] = ['ALL', 'NEW', 'CONTACTED', 'INTERESTED', 'PROPOSAL', 'WON', 'LOST'];
 
 // ─── Form state type ──────────────────────────────────────────────────────────
 
@@ -127,7 +128,6 @@ export default function Leads() {
       setLoading(false);
       setRefreshing(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadMore = async () => {
@@ -333,7 +333,8 @@ export default function Leads() {
 
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      <ParentTabBackLink />
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Leads</Text>
