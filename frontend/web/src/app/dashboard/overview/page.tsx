@@ -5,6 +5,15 @@ type SaleSummary = { totalRevenue: number; orderCount: number; avgOrderValue: nu
 type Product = { id: number; name: string; category: string | null; quantity: number; reorderLevel: number | null }
 type DailyRevenue = { date: string; revenue: number }
 type Customer = { id: number; name: string; phone: string | null; dueAmount: number }
+type SupplierSummary = {
+  totalSuppliers: number
+  suppliersWithBalance: number
+  totalBalanceOwed: number
+  linkedProducts: number
+  suppliersNeedingRestock: number
+  lowStockProducts: number
+  outOfStockProducts: number
+}
 type SaleItem = { productName: string; quantity: number; unitPrice: number }
 type Sale = {
   id: number
@@ -64,12 +73,13 @@ function MetricChip({ label, value }: { label: string; value: string }) {
 export default async function OverviewPage() {
   const session = await requireSession()
 
-  const [summary, lowStock, weekly, dueCustomers, sales] = await Promise.all([
+  const [summary, lowStock, weekly, dueCustomers, sales, supplierSummary] = await Promise.all([
     apiFetch<SaleSummary>('/sales/analytics/today', session),
     apiFetch<Product[]>('/inventory/products/low-stock', session),
     apiFetch<DailyRevenue[]>('/sales/analytics/weekly', session),
     apiFetch<Customer[]>('/customers/with-due', session).catch(() => null),
     apiFetch<Sale[]>('/sales', session).catch(() => null),
+    apiFetch<SupplierSummary>('/inventory/suppliers/summary', session).catch(() => null),
   ])
 
   const weeklyData = weekly ?? []
@@ -79,14 +89,18 @@ export default async function OverviewPage() {
   const maxRevenue = Math.max(...weeklyData.map((day) => day.revenue), 1)
   const weeklyTotal = weeklyData.reduce((sum, day) => sum + day.revenue, 0)
   const dueTotal = dueItems.reduce((sum, customer) => sum + Number(customer.dueAmount), 0)
+  const supplierBalance = Number(supplierSummary?.totalBalanceOwed ?? 0)
+  const stockAttention = supplierSummary
+    ? supplierSummary.lowStockProducts + supplierSummary.outOfStockProducts
+    : lowStockItems.length
   const bestDay = weeklyData.reduce<DailyRevenue | null>((best, day) => {
     if (!best || day.revenue > best.revenue) return day
     return best
   }, null)
-  const pressureTotal = Math.max(weeklyTotal + dueTotal + lowStockItems.length * 3000, 1)
-  const revenueShare = clamp((weeklyTotal / pressureTotal) * 100, 18, 70)
-  const dueShare = clamp((dueTotal / pressureTotal) * 100, dueTotal > 0 ? 12 : 0, 32)
-  const stockShare = Math.max(100 - revenueShare - dueShare, 8)
+  const pressureTotal = Math.max(dueTotal + supplierBalance + stockAttention * 3000, 1)
+  const customerDueShare = clamp((dueTotal / pressureTotal) * 100, dueTotal > 0 ? 10 : 0, 45)
+  const supplierDueShare = clamp((supplierBalance / pressureTotal) * 100, supplierBalance > 0 ? 10 : 0, 45)
+  const stockShare = Math.max(100 - customerDueShare - supplierDueShare, 10)
   const points = chartPoints(weeklyData, maxRevenue)
   const areaPoints = points ? `0,96 ${points} 100,96` : ''
 
@@ -99,6 +113,16 @@ export default async function OverviewPage() {
       amount: `${product.quantity} left`,
       tone: 'bg-brand-soft text-brand',
     })),
+    ...(supplierBalance > 0
+      ? [{
+          id: 'supplier-balance',
+          icon: 'P',
+          title: 'Supplier payments',
+          subtitle: `${supplierSummary?.suppliersWithBalance ?? 0} suppliers still have unpaid balances`,
+          amount: formatCurrency(supplierBalance),
+          tone: 'bg-amber/20 text-ink',
+        }]
+      : []),
     ...dueItems.slice(0, 3).map((customer) => ({
       id: `due-${customer.id}`,
       icon: 'D',
@@ -110,31 +134,31 @@ export default async function OverviewPage() {
   ].slice(0, 5)
 
   return (
-    <div className="space-y-5">
-      <section className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
-        <article className="rounded-[24px] border border-paper-3 bg-white p-6 shadow-[0_12px_30px_rgba(30,30,30,0.035)]">
+    <div className="space-y-4">
+      <section className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
+        <article className="rounded-[22px] border border-paper-3 bg-white p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-base font-semibold text-ink">Earning Overview</p>
+                <p className="text-base font-semibold text-ink">Weekly Sales</p>
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-paper-3 text-[11px] font-semibold text-ink-3">i</span>
               </div>
-              <h2 className="mt-4 text-[2.35rem] font-bold leading-none text-ink sm:text-[2.8rem]">
-                {formatCurrency(summary?.totalRevenue ?? 0)}
+              <h2 className="mt-3 text-[2rem] font-bold leading-none text-ink sm:text-[2.35rem]">
+                {formatCurrency(weeklyTotal)}
               </h2>
             </div>
             <div className="flex items-center gap-3">
               <span className="rounded-full bg-mint/16 px-3 py-1.5 text-xs font-semibold text-ink">
-                {summary?.orderCount ? `${summary.orderCount} orders` : 'No sales yet'}
+                {summary?.orderCount ? `${summary.orderCount} orders today` : 'No sales today'}
               </span>
               <span className="rounded-[12px] border border-paper-3 bg-white px-4 py-2 text-sm font-semibold text-ink">
-                This Week
+                Live Week
               </span>
             </div>
           </div>
 
-          <div className="mt-6">
-            <div className="relative h-56 overflow-hidden rounded-[20px] bg-white">
+          <div className="mt-5">
+            <div className="relative h-44 overflow-hidden rounded-[18px] bg-white">
               <div className="absolute inset-x-0 top-6 border-t border-dashed border-paper-3" />
               <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-paper-3" />
               <div className="absolute inset-x-0 bottom-10 border-t border-dashed border-paper-3" />
@@ -151,7 +175,7 @@ export default async function OverviewPage() {
                 </svg>
               ) : null}
               {bestDay ? (
-                <div className="absolute right-4 top-4 rounded-[14px] border border-paper-3 bg-white px-4 py-2 text-sm shadow-[0_8px_18px_rgba(30,30,30,0.06)]">
+                <div className="absolute right-4 top-4 rounded-[14px] border border-paper-3 bg-white px-4 py-2 text-sm">
                   <span className="text-ink-2">{shortDate(bestDay.date)}: </span>
                   <span className="font-bold text-ink">{formatCompactCurrency(bestDay.revenue)}</span>
                 </div>
@@ -167,15 +191,15 @@ export default async function OverviewPage() {
           </div>
         </article>
 
-        <article className="rounded-[24px] border border-paper-3 bg-white p-6 shadow-[0_12px_30px_rgba(30,30,30,0.035)]">
+        <article className="rounded-[22px] border border-paper-3 bg-white p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-base font-semibold text-ink">Business Overview</p>
+                <p className="text-base font-semibold text-ink">Inventory & Dues</p>
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-paper-3 text-[11px] font-semibold text-ink-3">i</span>
               </div>
-              <h2 className="mt-4 text-[2.35rem] font-bold leading-none text-ink sm:text-[2.8rem]">
-                {formatCurrency(dueTotal)}
+              <h2 className="mt-3 text-[2rem] font-bold leading-none text-ink sm:text-[2.35rem]">
+                {stockAttention} {stockAttention === 1 ? 'item' : 'items'}
               </h2>
             </div>
             <span className="rounded-[12px] border border-paper-3 bg-white px-4 py-2 text-sm font-semibold text-ink">
@@ -183,62 +207,62 @@ export default async function OverviewPage() {
             </span>
           </div>
 
-          <div className="mt-8">
-            <p className="text-sm font-semibold text-ink">Workload Breakdown</p>
-            <div className="mt-5 grid gap-4 sm:grid-cols-3">
+          <div className="mt-6">
+            <p className="text-sm font-semibold text-ink">Business Pressure</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <div className="flex items-start gap-2">
                 <span className="mt-1 h-3 w-3 rounded-full bg-brand" />
-                <div>
-                  <p className="text-sm font-semibold text-ink">Revenue</p>
-                  <p className="mt-1 text-sm text-ink-2">{formatCurrency(weeklyTotal)}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="mt-1 h-3 w-3 rounded-full bg-amber" />
                 <div>
                   <p className="text-sm font-semibold text-ink">Customer Due</p>
                   <p className="mt-1 text-sm text-ink-2">{formatCurrency(dueTotal)}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
+                <span className="mt-1 h-3 w-3 rounded-full bg-amber" />
+                <div>
+                  <p className="text-sm font-semibold text-ink">Supplier Balance</p>
+                  <p className="mt-1 text-sm text-ink-2">{formatCurrency(supplierBalance)}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
                 <span className="mt-1 h-3 w-3 rounded-full bg-paper-3" />
                 <div>
-                  <p className="text-sm font-semibold text-ink">Low Stock</p>
-                  <p className="mt-1 text-sm text-ink-2">{lowStockItems.length} items</p>
+                  <p className="text-sm font-semibold text-ink">Stock Attention</p>
+                  <p className="mt-1 text-sm text-ink-2">{stockAttention} items</p>
                 </div>
               </div>
             </div>
-            <div className="mt-5 flex h-12 overflow-hidden rounded-[4px] bg-paper">
-              <div className="h-full bg-brand" style={{ width: `${revenueShare}%` }} />
-              <div className="h-full bg-amber" style={{ width: `${dueShare}%` }} />
+            <div className="mt-4 flex h-10 overflow-hidden rounded-[4px] bg-paper">
+              <div className="h-full bg-brand" style={{ width: `${customerDueShare}%` }} />
+              <div className="h-full bg-amber" style={{ width: `${supplierDueShare}%` }} />
               <div className="h-full bg-paper-3" style={{ width: `${stockShare}%` }} />
             </div>
           </div>
         </article>
       </section>
 
-      <section className="grid gap-5 2xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.7fr)]">
-        <div className="space-y-5">
-          <article className="rounded-[24px] border border-paper-3 bg-white p-6 shadow-[0_12px_30px_rgba(30,30,30,0.035)]">
+      <section className="grid gap-4 2xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.7fr)]">
+        <div className="space-y-4">
+          <article className="rounded-[22px] border border-paper-3 bg-white p-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="text-base font-semibold text-ink">Cash Flow</p>
+                  <p className="text-base font-semibold text-ink">Revenue by Day</p>
                   <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-paper-3 text-[11px] font-semibold text-ink-3">i</span>
                 </div>
-                <h3 className="mt-4 text-[2.25rem] font-bold leading-none text-ink">
+                <h3 className="mt-3 text-[1.9rem] font-bold leading-none text-ink">
                   {formatCurrency(weeklyTotal)}
                 </h3>
               </div>
               <div className="flex items-center gap-1 rounded-full bg-paper p-1">
-                <span className="rounded-full bg-night px-4 py-2 text-xs font-semibold text-snow">Income</span>
-                <span className="px-4 py-2 text-xs font-semibold text-ink-2">Due</span>
+                <span className="rounded-full bg-night px-4 py-2 text-xs font-semibold text-snow">Revenue</span>
+                <span className="px-4 py-2 text-xs font-semibold text-ink-2">Orders</span>
                 <span className="px-4 py-2 text-xs font-semibold text-ink-2">Stock</span>
               </div>
             </div>
 
-            <div className="mt-6">
-              <div className="relative flex h-64 items-end gap-3 overflow-hidden">
+            <div className="mt-5">
+              <div className="relative flex h-52 items-end gap-3 overflow-hidden">
                 <div className="absolute inset-x-0 top-8 border-t border-dashed border-paper-3" />
                 <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-paper-3" />
                 <div className="absolute inset-x-0 bottom-12 border-t border-dashed border-paper-3" />
@@ -248,11 +272,11 @@ export default async function OverviewPage() {
 
                   return (
                     <div key={`${day.date}-${index}`} className="relative z-10 flex flex-1 flex-col items-center gap-3">
-                      <div className="flex h-52 w-full items-end justify-center">
+                      <div className="flex h-40 w-full items-end justify-center">
                         <div
                           className={`w-full max-w-[52px] rounded-t-[16px] ${
                             active
-                              ? 'bg-[linear-gradient(180deg,var(--color-brand),oklch(0.86_0.15_76))] shadow-[0_12px_20px_rgba(249,115,22,0.18)]'
+                              ? 'bg-[linear-gradient(180deg,var(--color-brand),oklch(0.86_0.15_76))]'
                               : 'bg-[linear-gradient(180deg,oklch(0.92_0.006_80),oklch(0.86_0.008_80))]'
                           }`}
                           style={{ height: `${height}%` }}
@@ -267,16 +291,16 @@ export default async function OverviewPage() {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <MetricChip label="Weekly total" value={formatCurrency(weeklyTotal)} />
-              <MetricChip label="Avg ticket" value={formatCurrency(summary?.avgOrderValue ?? 0)} />
-              <MetricChip label="Best day" value={bestDay ? shortDate(bestDay.date) : 'No data'} />
+              <MetricChip label="Avg sale" value={formatCurrency(summary?.avgOrderValue ?? 0)} />
+              <MetricChip label="Products linked" value={String(supplierSummary?.linkedProducts ?? lowStockItems.length)} />
             </div>
           </article>
 
-          <article className="overflow-hidden rounded-[24px] border border-paper-3 bg-white shadow-[0_12px_30px_rgba(30,30,30,0.035)]">
-            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-5">
-              <h3 className="text-base font-semibold text-ink">Recent Transaction</h3>
+          <article className="overflow-hidden rounded-[22px] border border-paper-3 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+              <h3 className="text-base font-semibold text-ink">Recent Sales</h3>
               <button type="button" className="inline-flex items-center gap-2 rounded-[12px] bg-paper px-4 py-2 text-sm font-semibold text-ink">
                 Filter
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -284,7 +308,7 @@ export default async function OverviewPage() {
                 </svg>
               </button>
             </div>
-            <div className="overflow-x-auto px-6 pb-5">
+            <div className="overflow-x-auto px-5 pb-4">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="rounded-[12px] bg-paper text-left text-xs font-semibold text-ink-3">
@@ -331,8 +355,8 @@ export default async function OverviewPage() {
           </article>
         </div>
 
-        <aside className="space-y-5">
-          <article className="rounded-[24px] border border-paper-3 bg-white p-5 shadow-[0_12px_30px_rgba(30,30,30,0.035)]">
+        <aside className="space-y-4">
+          <article className="rounded-[22px] border border-paper-3 bg-white p-5">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-base font-semibold text-ink">Upcoming Work</h3>
               <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-[12px] border border-paper-3 bg-white text-xl leading-none text-ink">
@@ -340,9 +364,9 @@ export default async function OverviewPage() {
               </button>
             </div>
 
-            <div className="mt-5 space-y-3">
+            <div className="mt-4 space-y-3">
               {upcomingActions.length ? upcomingActions.map((item) => (
-                <div key={item.id} className="rounded-[16px] border border-paper-3 bg-white px-4 py-3.5 shadow-[0_5px_14px_rgba(30,30,30,0.03)]">
+                <div key={item.id} className="rounded-[16px] border border-paper-3 bg-white px-4 py-3.5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className={`flex h-11 w-11 items-center justify-center rounded-[14px] text-sm font-bold ${item.tone}`}>

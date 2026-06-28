@@ -37,9 +37,9 @@ export default function AiInsightCard() {
   }
 
   return (
-    <section className="rounded-[24px] border border-paper-3 bg-white p-5 shadow-[0_12px_30px_rgba(30,30,30,0.035)]">
+    <section className="rounded-[24px] border border-paper-3 bg-white p-5">
       <div className="flex flex-wrap items-start gap-4">
-        <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,var(--color-brand),oklch(0.77_0.18_63))] text-white shadow-[0_8px_18px_rgba(249,115,22,0.18)]">
+        <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,var(--color-brand),oklch(0.77_0.18_63))] text-white">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 0 0 .95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 0 0-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 0 0-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 0 0-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 0 0 .951-.69l1.07-3.292z" />
           </svg>

@@ -48,7 +48,7 @@ body {
   min-height: 100vh;
   background: transparent;
   color: oklch(0.24 0.014 258);
-  font-family: var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--font-inter, ui-sans-serif, system-ui, sans-serif);
 }
 
 * {

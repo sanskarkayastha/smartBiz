@@ -123,11 +123,11 @@ export default function Sidebar({ fullName, email }: Props) {
     .slice(0, 2)
 
   return (
-    <aside className="relative mb-0 flex flex-col overflow-hidden bg-white xl:w-[286px]">
-      <div className="flex h-full flex-col">
-        <div className="border-b border-paper-3 px-4 py-4">
+    <aside className="relative mb-0 self-start overflow-hidden bg-white xl:w-[286px]">
+      <div>
+        <div className="px-4 pb-4 pt-5">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[linear-gradient(135deg,var(--color-brand),oklch(0.77_0.18_63))] text-white shadow-[0_10px_20px_rgba(249,115,22,0.22)]">
+            <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[linear-gradient(135deg,var(--color-brand),oklch(0.77_0.18_63))] text-white">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M13 2 5 13h6l-1 9 9-12h-6l1-8Z" fill="currentColor" />
               </svg>
@@ -138,7 +138,7 @@ export default function Sidebar({ fullName, email }: Props) {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-3 rounded-[13px] border border-paper-3 bg-white px-3 py-2.5 shadow-[0_3px_12px_rgba(30,30,30,0.035)]">
+          <div className="mt-4 flex items-center gap-3 rounded-[13px] border border-paper-3 bg-white px-3 py-2.5">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-ink-3">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.3-4.3" />
@@ -148,7 +148,7 @@ export default function Sidebar({ fullName, email }: Props) {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3.5 py-4">
+        <nav className="px-3.5 py-4">
           <div className="space-y-5">
             {NAV_GROUPS.map((group) => (
               <section key={group.label}>
@@ -164,7 +164,7 @@ export default function Sidebar({ fullName, email }: Props) {
                         href={href}
                         className={`group flex items-center gap-3 rounded-[13px] px-3 py-2.5 text-sm font-medium transition duration-200 ${
                           active
-                            ? 'bg-night text-snow shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_9px_18px_rgba(25,25,25,0.12)]'
+                            ? 'bg-night text-snow'
                             : 'text-ink-2 hover:bg-paper hover:text-ink'
                         }`}
                       >
@@ -196,8 +196,8 @@ export default function Sidebar({ fullName, email }: Props) {
           </div>
         </nav>
 
-        <div className="border-t border-paper-3 px-4 py-4">
-          <div className="rounded-[16px] border border-paper-3 bg-white p-4 shadow-[0_6px_18px_rgba(30,30,30,0.04)]">
+        <div className="px-4 py-4">
+          <div className="rounded-[16px] border border-paper-3 bg-white p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-night text-sm font-bold text-snow">
                 {initials}
@@ -214,7 +214,7 @@ export default function Sidebar({ fullName, email }: Props) {
               </p>
               <button
                 type="button"
-                className="mt-3 inline-flex w-full items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,var(--color-brand),oklch(0.77_0.18_63))] px-3 py-2.5 text-xs font-bold text-white shadow-[0_8px_16px_rgba(249,115,22,0.18)]"
+                className="mt-3 inline-flex w-full items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,var(--color-brand),oklch(0.77_0.18_63))] px-3 py-2.5 text-xs font-bold text-white"
               >
                 Upgrade Plan
               </button>
@@ -223,7 +223,7 @@ export default function Sidebar({ fullName, email }: Props) {
 
           <button
             onClick={handleLogout}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[13px] border border-paper-3 bg-white px-4 py-2.5 text-sm font-semibold text-rose transition duration-200 hover:border-rose/30 hover:bg-rose/10"
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[13px] border border-paper-3 bg-white px-4 py-2.5 text-sm font-semibold text-rose transition duration-200 hover:bg-rose/10"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

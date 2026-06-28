@@ -10,13 +10,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }).format(new Date())
 
   return (
-    <div className="min-h-screen bg-paper-2 px-3 py-4 sm:px-5 lg:px-8 lg:py-8">
-      <div className="relative mx-auto max-w-[1560px] overflow-hidden rounded-[28px] border border-white bg-paper shadow-[0_24px_70px_rgba(30,30,30,0.08)]">
-        <div className="grid min-h-[calc(100vh-4rem)] xl:grid-cols-[286px_minmax(0,1fr)]">
+    <div className="min-h-screen bg-paper-2 p-2 sm:p-3 lg:p-4">
+      <div className="relative min-h-[calc(100vh-1rem)] overflow-hidden rounded-[24px] bg-paper sm:min-h-[calc(100vh-1.5rem)] lg:min-h-[calc(100vh-2rem)]">
+        <div className="grid min-h-[calc(100vh-1rem)] sm:min-h-[calc(100vh-1.5rem)] lg:min-h-[calc(100vh-2rem)] xl:grid-cols-[286px_minmax(0,1fr)]">
           <Sidebar fullName={session.fullName} email={session.email} />
-          <main className="min-w-0 border-t border-paper-3 bg-paper-2 xl:border-l xl:border-t-0">
+          <main className="min-w-0 bg-paper-2">
             <div className="space-y-5">
-              <header className="border-b border-paper-3 bg-white px-4 py-4 sm:px-6">
+              <header className="bg-white/96 px-4 py-4 sm:px-6">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                   <div className="min-w-0">
                     <h1 className="text-2xl font-bold text-ink sm:text-[1.7rem]">
@@ -53,7 +53,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                         <button
                           key={index}
                           type="button"
-                          className="inline-flex h-11 w-11 items-center justify-center rounded-[14px] border border-paper-3 bg-white text-ink transition duration-200 hover:border-brand/40 hover:bg-brand-soft hover:text-brand"
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-[14px] border border-paper-3 bg-white text-ink transition duration-200 hover:bg-brand-soft hover:text-brand"
                         >
                           {icon}
                         </button>
