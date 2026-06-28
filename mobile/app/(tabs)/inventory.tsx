@@ -307,31 +307,52 @@ export default function Inventory() {
             renderItem={({ item, index }) => {
               const status = getStatus(item);
               const bgColor = PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.length];
+              const reorderText = item.reorderLevel != null ? `Reorder at ${item.reorderLevel}` : 'No reorder target';
+              const secondaryMeta = item.supplier
+                ? `Supplier: ${item.supplier}`
+                : item.barcode
+                  ? `Code: ${item.barcode}`
+                  : 'No supplier or barcode linked';
               return (
                 <View style={styles.cardWrapper}>
                   <Pressable style={({ pressed }) => [styles.card, pressed && { opacity: 0.82 }]} onPress={() => openEditModal(item)}>
+                    <View style={styles.cardAccent} />
                     <View style={[styles.productImage, { backgroundColor: bgColor }]}>
-                      <Ionicons name="cube-outline" size={24} color={Colors.textMuted} />
+                      <Ionicons name="cube-outline" size={26} color={Colors.textDark} />
                     </View>
                     <View style={styles.productInfo}>
                       <View style={styles.productTopRow}>
-                        <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
-                        <StatusBadge status={status} />
+                        <View style={styles.productTitleBlock}>
+                          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+                          <Text style={styles.productSku} numberOfLines={1}>{skuLine(item) || 'Uncategorized product'}</Text>
+                        </View>
+                        <Pressable
+                          style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.72 }]}
+                          onPress={() => handleDeleteProduct(item)}
+                        >
+                          <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                        </Pressable>
                       </View>
-                      <Text style={styles.productSku} numberOfLines={1}>{skuLine(item)}</Text>
+
                       <View style={styles.productBottomRow}>
-                        <View>
+                        <View style={styles.priceBlock}>
                           <Text style={styles.productPrice}>Rs. {item.price.toLocaleString()}</Text>
-                          {item.costPrice != null && (
+                          {item.costPrice != null ? (
                             <Text style={styles.productCostPrice}>Cost: Rs. {item.costPrice.toLocaleString()}</Text>
+                          ) : (
+                            <Text style={styles.productCostPrice}>Cost not set</Text>
                           )}
                         </View>
-                        <Text style={styles.productQty}>{item.quantity} units</Text>
+                        <View style={styles.productMetaSide}>
+                          <StatusBadge status={status} />
+                          <Text style={styles.productQty}>{item.quantity} units</Text>
+                        </View>
                       </View>
+
+                      <Text style={styles.productMetaLine} numberOfLines={1}>
+                        {item.reorderLevel != null ? `${reorderText}  |  ${secondaryMeta}` : secondaryMeta}
+                      </Text>
                     </View>
-                  </Pressable>
-                  <Pressable style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.72 }]} onPress={() => handleDeleteProduct(item)}>
-                    <Ionicons name="trash-outline" size={18} color={Colors.danger} />
                   </Pressable>
                 </View>
               );
@@ -585,18 +606,51 @@ const styles = StyleSheet.create({
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 8 },
   emptyTitle: { fontSize: 16, fontWeight: '600', color: Colors.textDark },
   emptyText: { fontSize: 13, color: Colors.textMuted, textAlign: 'center' },
-  cardWrapper: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
-  card: { flex: 1, flexDirection: 'row', backgroundColor: Colors.card, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: Colors.border, gap: 12, alignItems: 'center' },
-  deleteBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: Colors.dangerLight, justifyContent: 'center', alignItems: 'center' },
-  productImage: { width: 64, height: 64, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  cardWrapper: { marginBottom: 10 },
+  card: {
+    flexDirection: 'row',
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 12,
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  cardAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: Colors.primary,
+  },
+  deleteBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: Colors.dangerLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.dangerBorder,
+  },
+  productImage: { width: 60, height: 60, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   productInfo: { flex: 1, minWidth: 0 },
-  productTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, gap: 8 },
-  productName: { fontSize: 14, fontWeight: '700', color: Colors.textDark, flex: 1 },
-  productSku: { fontSize: 11, color: Colors.textMuted, marginBottom: 6 },
-  productBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  productPrice: { fontSize: 15, fontWeight: '700', color: Colors.primary },
-  productCostPrice: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
-  productQty: { fontSize: 12, color: Colors.textMuted },
+  productTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
+  productTitleBlock: { flex: 1, minWidth: 0 },
+  productName: { fontSize: 14, fontWeight: '700', color: Colors.textDark, lineHeight: 19 },
+  productSku: { fontSize: 11, color: Colors.textMuted, marginTop: 3 },
+  productBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 8, gap: 10 },
+  priceBlock: {
+    flex: 1,
+  },
+  productPrice: { fontSize: 18, fontWeight: '800', color: Colors.primary, lineHeight: 22 },
+  productCostPrice: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  productMetaSide: { alignItems: 'flex-end', gap: 6 },
+  productQty: { fontSize: 11, color: Colors.textMuted, fontWeight: '600' },
+  productMetaLine: { fontSize: 11, color: Colors.textMuted, marginTop: 8 },
   fabStack: { position: 'absolute', bottom: 28, right: 20, alignItems: 'center', gap: 10 },
   fab: { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
   fabSecondary: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', opacity: 0.85, elevation: 4 },
