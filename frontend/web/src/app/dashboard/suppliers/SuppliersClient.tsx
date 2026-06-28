@@ -350,6 +350,14 @@ export default function SuppliersClient({
 
                     <td className="px-5 py-4 text-right">
                       <div className="flex flex-wrap items-center justify-end gap-2">
+                        {owes && (
+                          <EditSupplierModal
+                            supplier={supplier}
+                            initialAction="payment"
+                            triggerLabel="Payment"
+                            triggerTone="payment"
+                          />
+                        )}
                         <ViewSupplierProductsModal supplierId={supplier.id} supplierName={supplier.name} />
                         <EditSupplierModal supplier={supplier} />
                       </div>

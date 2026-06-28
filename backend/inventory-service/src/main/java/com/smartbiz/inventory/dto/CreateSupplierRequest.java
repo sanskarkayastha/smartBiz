@@ -8,5 +8,6 @@ public record CreateSupplierRequest(
     String phone,
     String email,
     BigDecimal balanceOwed,
+    BigDecimal openingBalance,
     String notes
 ) {}

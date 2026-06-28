@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { Colors } from '@/components/ui/colors';
+import ModalCloseButton from '@/components/ui/ModalCloseButton';
 import ParentTabBackLink from '@/components/ui/ParentTabBackLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/auth';
@@ -196,9 +197,7 @@ export default function Settings() {
           <View style={[styles.modalSheet, { maxHeight: '75%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Manage Categories</Text>
-              <Pressable onPress={() => setShowManageCategories(false)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setShowManageCategories(false)} />
             </View>
 
             <FlatList
@@ -249,9 +248,7 @@ export default function Settings() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Profile</Text>
-              <Pressable onPress={() => setShowEditProfile(false)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setShowEditProfile(false)} />
             </View>
 
             <Text style={styles.label}>Full Name *</Text>

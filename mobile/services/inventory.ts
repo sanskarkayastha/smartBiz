@@ -1,6 +1,7 @@
 import { api } from './api';
 
 export type Category = { id: number; name: string };
+export type PaymentStatus = 'PAID' | 'DUE' | 'PARTIAL';
 
 export type Product = {
   id: number;
@@ -34,6 +35,17 @@ export type CreateProductPayload = {
   reorderLevel?: number;
   supplier?: string;
   barcode?: string;
+  paymentStatus?: PaymentStatus;
+  amountPaidNow?: number;
+};
+
+export type RestockProductPayload = {
+  quantityAdded: number;
+  unitCost: number;
+  supplier?: string;
+  paymentStatus: PaymentStatus;
+  amountPaidNow?: number;
+  note?: string;
 };
 
 export type ProductFilters = {
@@ -59,6 +71,11 @@ export const inventoryService = {
 
   async createProduct(payload: CreateProductPayload): Promise<Product> {
     const { data } = await api.post<Product>('/inventory/products', payload);
+    return data;
+  },
+
+  async restockProduct(id: number, payload: RestockProductPayload): Promise<Product> {
+    const { data } = await api.post<Product>(`/inventory/products/${id}/restock`, payload);
     return data;
   },
 

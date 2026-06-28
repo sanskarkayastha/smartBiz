@@ -2,7 +2,9 @@ package com.smartbiz.inventory.service;
 
 import com.smartbiz.inventory.dto.CreateProductRequest;
 import com.smartbiz.inventory.dto.PagedResponse;
+import com.smartbiz.inventory.dto.PaymentStatus;
 import com.smartbiz.inventory.dto.ProductDTO;
+import com.smartbiz.inventory.dto.RestockProductRequest;
 import com.smartbiz.inventory.dto.StockUpdateRequest;
 import com.smartbiz.inventory.exception.InsufficientStockException;
 import com.smartbiz.inventory.exception.ProductNotFoundException;
@@ -24,9 +26,14 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ProductServiceTest {
@@ -42,21 +49,22 @@ class ProductServiceTest {
     @BeforeEach
     void setUp() {
         product = Product.builder()
-                .userId(10L)
-                .name("Test Product")
-                .sku("TEST-001")
-                .price(new BigDecimal("500.00"))
-                .quantity(20)
-                .reorderLevel(5)
-                .build();
+            .userId(10L)
+            .name("Test Product")
+            .sku("TEST-001")
+            .price(new BigDecimal("500.00"))
+            .quantity(20)
+            .reorderLevel(5)
+            .build();
         product.setId(1L);
     }
 
     @Test
     void createProduct_success_returnsDTO() {
         CreateProductRequest request = new CreateProductRequest(
-                "Test Product", "TEST-001", "Groceries",
-                new BigDecimal("500.00"), 20, 5, null, null, null, null);
+            "Test Product", "TEST-001", "Groceries",
+            new BigDecimal("500.00"), 20, 5, null, null, null, null, null, null
+        );
 
         when(productRepository.save(any(Product.class))).thenReturn(product);
         when(stockHistoryRepository.save(any(StockHistory.class))).thenReturn(new StockHistory());
@@ -69,9 +77,44 @@ class ProductServiceTest {
     }
 
     @Test
+    void createProduct_duePurchase_recordsOutstandingSupplierBalance() {
+        Product stockedProduct = Product.builder()
+            .userId(10L)
+            .name("Test Product")
+            .price(new BigDecimal("500.00"))
+            .costPrice(new BigDecimal("300.00"))
+            .quantity(20)
+            .supplier("ABC Traders")
+            .build();
+        stockedProduct.setId(1L);
+
+        CreateProductRequest request = new CreateProductRequest(
+            "Test Product", "TEST-001", "Groceries",
+            new BigDecimal("500.00"), 20, 5, "ABC Traders", null, null, new BigDecimal("300.00"),
+            PaymentStatus.DUE, null
+        );
+
+        when(productRepository.save(any(Product.class))).thenReturn(stockedProduct);
+        when(stockHistoryRepository.save(any(StockHistory.class))).thenReturn(new StockHistory());
+
+        productService.create(10L, request);
+
+        verify(supplierService).recordPurchase(
+            10L,
+            "ABC Traders",
+            1L,
+            20,
+            new BigDecimal("300.00"),
+            PaymentStatus.DUE,
+            null,
+            "Initial stock on creation"
+        );
+    }
+
+    @Test
     void findAll_returnsOnlyOwnProducts() {
         Page<Product> page = new PageImpl<>(List.of(product));
-        when(productRepository.findAllByUserId(eq(10L), any(Pageable.class))).thenReturn(page);
+        when(productRepository.findWithFilters(eq(10L), eq(""), eq(""), eq(""), any(Pageable.class))).thenReturn(page);
 
         PagedResponse<ProductDTO> result = productService.findAll(10L, 0, 20, null, null, null);
 
@@ -86,7 +129,7 @@ class ProductServiceTest {
         when(productRepository.findByIdAndUserId(1L, 10L)).thenReturn(Optional.of(product));
 
         assertThatThrownBy(() -> productService.adjustStock(10L, 1L, request))
-                .isInstanceOf(InsufficientStockException.class);
+            .isInstanceOf(InsufficientStockException.class);
 
         verify(productRepository, never()).save(any());
     }
@@ -105,10 +148,44 @@ class ProductServiceTest {
     }
 
     @Test
+    void restock_updatesQuantityAndRecordsSupplierPurchase() {
+        RestockProductRequest request = new RestockProductRequest(
+            6,
+            new BigDecimal("280.00"),
+            "ABC Traders",
+            PaymentStatus.PARTIAL,
+            new BigDecimal("500.00"),
+            "Weekly refill"
+        );
+
+        when(productRepository.findByIdAndUserId(1L, 10L)).thenReturn(Optional.of(product));
+        when(productRepository.save(any(Product.class))).thenReturn(product);
+        when(stockHistoryRepository.save(any(StockHistory.class))).thenReturn(new StockHistory());
+
+        productService.restock(10L, 1L, request);
+
+        verify(productRepository).save(argThat(p ->
+            p.getQuantity() == 26 &&
+            "ABC Traders".equals(p.getSupplier()) &&
+            p.getCostPrice().compareTo(new BigDecimal("280.00")) == 0
+        ));
+        verify(supplierService).recordPurchase(
+            10L,
+            "ABC Traders",
+            1L,
+            6,
+            new BigDecimal("280.00"),
+            PaymentStatus.PARTIAL,
+            new BigDecimal("500.00"),
+            "Weekly refill"
+        );
+    }
+
+    @Test
     void findById_notFound_throwsProductNotFoundException() {
         when(productRepository.findByIdAndUserId(999L, 10L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> productService.findById(10L, 999L))
-                .isInstanceOf(ProductNotFoundException.class);
+            .isInstanceOf(ProductNotFoundException.class);
     }
 }

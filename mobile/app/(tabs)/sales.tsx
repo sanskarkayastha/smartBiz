@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { Colors } from '@/components/ui/colors';
+import ModalCloseButton from '@/components/ui/ModalCloseButton';
 import ImportSalesModal from '@/components/ui/ImportSalesModal';
 import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
 import { inventoryService, type Product } from '@/services/inventory';
@@ -735,9 +736,7 @@ export default function Sales() {
                 <Text style={styles.modalTitle}>Scanned Product</Text>
                 <Text style={styles.modalSubtitle}>Review the product before adding it to the cart.</Text>
               </View>
-              <Pressable onPress={() => setScannedProduct(null)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setScannedProduct(null)} />
             </View>
 
             {scannedProduct ? (

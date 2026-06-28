@@ -69,6 +69,14 @@ public class ProductController {
         return ResponseEntity.ok(productService.adjustStock(userId, id, request));
     }
 
+    @PostMapping("/{id}/restock")
+    public ResponseEntity<ProductDTO> restock(
+        @RequestHeader("X-User-Id") Long userId,
+        @PathVariable Long id,
+        @Valid @RequestBody RestockProductRequest request) {
+        return ResponseEntity.ok(productService.restock(userId, id, request));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
         @RequestHeader("X-User-Id") Long userId,

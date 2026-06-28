@@ -7,19 +7,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { Colors } from '@/components/ui/colors';
+import ModalCloseButton from '@/components/ui/ModalCloseButton';
 import ParentTabBackLink from '@/components/ui/ParentTabBackLink';
 import SearchBar from '@/components/ui/SearchBar';
 import {
   supplierService, Supplier, SupplierProduct, SupplierFilters, SupplierSummary,
-  CreateSupplierPayload, UpdateSupplierPayload,
+  CreateSupplierPayload, UpdateSupplierPayload, SupplierLedgerEntry,
 } from '@/services/suppliers';
 
-type EditForm = { phone: string; email: string; balanceOwed: string; notes: string };
-type CreateForm = { name: string; phone: string; email: string; balanceOwed: string; notes: string };
+type EditForm = { phone: string; email: string; notes: string };
+type CreateForm = { name: string; phone: string; email: string; openingBalance: string; notes: string };
+type SupplierActionType = 'payment' | 'debt' | 'setBalance';
 type StatusTone = 'danger' | 'warning' | 'info' | 'success';
 
 function emptyEditForm(s: Supplier): EditForm {
-  return { phone: s.phone ?? '', email: s.email ?? '', balanceOwed: String(s.balanceOwed), notes: s.notes ?? '' };
+  return { phone: s.phone ?? '', email: s.email ?? '', notes: s.notes ?? '' };
 }
 
 function formatCurrency(amount: number) {
@@ -61,6 +63,13 @@ function getProductStatus(product: SupplierProduct): { label: string; tone: Stat
   return { label: 'In stock', tone: 'success' };
 }
 
+function getLedgerLabel(entry: SupplierLedgerEntry): string {
+  if (entry.type === 'OPENING_BALANCE') return 'Opening balance';
+  if (entry.type === 'PURCHASE') return 'Purchase due';
+  if (entry.type === 'PAYMENT') return 'Payment recorded';
+  return 'Manual adjustment';
+}
+
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [summary, setSummary] = useState<SupplierSummary | null>(null);
@@ -75,16 +84,22 @@ export default function Suppliers() {
   const [loadingMore, setLoadingMore] = useState(false);
 
   const [editing, setEditing] = useState<Supplier | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ phone: '', email: '', balanceOwed: '0', notes: '' });
+  const [editForm, setEditForm] = useState<EditForm>({ phone: '', email: '', notes: '' });
   const [saving, setSaving] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<CreateForm>({ name: '', phone: '', email: '', balanceOwed: '', notes: '' });
+  const [createForm, setCreateForm] = useState<CreateForm>({ name: '', phone: '', email: '', openingBalance: '', notes: '' });
   const [creating, setCreating] = useState(false);
 
   const [viewingSupplier, setViewingSupplier] = useState<Supplier | null>(null);
   const [supplierProducts, setSupplierProducts] = useState<SupplierProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [supplierLedger, setSupplierLedger] = useState<SupplierLedgerEntry[]>([]);
+  const [actionSupplier, setActionSupplier] = useState<Supplier | null>(null);
+  const [actionType, setActionType] = useState<SupplierActionType | null>(null);
+  const [actionAmount, setActionAmount] = useState('');
+  const [actionNote, setActionNote] = useState('');
+  const [actionSaving, setActionSaving] = useState(false);
 
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const filtersRef = useRef({ search: '', hasBalance: false });
@@ -191,17 +206,11 @@ export default function Suppliers() {
 
   const handleSave = async () => {
     if (!editing) return;
-    const balance = parseFloat(editForm.balanceOwed);
-    if (isNaN(balance) || balance < 0) {
-      Alert.alert('Validation', 'Balance must be a valid non-negative number');
-      return;
-    }
     setSaving(true);
     try {
       const payload: UpdateSupplierPayload = {
         phone: editForm.phone.trim() || undefined,
         email: editForm.email.trim() || undefined,
-        balanceOwed: balance,
         notes: editForm.notes.trim() || undefined,
       };
       await supplierService.updateSupplier(editing.id, payload);
@@ -225,12 +234,12 @@ export default function Suppliers() {
         name: createForm.name.trim(),
         phone: createForm.phone.trim() || undefined,
         email: createForm.email.trim() || undefined,
-        balanceOwed: createForm.balanceOwed ? parseFloat(createForm.balanceOwed) : 0,
+        openingBalance: createForm.openingBalance ? parseFloat(createForm.openingBalance) : 0,
         notes: createForm.notes.trim() || undefined,
       };
       await supplierService.createSupplier(payload);
       setCreateOpen(false);
-      setCreateForm({ name: '', phone: '', email: '', balanceOwed: '', notes: '' });
+      setCreateForm({ name: '', phone: '', email: '', openingBalance: '', notes: '' });
       load();
     } catch (err: any) {
       const message = err?.response?.data?.message ?? 'Failed to create supplier';
@@ -244,11 +253,17 @@ export default function Suppliers() {
     setViewingSupplier(supplier);
     setLoadingProducts(true);
     setSupplierProducts([]);
+    setSupplierLedger([]);
     try {
-      const products = await supplierService.getSupplierProducts(supplier.id);
+      const [products, ledger] = await Promise.all([
+        supplierService.getSupplierProducts(supplier.id),
+        supplierService.getSupplierLedger(supplier.id),
+      ]);
       setSupplierProducts(products);
+      setSupplierLedger(ledger);
     } catch {
       setSupplierProducts([]);
+      setSupplierLedger([]);
     } finally {
       setLoadingProducts(false);
     }
@@ -279,6 +294,83 @@ export default function Suppliers() {
     const supplier = viewingSupplier;
     setViewingSupplier(null);
     openEdit(supplier);
+  };
+
+  const closeSupplierAction = () => {
+    setActionType(null);
+    setActionSupplier(null);
+    setActionAmount('');
+    setActionNote('');
+  };
+
+  const openSupplierActionForSupplier = (supplier: Supplier, type: SupplierActionType) => {
+    setActionSupplier(supplier);
+    setActionType(type);
+    setActionAmount('');
+    setActionNote('');
+    if (type === 'setBalance') {
+      setActionAmount(String(supplier.balanceOwed));
+    }
+  };
+
+  const openSupplierAction = (type: SupplierActionType) => {
+    if (!viewingSupplier) return;
+    openSupplierActionForSupplier(viewingSupplier, type);
+  };
+
+  const handleSupplierAction = async () => {
+    if (!actionSupplier || !actionType) return;
+    const amount = parseFloat(actionAmount);
+    if (isNaN(amount) || amount < 0 || (actionType !== 'setBalance' && amount <= 0)) {
+      Alert.alert('Validation', actionType === 'setBalance'
+        ? 'Enter a valid target balance'
+        : 'Enter an amount greater than 0');
+      return;
+    }
+    if (actionType === 'payment' && amount > Number(actionSupplier.balanceOwed)) {
+      Alert.alert('Validation', 'Payment cannot be more than the current supplier balance.');
+      return;
+    }
+
+    setActionSaving(true);
+    try {
+      let updatedSupplier: Supplier;
+      if (actionType === 'payment') {
+        updatedSupplier = await supplierService.recordSupplierPayment(actionSupplier.id, {
+          amount,
+          note: actionNote.trim() || undefined,
+        });
+      } else if (actionType === 'debt') {
+        updatedSupplier = await supplierService.adjustSupplierBalance(actionSupplier.id, {
+          mode: 'ADD_DEBT',
+          amount,
+          note: actionNote.trim() || undefined,
+        });
+      } else {
+        updatedSupplier = await supplierService.adjustSupplierBalance(actionSupplier.id, {
+          mode: 'SET_BALANCE',
+          targetBalance: amount,
+          note: actionNote.trim() || undefined,
+        });
+      }
+
+      if (viewingSupplier?.id === updatedSupplier.id) {
+        setViewingSupplier(updatedSupplier);
+        const [products, ledger] = await Promise.all([
+          supplierService.getSupplierProducts(updatedSupplier.id),
+          supplierService.getSupplierLedger(updatedSupplier.id),
+        ]);
+        setSupplierProducts(products);
+        setSupplierLedger(ledger);
+      }
+      closeSupplierAction();
+      await load();
+    } catch (err: any) {
+      const message = err?.response?.data?.error ?? 'Failed to update supplier balance';
+      Alert.alert('Error', message);
+    } finally {
+      setActionSaving(false);
+    }
   };
 
   const summaryMessage = !summary || summary.totalSuppliers === 0
@@ -400,6 +492,8 @@ export default function Suppliers() {
           }
           renderItem={({ item }) => {
             const status = getSupplierStatus(item);
+            const owesBalance = Number(item.balanceOwed) > 0;
+            const stockAttention = item.lowStockCount + item.outOfStockCount;
             return (
               <View style={styles.card}>
                 <View style={styles.cardTopRow}>
@@ -419,56 +513,49 @@ export default function Suppliers() {
                         {status.label}
                       </Text>
                     </View>
-                    <Pressable style={styles.iconBtn} onPress={() => openEdit(item)}>
-                      <Ionicons name="create-outline" size={16} color={Colors.textDark} />
-                    </Pressable>
                   </View>
                 </View>
 
-                {(item.phone || item.email || item.notes) && (
-                  <View style={styles.metaBlock}>
-                    {item.phone && (
-                      <View style={styles.contactRow}>
-                        <Ionicons name="call-outline" size={12} color={Colors.textMuted} />
-                        <Text style={styles.contactText}>{item.phone}</Text>
-                      </View>
-                    )}
-                    {item.email && (
-                      <View style={styles.contactRow}>
-                        <Ionicons name="mail-outline" size={12} color={Colors.textMuted} />
-                        <Text style={styles.contactText}>{item.email}</Text>
-                      </View>
-                    )}
-                    {item.notes && <Text style={styles.noteText} numberOfLines={2}>{item.notes}</Text>}
+                <View style={styles.balancePanel}>
+                  <View>
+                    <Text style={styles.balanceLabel}>Balance due</Text>
+                    <Text style={[styles.balanceValue, owesBalance && styles.balanceValueDue]}>
+                      {formatCurrency(Number(item.balanceOwed))}
+                    </Text>
                   </View>
-                )}
-
-                <View style={styles.metricWrap}>
-                  <View style={styles.metricChip}>
-                    <Text style={styles.metricChipValue}>{item.productCount}</Text>
-                    <Text style={styles.metricChipLabel}>products</Text>
-                  </View>
-                  <View style={styles.metricChip}>
-                    <Text style={styles.metricChipValue}>{item.totalUnits}</Text>
-                    <Text style={styles.metricChipLabel}>units on hand</Text>
-                  </View>
-                  <View style={[styles.metricChip, item.lowStockCount > 0 && styles.metricChipWarning]}>
-                    <Text style={[styles.metricChipValue, item.lowStockCount > 0 && styles.metricChipWarningText]}>{item.lowStockCount}</Text>
-                    <Text style={[styles.metricChipLabel, item.lowStockCount > 0 && styles.metricChipWarningText]}>low stock</Text>
-                  </View>
-                  <View style={[styles.metricChip, item.outOfStockCount > 0 && styles.metricChipDanger]}>
-                    <Text style={[styles.metricChipValue, item.outOfStockCount > 0 && styles.metricChipDangerText]}>{item.outOfStockCount}</Text>
-                    <Text style={[styles.metricChipLabel, item.outOfStockCount > 0 && styles.metricChipDangerText]}>out</Text>
+                  <View style={styles.compactStats}>
+                    <View style={styles.compactStat}>
+                      <Ionicons name="cube-outline" size={13} color={Colors.textMuted} />
+                      <Text style={styles.compactStatText}>{item.productCount} products</Text>
+                    </View>
+                    <View style={[styles.compactStat, stockAttention > 0 && styles.compactStatWarning]}>
+                      <Ionicons
+                        name={stockAttention > 0 ? 'alert-circle-outline' : 'checkmark-circle-outline'}
+                        size={13}
+                        color={stockAttention > 0 ? Colors.warning : Colors.success}
+                      />
+                      <Text style={[styles.compactStatText, stockAttention > 0 && styles.compactStatWarningText]}>
+                        {stockAttention > 0 ? `${stockAttention} need restock` : `${item.totalUnits} units`}
+                      </Text>
+                    </View>
                   </View>
                 </View>
 
                 <View style={styles.actionRow}>
-                  <Pressable style={styles.primaryAction} onPress={() => openViewProducts(item)}>
-                    <Ionicons name="cube-outline" size={15} color={Colors.textOnPrimary} />
-                    <Text style={styles.primaryActionText}>View Products</Text>
+                  <Pressable
+                    style={[styles.primaryAction, owesBalance && styles.payAction]}
+                    onPress={() => owesBalance ? openSupplierActionForSupplier(item, 'payment') : openViewProducts(item)}
+                  >
+                    <Ionicons name={owesBalance ? 'cash-outline' : 'cube-outline'} size={15} color={Colors.textOnPrimary} />
+                    <Text style={styles.primaryActionText}>{owesBalance ? 'Record Payment' : 'View Products'}</Text>
                   </Pressable>
 
-                  {item.phone ? (
+                  {owesBalance ? (
+                    <Pressable style={styles.secondaryAction} onPress={() => openViewProducts(item)}>
+                      <Ionicons name="list-outline" size={15} color={Colors.primary} />
+                      <Text style={styles.secondaryActionText}>Details</Text>
+                    </Pressable>
+                  ) : item.phone ? (
                     <Pressable style={styles.secondaryAction} onPress={() => openPhone(item.phone!)}>
                       <Ionicons name="call-outline" size={15} color={Colors.primary} />
                       <Text style={styles.secondaryActionText}>Call</Text>
@@ -481,7 +568,7 @@ export default function Suppliers() {
                   ) : (
                     <Pressable style={styles.secondaryAction} onPress={() => openEdit(item)}>
                       <Ionicons name="create-outline" size={15} color={Colors.primary} />
-                      <Text style={styles.secondaryActionText}>Add Details</Text>
+                      <Text style={styles.secondaryActionText}>Edit</Text>
                     </Pressable>
                   )}
                 </View>
@@ -496,9 +583,7 @@ export default function Suppliers() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editing?.name}</Text>
-              <Pressable onPress={() => setEditing(null)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setEditing(null)} />
             </View>
             <Text style={styles.label}>Phone</Text>
             <TextInput
@@ -517,15 +602,6 @@ export default function Suppliers() {
               autoCapitalize="none"
               value={editForm.email}
               onChangeText={(value) => setEditForm((form) => ({ ...form, email: value }))}
-              placeholderTextColor={Colors.textMuted}
-            />
-            <Text style={styles.label}>Balance Owed (Rs.)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0"
-              keyboardType="decimal-pad"
-              value={editForm.balanceOwed}
-              onChangeText={(value) => setEditForm((form) => ({ ...form, balanceOwed: value }))}
               placeholderTextColor={Colors.textMuted}
             />
             <Text style={styles.label}>Notes</Text>
@@ -549,9 +625,7 @@ export default function Suppliers() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Supplier</Text>
-              <Pressable onPress={() => setCreateOpen(false)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setCreateOpen(false)} />
             </View>
             <Text style={styles.label}>Name *</Text>
             <TextInput
@@ -580,15 +654,16 @@ export default function Suppliers() {
               onChangeText={(value) => setCreateForm((form) => ({ ...form, email: value }))}
               placeholderTextColor={Colors.textMuted}
             />
-            <Text style={styles.label}>Balance Owed (Rs.)</Text>
+            <Text style={styles.label}>Opening Balance (Rs.)</Text>
             <TextInput
               style={styles.input}
               placeholder="0"
               keyboardType="decimal-pad"
-              value={createForm.balanceOwed}
-              onChangeText={(value) => setCreateForm((form) => ({ ...form, balanceOwed: value }))}
+              value={createForm.openingBalance}
+              onChangeText={(value) => setCreateForm((form) => ({ ...form, openingBalance: value }))}
               placeholderTextColor={Colors.textMuted}
             />
+            <Text style={styles.helperText}>Use this for money you already owed before tracking it in SmartBiz.</Text>
             <Text style={styles.label}>Notes</Text>
             <TextInput
               style={[styles.input, styles.smallTextArea]}
@@ -613,9 +688,7 @@ export default function Suppliers() {
                 <Text style={styles.modalTitle}>{viewingSupplier?.name}</Text>
                 <Text style={styles.modalSubtitle}>Supplier overview</Text>
               </View>
-              <Pressable onPress={() => setViewingSupplier(null)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setViewingSupplier(null)} />
             </View>
 
             {viewingSupplier && (
@@ -640,24 +713,52 @@ export default function Suppliers() {
                 </View>
 
                 <View style={styles.quickActionRow}>
-                  {viewingSupplier.phone && (
-                    <Pressable style={styles.quickActionBtn} onPress={() => openPhone(viewingSupplier.phone!)}>
-                      <Ionicons name="call-outline" size={16} color={Colors.primary} />
-                      <Text style={styles.quickActionText}>Call</Text>
-                    </Pressable>
-                  )}
-                  {viewingSupplier.email && (
-                    <Pressable style={styles.quickActionBtn} onPress={() => openEmail(viewingSupplier.email!)}>
-                      <Ionicons name="mail-outline" size={16} color={Colors.primary} />
-                      <Text style={styles.quickActionText}>Email</Text>
+                  {Number(viewingSupplier.balanceOwed) > 0 && (
+                    <Pressable style={[styles.quickActionBtn, styles.detailPayAction]} onPress={() => openSupplierAction('payment')}>
+                      <Ionicons name="cash-outline" size={16} color={Colors.textOnPrimary} />
+                      <Text style={styles.detailPayActionText}>Record Payment</Text>
                     </Pressable>
                   )}
                   <Pressable style={styles.quickActionBtn} onPress={openEditFromDetails}>
                     <Ionicons name="create-outline" size={16} color={Colors.primary} />
                     <Text style={styles.quickActionText}>Edit</Text>
                   </Pressable>
+                  <Pressable style={styles.quickActionBtn} onPress={() => openSupplierAction('debt')}>
+                    <Ionicons name="receipt-outline" size={16} color={Colors.warning} />
+                    <Text style={[styles.quickActionText, { color: Colors.warning }]}>Add Debt</Text>
+                  </Pressable>
+                  <Pressable style={styles.quickActionBtn} onPress={() => openSupplierAction('setBalance')}>
+                    <Ionicons name="swap-horizontal-outline" size={16} color={Colors.primary} />
+                    <Text style={styles.quickActionText}>Set Balance</Text>
+                  </Pressable>
                 </View>
               </View>
+            )}
+
+            <Text style={styles.sectionTitle}>Recent balance activity</Text>
+            {loadingProducts ? (
+              <ActivityIndicator color={Colors.primary} style={{ marginBottom: 20 }} />
+            ) : supplierLedger.length === 0 ? (
+              <View style={styles.productsEmpty}>
+                <Ionicons name="time-outline" size={36} color={Colors.textMuted} />
+                <Text style={styles.productsEmptyText}>No balance history yet</Text>
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ledgerRow}>
+                {supplierLedger.map((entry) => {
+                  const positive = Number(entry.amount) > 0;
+                  return (
+                    <View key={entry.id} style={styles.ledgerCard}>
+                      <Text style={styles.ledgerTitle}>{getLedgerLabel(entry)}</Text>
+                      <Text style={[styles.ledgerAmount, positive ? styles.ledgerAmountWarm : styles.ledgerAmountCool]}>
+                        {positive ? '+' : ''}{formatCurrency(Number(entry.amount))}
+                      </Text>
+                      {entry.note && <Text style={styles.ledgerNote} numberOfLines={2}>{entry.note}</Text>}
+                      <Text style={styles.ledgerDate}>{new Date(entry.createdAt).toLocaleDateString()}</Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
             )}
 
             <Text style={styles.sectionTitle}>Products from this supplier</Text>
@@ -698,14 +799,74 @@ export default function Suppliers() {
         </View>
       </Modal>
 
+      <Modal visible={!!actionType && !!actionSupplier} animationType="slide" transparent onRequestClose={closeSupplierAction}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>
+                  {actionType === 'payment' ? 'Record Payment' : actionType === 'debt' ? 'Add Manual Debt' : 'Set Current Balance'}
+                </Text>
+                <Text style={styles.modalSubtitle}>
+                  {actionSupplier?.name}
+                </Text>
+              </View>
+              <ModalCloseButton onPress={closeSupplierAction} />
+            </View>
+
+            {actionSupplier && (
+              <View style={styles.actionSummary}>
+                <Text style={styles.actionSummaryLabel}>Current balance</Text>
+                <Text style={styles.actionSummaryValue}>{formatCurrency(Number(actionSupplier.balanceOwed))}</Text>
+                <Text style={styles.actionSummaryHint}>
+                  {actionType === 'payment'
+                    ? 'Enter how much you paid the supplier now.'
+                    : actionType === 'debt'
+                      ? 'Use this for extra supplier debt not tied to a product purchase.'
+                      : 'This records only the difference needed to reach the new balance.'}
+                </Text>
+              </View>
+            )}
+
+            <Text style={styles.label}>
+              {actionType === 'payment' ? 'Amount Paid (Rs.)' : actionType === 'debt' ? 'Amount Owed (Rs.)' : 'Target Balance (Rs.)'}
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0"
+              keyboardType="decimal-pad"
+              value={actionAmount}
+              onChangeText={setActionAmount}
+              placeholderTextColor={Colors.textMuted}
+            />
+            <Text style={styles.label}>Note</Text>
+            <TextInput
+              style={[styles.input, styles.smallTextArea]}
+              placeholder={actionType === 'payment' ? 'e.g. Cash paid today' : actionType === 'debt' ? 'Why more is owed' : 'Why the balance was reset'}
+              multiline
+              value={actionNote}
+              onChangeText={setActionNote}
+              placeholderTextColor={Colors.textMuted}
+            />
+            <Pressable style={[styles.saveBtn, actionSaving && styles.disabledBtn]} onPress={handleSupplierAction} disabled={actionSaving}>
+              {actionSaving ? (
+                <ActivityIndicator color={Colors.textOnPrimary} />
+              ) : (
+                <Text style={styles.saveBtnText}>
+                  {actionType === 'payment' ? 'Record Payment' : actionType === 'debt' ? 'Add Debt' : 'Set Balance'}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <Modal visible={showFilterSheet} animationType="slide" transparent onRequestClose={() => setShowFilterSheet(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, styles.filterSheet]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filter Suppliers</Text>
-              <Pressable onPress={() => setShowFilterSheet(false)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setShowFilterSheet(false)} />
             </View>
 
             <Pressable
@@ -856,6 +1017,32 @@ const styles = StyleSheet.create({
   contactRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   contactText: { fontSize: 12, color: Colors.textMuted },
   noteText: { fontSize: 12, color: Colors.textDark, lineHeight: 17 },
+  balancePanel: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  balanceLabel: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  balanceValue: { fontSize: 20, fontWeight: '900', color: Colors.textDark, marginTop: 3 },
+  balanceValueDue: { color: Colors.warning },
+  compactStats: { alignItems: 'flex-end', justifyContent: 'center', gap: 6 },
+  compactStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: Colors.card,
+  },
+  compactStatWarning: { backgroundColor: Colors.warningLight },
+  compactStatText: { fontSize: 11, fontWeight: '700', color: Colors.textMuted },
+  compactStatWarningText: { color: Colors.warning },
   metricWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   metricChip: {
     paddingHorizontal: 10,
@@ -881,6 +1068,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
   },
+  payAction: { backgroundColor: Colors.success },
   primaryActionText: { color: Colors.textOnPrimary, fontSize: 13, fontWeight: '700' },
   secondaryAction: {
     minWidth: 112,
@@ -928,8 +1116,43 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   quickActionText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+  detailPayAction: {
+    flexBasis: '100%',
+    justifyContent: 'center',
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
+    paddingVertical: 12,
+  },
+  detailPayActionText: { fontSize: 14, fontWeight: '800', color: Colors.textOnPrimary },
+  actionSummary: {
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: Colors.primaryLight,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+    marginBottom: 4,
+  },
+  actionSummaryLabel: { fontSize: 11, fontWeight: '700', color: Colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  actionSummaryValue: { fontSize: 24, fontWeight: '900', color: Colors.textDark, marginTop: 4 },
+  actionSummaryHint: { fontSize: 12, lineHeight: 18, color: Colors.textMuted, marginTop: 6 },
+  ledgerRow: { gap: 10, paddingBottom: 12 },
+  ledgerCard: {
+    width: 180,
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  ledgerTitle: { fontSize: 13, fontWeight: '700', color: Colors.textDark },
+  ledgerAmount: { fontSize: 15, fontWeight: '800', marginTop: 8 },
+  ledgerAmountWarm: { color: Colors.warning },
+  ledgerAmountCool: { color: Colors.success },
+  ledgerNote: { fontSize: 12, lineHeight: 17, color: Colors.textMuted, marginTop: 6 },
+  ledgerDate: { fontSize: 11, color: Colors.textMuted, marginTop: 8 },
   sectionTitle: { fontSize: 14, fontWeight: '700', color: Colors.textDark, marginBottom: 8 },
   label: { fontSize: 13, fontWeight: '700', color: Colors.textDark, marginBottom: 5, marginTop: 10 },
+  helperText: { fontSize: 12, color: Colors.textMuted, lineHeight: 18, marginTop: 6 },
   input: {
     backgroundColor: Colors.background,
     borderWidth: 1,

@@ -123,31 +123,28 @@ export default function Sidebar({ fullName, email }: Props) {
     .slice(0, 2)
 
   return (
-    <aside className="relative mb-6 flex flex-col overflow-hidden rounded-[26px] border border-paper-3 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(248,249,252,0.92))] shadow-[0_14px_36px_rgba(29,43,70,0.05)] lg:mb-0 lg:w-[264px]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(109,156,255,0.10),_transparent_18rem),radial-gradient(circle_at_bottom_right,_rgba(132,214,181,0.06),_transparent_18rem)]" />
-
-      <div className="relative flex h-full flex-col">
+    <aside className="relative mb-0 flex flex-col overflow-hidden bg-white xl:w-[286px]">
+      <div className="flex h-full flex-col">
         <div className="border-b border-paper-3 px-4 py-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-[linear-gradient(180deg,rgba(109,156,255,0.24),rgba(54,99,235,0.18))] text-brand shadow-[0_10px_22px_rgba(72,110,255,0.12)]">
+            <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[linear-gradient(135deg,var(--color-brand),oklch(0.77_0.18_63))] text-white shadow-[0_10px_20px_rgba(249,115,22,0.22)]">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M9 22v-7h6v7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M13 2 5 13h6l-1 9 9-12h-6l1-8Z" fill="currentColor" />
               </svg>
             </span>
             <div>
-              <p className="text-lg font-bold tracking-[-0.03em] text-ink">SmartBiz</p>
-              <p className="text-xs text-ink-2">Admin workspace</p>
+              <p className="text-xl font-bold text-ink">SmartBiz</p>
+              <p className="text-xs text-ink-2">Business admin</p>
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-3 rounded-[18px] border border-paper-3 bg-white/88 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
+          <div className="mt-4 flex items-center gap-3 rounded-[13px] border border-paper-3 bg-white px-3 py-2.5 shadow-[0_3px_12px_rgba(30,30,30,0.035)]">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-ink-3">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.3-4.3" />
             </svg>
-            <span className="min-w-0 flex-1 truncate text-sm text-ink-2">Search views, customers, stock</span>
-            <span className="rounded-full border border-paper-3 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-3">K</span>
+            <span className="min-w-0 flex-1 truncate text-sm text-ink-2">Search</span>
+            <span className="rounded-md border border-paper-3 px-1.5 py-0.5 text-[10px] font-semibold text-ink-3">K</span>
           </div>
         </div>
 
@@ -158,24 +155,24 @@ export default function Sidebar({ fullName, email }: Props) {
                 <p className="px-2 pb-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-ink-3">
                   {group.label}
                 </p>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   {group.items.map(({ label, href, icon, badge }) => {
                     const active = pathname.startsWith(href)
                     return (
                       <Link
                         key={href}
                         href={href}
-                        className={`group flex items-center gap-3 rounded-[16px] px-3 py-2.5 text-sm font-medium transition duration-200 ${
+                        className={`group flex items-center gap-3 rounded-[13px] px-3 py-2.5 text-sm font-medium transition duration-200 ${
                           active
-                            ? 'bg-night text-snow shadow-[0_10px_18px_rgba(24,33,52,0.10)]'
-                            : 'text-ink-2 hover:bg-white/88 hover:text-ink'
+                            ? 'bg-night text-snow shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_9px_18px_rgba(25,25,25,0.12)]'
+                            : 'text-ink-2 hover:bg-paper hover:text-ink'
                         }`}
                       >
                         <span
-                          className={`flex h-[34px] w-[34px] items-center justify-center rounded-[12px] transition duration-200 ${
+                          className={`flex h-[32px] w-[32px] items-center justify-center rounded-[10px] transition duration-200 ${
                             active
                               ? 'bg-white/10 text-snow'
-                              : 'bg-paper text-ink-2 group-hover:bg-brand-soft/80 group-hover:text-brand'
+                              : 'bg-white text-ink-2 group-hover:bg-brand-soft group-hover:text-brand'
                           }`}
                         >
                           {icon}
@@ -200,9 +197,9 @@ export default function Sidebar({ fullName, email }: Props) {
         </nav>
 
         <div className="border-t border-paper-3 px-4 py-4">
-          <div className="rounded-[20px] border border-paper-3 bg-white/92 p-3.5 shadow-[0_8px_22px_rgba(29,43,70,0.04)]">
+          <div className="rounded-[16px] border border-paper-3 bg-white p-4 shadow-[0_6px_18px_rgba(30,30,30,0.04)]">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-night text-sm font-bold text-snow">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-night text-sm font-bold text-snow">
                 {initials}
               </div>
               <div className="min-w-0">
@@ -210,18 +207,23 @@ export default function Sidebar({ fullName, email }: Props) {
                 <p className="truncate text-xs text-ink-2">{email}</p>
               </div>
             </div>
-            <div className="mt-3 rounded-[16px] bg-paper px-3 py-2.5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">Counter mode</p>
-              <p className="mt-1 text-sm font-semibold text-ink">Ready for a fast day</p>
-              <p className="mt-2 text-xs leading-5 text-ink-2">
-                Keep sales, due follow-ups, and stock movement in one quieter workspace.
+            <div className="mt-4 rounded-[14px] bg-paper px-3 py-3">
+              <p className="text-sm font-bold text-ink">Starter Plan</p>
+              <p className="mt-1 text-xs leading-5 text-ink-2">
+                Keep your shop organized with sales, stock, CRM, and AI tools.
               </p>
+              <button
+                type="button"
+                className="mt-3 inline-flex w-full items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,var(--color-brand),oklch(0.77_0.18_63))] px-3 py-2.5 text-xs font-bold text-white shadow-[0_8px_16px_rgba(249,115,22,0.18)]"
+              >
+                Upgrade Plan
+              </button>
             </div>
           </div>
 
           <button
             onClick={handleLogout}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[18px] border border-paper-3 bg-white/92 px-4 py-2.5 text-sm font-semibold text-ink transition duration-200 hover:border-brand/30 hover:bg-white hover:text-brand"
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[13px] border border-paper-3 bg-white px-4 py-2.5 text-sm font-semibold text-rose transition duration-200 hover:border-rose/30 hover:bg-rose/10"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

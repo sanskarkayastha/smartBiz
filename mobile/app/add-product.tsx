@@ -1,13 +1,15 @@
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '@/components/ui/colors';
 import InputField from '@/components/ui/InputField';
+import ModalCloseButton from '@/components/ui/ModalCloseButton';
 import CategoryPicker from '@/components/ui/CategoryPicker';
 import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
-import { inventoryService, type Category } from '@/services/inventory';
+import { inventoryService, type Category, type PaymentStatus } from '@/services/inventory';
+import { supplierService } from '@/services/suppliers';
 
 export default function AddProduct() {
   const router = useRouter();
@@ -22,6 +24,11 @@ export default function AddProduct() {
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [showScanner, setShowScanner] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('DUE');
+  const [amountPaidNow, setAmountPaidNow] = useState('');
+  const [supplierSuggestions, setSupplierSuggestions] = useState<string[]>([]);
+  const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
+  const supplierTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     inventoryService.getCategories().then(setCategories).catch(() => {});
@@ -32,6 +39,41 @@ export default function AddProduct() {
       setBarcode(params.barcode);
     }
   }, [params.barcode]);
+
+  const parsedCost = parseFloat(costPrice);
+  const validCost = !Number.isNaN(parsedCost) ? parsedCost : 0;
+  const canTrackSupplierPayment = !!supplier.trim() && validCost > 0 && stock > 0;
+  const purchaseTotal = canTrackSupplierPayment ? validCost * stock : 0;
+  const parsedPaidNow = amountPaidNow ? parseFloat(amountPaidNow) : 0;
+  const unpaidTotal = canTrackSupplierPayment
+    ? paymentStatus === 'PAID'
+      ? 0
+      : paymentStatus === 'DUE'
+        ? purchaseTotal
+        : Math.max(0, purchaseTotal - (!Number.isNaN(parsedPaidNow) ? parsedPaidNow : 0))
+    : 0;
+
+  const handleSupplierChange = (value: string) => {
+    setSupplier(value);
+    if (supplierTimerRef.current) clearTimeout(supplierTimerRef.current);
+
+    if (!value.trim()) {
+      setSupplierSuggestions([]);
+      setShowSupplierSuggestions(false);
+      return;
+    }
+
+    supplierTimerRef.current = setTimeout(async () => {
+      try {
+        const data = await supplierService.getSuppliers(0, 5, { search: value });
+        setSupplierSuggestions(data.content.map((item) => item.name));
+        setShowSupplierSuggestions(true);
+      } catch {
+        setSupplierSuggestions([]);
+        setShowSupplierSuggestions(false);
+      }
+    }, 250);
+  };
 
   const handleSave = async () => {
     if (!productName.trim()) {
@@ -45,6 +87,19 @@ export default function AddProduct() {
     }
     const costTrimmed = costPrice.trim();
     const cost = costTrimmed !== '' ? parseFloat(costTrimmed) : undefined;
+
+    if (canTrackSupplierPayment && paymentStatus === 'PARTIAL') {
+      const partialPaid = parseFloat(amountPaidNow);
+      if (Number.isNaN(partialPaid) || partialPaid <= 0) {
+        Alert.alert('Error', 'Enter how much you paid now for this partial supplier payment');
+        return;
+      }
+      if (partialPaid >= purchaseTotal) {
+        Alert.alert('Error', 'Partial payment must be less than the full purchase total');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       await inventoryService.createProduct({
@@ -55,6 +110,10 @@ export default function AddProduct() {
         price,
         costPrice: cost !== undefined && !isNaN(cost) ? cost : undefined,
         quantity: stock,
+        ...(canTrackSupplierPayment ? {
+          paymentStatus,
+          amountPaidNow: paymentStatus === 'PARTIAL' ? parseFloat(amountPaidNow) : undefined,
+        } : {}),
       });
       router.back();
     } catch (err: any) {
@@ -68,122 +127,192 @@ export default function AddProduct() {
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      {/* Header — always visible above keyboard */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-          <Ionicons name="close" size={22} color={Colors.textDark} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Add Product</Text>
-        <Pressable onPress={handleSave} disabled={saving}>
-          {saving
-            ? <ActivityIndicator size="small" color={Colors.primary} />
-            : <Text style={styles.saveText}>Save</Text>}
-        </Pressable>
-      </View>
-
-      {/* All content + save button inside ScrollView so nothing is ever hidden */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Photo Upload */}
-        <Text style={styles.sectionLabel}>Product Photo</Text>
-        <Pressable style={styles.photoBox}>
-          <Ionicons name="camera-outline" size={32} color={Colors.textMuted} />
-          <Text style={styles.photoText}>Tap to upload photo</Text>
-        </Pressable>
-
-        {/* Details */}
-        <Text style={styles.sectionLabel}>Details</Text>
-        <View style={styles.fieldsGroup}>
-          <InputField
-            label="Product Name"
-            placeholder="e.g. Wai Wai Noodles"
-            value={productName}
-            onChangeText={setProductName}
-          />
-
-          <View style={styles.fieldWrapper}>
-            <Text style={styles.fieldLabel}>Category</Text>
-            <CategoryPicker value={category} onChange={setCategory} categories={categories} />
-          </View>
-
-          <InputField
-            label="Supplier"
-            placeholder="e.g. ABC Traders"
-            value={supplier}
-            onChangeText={setSupplier}
-          />
-
-          <View style={styles.fieldWrapper}>
-            <Text style={styles.fieldLabel}>Barcode / QR</Text>
-            <View style={styles.scanRow}>
-              <TextInput
-                style={styles.scanInput}
-                placeholder="Optional code for faster lookup"
-                placeholderTextColor={Colors.textMuted}
-                value={barcode}
-                onChangeText={setBarcode}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <Pressable style={styles.scanBtn} onPress={() => setShowScanner(true)}>
-                <Ionicons name="scan-outline" size={18} color={Colors.textOnPrimary} />
-                <Text style={styles.scanBtnText}>Scan</Text>
-              </Pressable>
-            </View>
-          </View>
+        <View style={styles.header}>
+          <ModalCloseButton onPress={() => router.back()} />
+          <Text style={styles.headerTitle}>Add Product</Text>
+          <Pressable onPress={handleSave} disabled={saving}>
+            {saving
+              ? <ActivityIndicator size="small" color={Colors.primary} />
+              : <Text style={styles.saveText}>Save</Text>}
+          </Pressable>
         </View>
 
-        {/* Pricing & Inventory */}
-        <Text style={styles.sectionLabel}>Pricing & Inventory</Text>
-        <View style={styles.fieldsGroup}>
-          <View style={styles.row}>
-            <InputField
-              label="Cost Price"
-              placeholder="Rs. 0"
-              value={costPrice}
-              onChangeText={setCostPrice}
-              keyboardType="decimal-pad"
-            />
-            <InputField
-              label="Selling Price *"
-              placeholder="Rs. 0"
-              value={sellingPrice}
-              onChangeText={setSellingPrice}
-              keyboardType="decimal-pad"
-            />
-          </View>
-
-          <View>
-            <Text style={styles.fieldLabel}>Initial Stock</Text>
-            <View style={styles.stepper}>
-              <Pressable style={styles.stepBtn} onPress={() => setStock((s) => Math.max(0, s - 1))}>
-                <Ionicons name="remove" size={20} color={Colors.textDark} />
-              </Pressable>
-              <Text style={styles.stockCount}>{stock}</Text>
-              <Pressable style={[styles.stepBtn, styles.stepBtnActive]} onPress={() => setStock((s) => s + 1)}>
-                <Ionicons name="add" size={20} color={Colors.textOnPrimary} />
-              </Pressable>
-            </View>
-          </View>
-        </View>
-
-        {/* Save button inside scroll — always reachable */}
-        <Pressable
-          style={[styles.saveBtn, saving && { opacity: 0.6 }]}
-          onPress={handleSave}
-          disabled={saving}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
         >
-          {saving
-            ? <ActivityIndicator color={Colors.textOnPrimary} />
-            : <>
-                <Ionicons name="save-outline" size={18} color={Colors.textOnPrimary} />
-                <Text style={styles.saveBtnText}>Save Product</Text>
-              </>}
-        </Pressable>
-      </ScrollView>
+          <Text style={styles.sectionLabel}>Product Photo</Text>
+          <Pressable style={styles.photoBox}>
+            <Ionicons name="camera-outline" size={32} color={Colors.textMuted} />
+            <Text style={styles.photoText}>Tap to upload photo</Text>
+          </Pressable>
+
+          <Text style={styles.sectionLabel}>Details</Text>
+          <View style={styles.fieldsGroup}>
+            <InputField
+              label="Product Name"
+              placeholder="e.g. Wai Wai Noodles"
+              value={productName}
+              onChangeText={setProductName}
+            />
+
+            <View style={styles.fieldWrapper}>
+              <Text style={styles.fieldLabel}>Category</Text>
+              <CategoryPicker value={category} onChange={setCategory} categories={categories} />
+            </View>
+
+            <View style={styles.fieldWrapper}>
+              <Text style={styles.fieldLabel}>Supplier</Text>
+              <TextInput
+                style={styles.supplierInput}
+                placeholder="e.g. ABC Traders"
+                placeholderTextColor={Colors.textMuted}
+                value={supplier}
+                onChangeText={handleSupplierChange}
+                onBlur={() => setShowSupplierSuggestions(false)}
+              />
+              {showSupplierSuggestions && supplierSuggestions.length > 0 && (
+                <View style={styles.supplierSuggestions}>
+                  {supplierSuggestions.map((name) => (
+                    <Pressable
+                      key={name}
+                      style={styles.supplierSuggestionItem}
+                      onPress={() => {
+                        setSupplier(name);
+                        setSupplierSuggestions([]);
+                        setShowSupplierSuggestions(false);
+                      }}
+                    >
+                      <Text style={styles.supplierSuggestionText}>{name}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.fieldWrapper}>
+              <Text style={styles.fieldLabel}>Barcode / QR</Text>
+              <View style={styles.scanRow}>
+                <TextInput
+                  style={styles.scanInput}
+                  placeholder="Optional code for faster lookup"
+                  placeholderTextColor={Colors.textMuted}
+                  value={barcode}
+                  onChangeText={setBarcode}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Pressable style={styles.scanBtn} onPress={() => setShowScanner(true)}>
+                  <Ionicons name="scan-outline" size={18} color={Colors.textOnPrimary} />
+                  <Text style={styles.scanBtnText}>Scan</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+
+          <Text style={styles.sectionLabel}>Pricing & Inventory</Text>
+          <View style={styles.fieldsGroup}>
+            <View style={styles.row}>
+              <InputField
+                label="Cost Price"
+                placeholder="Rs. 0"
+                value={costPrice}
+                onChangeText={setCostPrice}
+                keyboardType="decimal-pad"
+              />
+              <InputField
+                label="Selling Price *"
+                placeholder="Rs. 0"
+                value={sellingPrice}
+                onChangeText={setSellingPrice}
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            <View>
+              <Text style={styles.fieldLabel}>Initial Stock</Text>
+              <View style={styles.stepper}>
+                <Pressable style={styles.stepBtn} onPress={() => setStock((s) => Math.max(0, s - 1))}>
+                  <Ionicons name="remove" size={20} color={Colors.textDark} />
+                </Pressable>
+                <Text style={styles.stockCount}>{stock}</Text>
+                <Pressable style={[styles.stepBtn, styles.stepBtnActive]} onPress={() => setStock((s) => s + 1)}>
+                  <Ionicons name="add" size={20} color={Colors.textOnPrimary} />
+                </Pressable>
+              </View>
+            </View>
+          </View>
+
+          {canTrackSupplierPayment && (
+            <>
+              <Text style={styles.sectionLabel}>Supplier Payment</Text>
+              <View style={styles.paymentCard}>
+                <View style={styles.paymentTopRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.paymentTitle}>Track what is still due</Text>
+                    <Text style={styles.paymentSubtext}>
+                      SmartBiz will use cost price and quantity to update this supplier automatically.
+                    </Text>
+                  </View>
+                  <View style={styles.totalPill}>
+                    <Text style={styles.totalPillLabel}>Purchase Total</Text>
+                    <Text style={styles.totalPillValue}>Rs. {purchaseTotal.toLocaleString()}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.paymentChoiceRow}>
+                  {([
+                    { value: 'PAID', label: 'Paid' },
+                    { value: 'DUE', label: 'Due' },
+                    { value: 'PARTIAL', label: 'Partial' },
+                  ] as const).map((option) => {
+                    const active = paymentStatus === option.value;
+                    return (
+                      <Pressable
+                        key={option.value}
+                        style={[styles.paymentChoice, active && styles.paymentChoiceActive]}
+                        onPress={() => setPaymentStatus(option.value)}
+                      >
+                        <Text style={[styles.paymentChoiceText, active && styles.paymentChoiceTextActive]}>
+                          {option.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                {paymentStatus === 'PARTIAL' && (
+                  <InputField
+                    label="Amount Paid Now (Rs.)"
+                    placeholder="0"
+                    value={amountPaidNow}
+                    onChangeText={setAmountPaidNow}
+                    keyboardType="decimal-pad"
+                  />
+                )}
+
+                <View style={styles.unpaidBox}>
+                  <Text style={styles.unpaidLabel}>Unpaid Amount</Text>
+                  <Text style={styles.unpaidValue}>Rs. {unpaidTotal.toLocaleString()}</Text>
+                </View>
+              </View>
+            </>
+          )}
+
+          <Pressable
+            style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            {saving
+              ? <ActivityIndicator color={Colors.textOnPrimary} />
+              : <>
+                  <Ionicons name="save-outline" size={18} color={Colors.textOnPrimary} />
+                  <Text style={styles.saveBtnText}>Save Product</Text>
+                </>}
+          </Pressable>
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <BarcodeScannerModal
@@ -212,7 +341,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  iconBtn: { padding: 4 },
   headerTitle: { fontSize: 17, fontWeight: '700', color: Colors.textDark },
   saveText: { fontSize: 15, fontWeight: '700', color: Colors.primary },
   scroll: { padding: 16, paddingBottom: 40 },
@@ -247,6 +375,30 @@ const styles = StyleSheet.create({
   },
   fieldWrapper: { gap: 6 },
   fieldLabel: { fontSize: 13, fontWeight: '500', color: Colors.textDark },
+  supplierInput: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: Colors.textDark,
+  },
+  supplierSuggestions: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: Colors.card,
+  },
+  supplierSuggestionItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  supplierSuggestionText: { fontSize: 14, color: Colors.textDark },
   scanRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   scanInput: {
     flex: 1,
@@ -291,6 +443,50 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   stockCount: { fontSize: 20, fontWeight: '700', color: Colors.textDark, minWidth: 30, textAlign: 'center' },
+  paymentCard: {
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+    gap: 12,
+    marginBottom: 20,
+  },
+  paymentTopRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  paymentTitle: { fontSize: 15, fontWeight: '700', color: Colors.textDark },
+  paymentSubtext: { fontSize: 12, lineHeight: 18, color: Colors.textMuted, marginTop: 4 },
+  totalPill: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minWidth: 120,
+  },
+  totalPillLabel: { fontSize: 11, color: Colors.textMuted, textTransform: 'uppercase', fontWeight: '700' },
+  totalPillValue: { fontSize: 16, fontWeight: '800', color: Colors.textDark, marginTop: 4 },
+  paymentChoiceRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  paymentChoice: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  paymentChoiceActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  paymentChoiceText: { fontSize: 13, fontWeight: '700', color: Colors.textDark },
+  paymentChoiceTextActive: { color: Colors.textOnPrimary },
+  unpaidBox: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  unpaidLabel: { fontSize: 11, color: Colors.textMuted, textTransform: 'uppercase', fontWeight: '700' },
+  unpaidValue: { fontSize: 18, fontWeight: '800', color: Colors.textDark, marginTop: 4 },
   saveBtn: {
     backgroundColor: Colors.primary,
     borderRadius: 14,

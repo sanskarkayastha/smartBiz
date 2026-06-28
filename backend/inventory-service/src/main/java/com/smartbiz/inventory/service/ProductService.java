@@ -60,10 +60,11 @@ public class ProductService {
     }
 
     @Transactional
-    @CacheEvict(value = CACHE_NAME, allEntries = true)
+    @CacheEvict(value = {CACHE_NAME, "suppliers"}, allEntries = true)
     public ProductDTO create(Long userId, CreateProductRequest request) {
         String normalizedBarcode = normalizeBarcode(request.barcode());
         ensureBarcodeAvailable(userId, normalizedBarcode, null);
+        String normalizedSupplier = normalizeOptionalText(request.supplier());
 
         Product product = Product.builder()
             .userId(userId)
@@ -74,7 +75,7 @@ public class ProductService {
             .costPrice(request.costPrice())
             .quantity(request.quantity())
             .reorderLevel(request.reorderLevel())
-            .supplier(request.supplier())
+            .supplier(normalizedSupplier)
             .barcode(normalizedBarcode)
             .imageUrl(request.imageUrl())
             .build();
@@ -86,15 +87,28 @@ public class ProductService {
             recordStockHistory(product.getId(), request.quantity(), "INITIAL_STOCK", "Initial stock on creation", userId);
         }
 
-        if (request.supplier() != null && !request.supplier().isBlank()) {
-            supplierService.findOrCreate(userId, request.supplier());
+        if (normalizedSupplier != null) {
+            if (request.paymentStatus() != null && request.costPrice() != null && request.quantity() > 0) {
+                supplierService.recordPurchase(
+                    userId,
+                    normalizedSupplier,
+                    product.getId(),
+                    request.quantity(),
+                    request.costPrice(),
+                    request.paymentStatus(),
+                    request.amountPaidNow(),
+                    "Initial stock on creation"
+                );
+            } else {
+                supplierService.findOrCreate(userId, normalizedSupplier);
+            }
         }
 
         return ProductDTO.from(product);
     }
 
     @Transactional
-    @CacheEvict(value = CACHE_NAME, allEntries = true)
+    @CacheEvict(value = {CACHE_NAME, "suppliers"}, allEntries = true)
     public ProductDTO update(Long userId, Long productId, UpdateProductRequest request) {
         Product product = productRepository.findByIdAndUserId(productId, userId)
             .orElseThrow(() -> new ProductNotFoundException(productId));
@@ -104,7 +118,7 @@ public class ProductService {
         if (request.price() != null) product.setPrice(request.price());
         if (request.costPrice() != null) product.setCostPrice(request.costPrice());
         if (request.reorderLevel() != null) product.setReorderLevel(request.reorderLevel());
-        if (request.supplier() != null) product.setSupplier(request.supplier());
+        if (request.supplier() != null) product.setSupplier(normalizeOptionalText(request.supplier()));
         if (request.barcode() != null) {
             String normalizedBarcode = normalizeBarcode(request.barcode());
             ensureBarcodeAvailable(userId, normalizedBarcode, productId);
@@ -125,26 +139,8 @@ public class ProductService {
         return ProductDTO.from(productRepository.save(product));
     }
 
-    private void ensureBarcodeAvailable(Long userId, String barcode, Long productId) {
-        if (barcode == null) return;
-
-        boolean exists = productId == null
-            ? productRepository.existsByBarcodeAndUserId(barcode, userId)
-            : productRepository.existsByBarcodeAndUserIdAndIdNot(barcode, userId, productId);
-
-        if (exists) {
-            throw new BarcodeAlreadyExistsException(barcode);
-        }
-    }
-
-    private String normalizeBarcode(String barcode) {
-        if (barcode == null) return null;
-        String normalized = barcode.trim();
-        return normalized.isEmpty() ? null : normalized;
-    }
-
     @Transactional
-    @CacheEvict(value = CACHE_NAME, allEntries = true)
+    @CacheEvict(value = {CACHE_NAME, "suppliers"}, allEntries = true)
     public ProductDTO adjustStock(Long userId, Long productId, StockUpdateRequest request) {
         Product product = productRepository.findByIdAndUserId(productId, userId)
             .orElseThrow(() -> new ProductNotFoundException(productId));
@@ -163,12 +159,70 @@ public class ProductService {
     }
 
     @Transactional
-    @CacheEvict(value = CACHE_NAME, allEntries = true)
+    @CacheEvict(value = {CACHE_NAME, "suppliers"}, allEntries = true)
+    public ProductDTO restock(Long userId, Long productId, RestockProductRequest request) {
+        Product product = productRepository.findByIdAndUserId(productId, userId)
+            .orElseThrow(() -> new ProductNotFoundException(productId));
+
+        String normalizedSupplier = normalizeOptionalText(request.supplier());
+        if (normalizedSupplier != null) {
+            product.setSupplier(normalizedSupplier);
+        }
+        product.setCostPrice(request.unitCost());
+        product.setQuantity(product.getQuantity() + request.quantityAdded());
+        productRepository.save(product);
+
+        String reason = normalizeOptionalText(request.note()) != null ? request.note().trim() : "Manual restock";
+        recordStockHistory(productId, request.quantityAdded(), "RESTOCK", reason, userId);
+
+        if (normalizedSupplier != null) {
+            supplierService.recordPurchase(
+                userId,
+                normalizedSupplier,
+                product.getId(),
+                request.quantityAdded(),
+                request.unitCost(),
+                request.paymentStatus(),
+                request.amountPaidNow(),
+                reason
+            );
+        }
+
+        log.info("Product restocked: productId={}, quantityAdded={}", productId, request.quantityAdded());
+        return ProductDTO.from(product);
+    }
+
+    @Transactional
+    @CacheEvict(value = {CACHE_NAME, "suppliers"}, allEntries = true)
     public void delete(Long userId, Long productId) {
         Product product = productRepository.findByIdAndUserId(productId, userId)
             .orElseThrow(() -> new ProductNotFoundException(productId));
         productRepository.delete(product);
         log.info("Product deleted: {} for userId={}", productId, userId);
+    }
+
+    private void ensureBarcodeAvailable(Long userId, String barcode, Long productId) {
+        if (barcode == null) return;
+
+        boolean exists = productId == null
+            ? productRepository.existsByBarcodeAndUserId(barcode, userId)
+            : productRepository.existsByBarcodeAndUserIdAndIdNot(barcode, userId, productId);
+
+        if (exists) {
+            throw new BarcodeAlreadyExistsException(barcode);
+        }
+    }
+
+    private String normalizeBarcode(String barcode) {
+        if (barcode == null) return null;
+        String normalized = barcode.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null) return null;
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private void recordStockHistory(Long productId, int quantityChange, String type, String reason, Long createdBy) {

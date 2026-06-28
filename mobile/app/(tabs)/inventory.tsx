@@ -4,13 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Colors } from '@/components/ui/colors';
+import ModalCloseButton from '@/components/ui/ModalCloseButton';
 import SearchBar from '@/components/ui/SearchBar';
 import StatusBadge from '@/components/ui/StatusBadge';
 import VoiceButton from '@/components/ui/VoiceButton';
 import InvoiceScanModal from '@/components/ui/InvoiceScanModal';
 import CategoryPicker from '@/components/ui/CategoryPicker';
 import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
-import { inventoryService, Product, CreateProductPayload, ProductFilters, type Category } from '@/services/inventory';
+import { inventoryService, Product, CreateProductPayload, ProductFilters, type Category, type PaymentStatus } from '@/services/inventory';
 import { parseVoiceForProducts, ParsedProduct } from '@/services/ai';
 
 type StockStatus = 'In Stock' | 'Low Stock' | 'Out of Stock';
@@ -48,6 +49,17 @@ export default function Inventory() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CreateProductPayload>>({});
+  const [restockingProduct, setRestockingProduct] = useState<Product | null>(null);
+  const [showRestockModal, setShowRestockModal] = useState(false);
+  const [restockSaving, setRestockSaving] = useState(false);
+  const [restockForm, setRestockForm] = useState({
+    quantityAdded: '1',
+    unitCost: '',
+    supplier: '',
+    paymentStatus: 'DUE' as PaymentStatus,
+    amountPaidNow: '',
+    note: '',
+  });
   const [showScanModal, setShowScanModal] = useState(false);
   const [voiceProducts, setVoiceProducts] = useState<ParsedProduct[] | undefined>(undefined);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
@@ -209,6 +221,70 @@ export default function Inventory() {
     }
   };
 
+  const openRestockModal = (product: Product) => {
+    setRestockingProduct(product);
+    setRestockForm({
+      quantityAdded: '1',
+      unitCost: product.costPrice != null ? String(product.costPrice) : '',
+      supplier: product.supplier ?? '',
+      paymentStatus: 'DUE',
+      amountPaidNow: '',
+      note: '',
+    });
+    setShowRestockModal(true);
+  };
+
+  const handleRestockProduct = async () => {
+    if (!restockingProduct) return;
+    const quantityAdded = parseInt(restockForm.quantityAdded, 10);
+    const unitCost = parseFloat(restockForm.unitCost);
+    const trimmedSupplier = restockForm.supplier.trim();
+    const canTrackSupplierPayment = !!trimmedSupplier && quantityAdded > 0 && !Number.isNaN(unitCost) && unitCost > 0;
+    const purchaseTotal = canTrackSupplierPayment ? quantityAdded * unitCost : 0;
+
+    if (Number.isNaN(quantityAdded) || quantityAdded <= 0) {
+      Alert.alert('Validation', 'Quantity added must be at least 1');
+      return;
+    }
+    if (Number.isNaN(unitCost) || unitCost <= 0) {
+      Alert.alert('Validation', 'Unit cost must be greater than 0');
+      return;
+    }
+    if (canTrackSupplierPayment && restockForm.paymentStatus === 'PARTIAL') {
+      const paidNow = parseFloat(restockForm.amountPaidNow);
+      if (Number.isNaN(paidNow) || paidNow <= 0) {
+        Alert.alert('Validation', 'Enter how much you paid now for this partial payment');
+        return;
+      }
+      if (paidNow >= purchaseTotal) {
+        Alert.alert('Validation', 'Partial payment must be less than the full purchase total');
+        return;
+      }
+    }
+
+    setRestockSaving(true);
+    try {
+      await inventoryService.restockProduct(restockingProduct.id, {
+        quantityAdded,
+        unitCost,
+        supplier: trimmedSupplier || undefined,
+        paymentStatus: restockForm.paymentStatus,
+        amountPaidNow: canTrackSupplierPayment && restockForm.paymentStatus === 'PARTIAL'
+          ? parseFloat(restockForm.amountPaidNow)
+          : undefined,
+        note: restockForm.note.trim() || undefined,
+      });
+      setShowRestockModal(false);
+      setRestockingProduct(null);
+      load();
+    } catch (err: any) {
+      const message = err?.response?.data?.error ?? 'Failed to restock product';
+      Alert.alert('Error', message);
+    } finally {
+      setRestockSaving(false);
+    }
+  };
+
   const handleDeleteProduct = (product: Product) => {
     Alert.alert('Delete Product', `Delete "${product.name}"? This cannot be undone.`, [
       { text: 'Cancel' },
@@ -352,6 +428,17 @@ export default function Inventory() {
                       <Text style={styles.productMetaLine} numberOfLines={1}>
                         {item.reorderLevel != null ? `${reorderText}  |  ${secondaryMeta}` : secondaryMeta}
                       </Text>
+
+                      <View style={styles.cardActionRow}>
+                        <Pressable style={styles.restockBtn} onPress={() => openRestockModal(item)}>
+                          <Ionicons name="add-circle-outline" size={14} color={Colors.success} />
+                          <Text style={styles.restockBtnText}>Restock</Text>
+                        </Pressable>
+                        <Pressable style={styles.editBtn} onPress={() => openEditModal(item)}>
+                          <Ionicons name="create-outline" size={14} color={Colors.primary} />
+                          <Text style={styles.editBtnText}>Edit</Text>
+                        </Pressable>
+                      </View>
                     </View>
                   </Pressable>
                 </View>
@@ -436,9 +523,7 @@ export default function Inventory() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Product</Text>
-              <Pressable onPress={() => setShowEditModal(false)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setShowEditModal(false)} />
             </View>
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
@@ -492,7 +577,7 @@ export default function Inventory() {
               </View>
             </View>
 
-            <Text style={styles.label}>Quantity *</Text>
+            <Text style={styles.label}>Quantity (manual correction) *</Text>
             <TextInput
               style={styles.input}
               placeholder="0"
@@ -534,11 +619,151 @@ export default function Inventory() {
 
             </ScrollView>
 
+            <Text style={styles.editHelpText}>
+              Use this screen for manual corrections. When new stock arrives, use the restock action so supplier dues can be tracked separately.
+            </Text>
+
             <Pressable style={({ pressed }) => [styles.saveBtn, editSaving && { opacity: 0.7 }, pressed && !editSaving && { opacity: 0.85 }]} onPress={handleUpdateProduct} disabled={editSaving}>
               {editSaving ? (
                 <ActivityIndicator color={Colors.textOnPrimary} />
               ) : (
                 <Text style={styles.saveBtnText}>Save Changes</Text>
+              )}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={showRestockModal} animationType="slide" transparent onRequestClose={() => setShowRestockModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Restock {restockingProduct?.name}</Text>
+                <Text style={styles.modalSubtitle}>Add incoming stock and track any unpaid supplier amount.</Text>
+              </View>
+              <ModalCloseButton onPress={() => setShowRestockModal(false)} />
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <View style={styles.row}>
+                <View style={styles.col}>
+                  <Text style={styles.label}>Quantity Added *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="1"
+                    keyboardType="number-pad"
+                    value={restockForm.quantityAdded}
+                    onChangeText={(v) => setRestockForm((f) => ({ ...f, quantityAdded: v }))}
+                    placeholderTextColor={Colors.textMuted}
+                  />
+                </View>
+                <View style={styles.col}>
+                  <Text style={styles.label}>Unit Cost (Rs) *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="0"
+                    keyboardType="decimal-pad"
+                    value={restockForm.unitCost}
+                    onChangeText={(v) => setRestockForm((f) => ({ ...f, unitCost: v }))}
+                    placeholderTextColor={Colors.textMuted}
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.label}>Supplier</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Leave blank if this restock should not affect supplier dues"
+                value={restockForm.supplier}
+                onChangeText={(v) => setRestockForm((f) => ({ ...f, supplier: v }))}
+                placeholderTextColor={Colors.textMuted}
+              />
+
+              <Text style={styles.label}>Note</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Weekly refill"
+                value={restockForm.note}
+                onChangeText={(v) => setRestockForm((f) => ({ ...f, note: v }))}
+                placeholderTextColor={Colors.textMuted}
+              />
+
+              {!!restockForm.supplier.trim() && parseInt(restockForm.quantityAdded, 10) > 0 && !Number.isNaN(parseFloat(restockForm.unitCost)) && parseFloat(restockForm.unitCost) > 0 && (
+                <View style={styles.restockPaymentCard}>
+                  <View style={styles.paymentHeaderRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.paymentTitle}>Supplier payment</Text>
+                      <Text style={styles.paymentSubtext}>Choose whether this restock was paid now, due, or only partly paid.</Text>
+                    </View>
+                    <View style={styles.totalPill}>
+                      <Text style={styles.totalPillLabel}>Purchase Total</Text>
+                      <Text style={styles.totalPillValue}>
+                        Rs. {(parseInt(restockForm.quantityAdded, 10) * parseFloat(restockForm.unitCost)).toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.paymentChoiceRow}>
+                    {([
+                      { value: 'PAID', label: 'Paid' },
+                      { value: 'DUE', label: 'Due' },
+                      { value: 'PARTIAL', label: 'Partial' },
+                    ] as const).map((option) => {
+                      const active = restockForm.paymentStatus === option.value;
+                      return (
+                        <Pressable
+                          key={option.value}
+                          style={[styles.paymentChoice, active && styles.paymentChoiceActive]}
+                          onPress={() => setRestockForm((f) => ({ ...f, paymentStatus: option.value }))}
+                        >
+                          <Text style={[styles.paymentChoiceText, active && styles.paymentChoiceTextActive]}>
+                            {option.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+
+                  {restockForm.paymentStatus === 'PARTIAL' && (
+                    <>
+                      <Text style={styles.label}>Amount Paid Now (Rs.)</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="0"
+                        keyboardType="decimal-pad"
+                        value={restockForm.amountPaidNow}
+                        onChangeText={(v) => setRestockForm((f) => ({ ...f, amountPaidNow: v }))}
+                        placeholderTextColor={Colors.textMuted}
+                      />
+                    </>
+                  )}
+
+                  <View style={styles.unpaidBox}>
+                    <Text style={styles.unpaidLabel}>Unpaid Amount</Text>
+                    <Text style={styles.unpaidValue}>
+                      Rs. {(
+                        restockForm.paymentStatus === 'PAID'
+                          ? 0
+                          : restockForm.paymentStatus === 'DUE'
+                            ? parseInt(restockForm.quantityAdded, 10) * parseFloat(restockForm.unitCost)
+                            : Math.max(
+                                0,
+                                (parseInt(restockForm.quantityAdded, 10) * parseFloat(restockForm.unitCost)) -
+                                  (!Number.isNaN(parseFloat(restockForm.amountPaidNow)) ? parseFloat(restockForm.amountPaidNow) : 0)
+                              )
+                      ).toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+
+            <Pressable style={({ pressed }) => [styles.saveBtn, restockSaving && { opacity: 0.7 }, pressed && !restockSaving && { opacity: 0.85 }]} onPress={handleRestockProduct} disabled={restockSaving}>
+              {restockSaving ? (
+                <ActivityIndicator color={Colors.textOnPrimary} />
+              ) : (
+                <Text style={styles.saveBtnText}>Save Restock</Text>
               )}
             </Pressable>
           </View>
@@ -551,9 +776,7 @@ export default function Inventory() {
           <View style={[styles.modalSheet, styles.filterSheet]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filter Products</Text>
-              <Pressable onPress={() => setShowFilterSheet(false)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setShowFilterSheet(false)} />
             </View>
 
             <Text style={styles.label}>Category</Text>
@@ -651,6 +874,27 @@ const styles = StyleSheet.create({
   productMetaSide: { alignItems: 'flex-end', gap: 6 },
   productQty: { fontSize: 11, color: Colors.textMuted, fontWeight: '600' },
   productMetaLine: { fontSize: 11, color: Colors.textMuted, marginTop: 8 },
+  cardActionRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  restockBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: Colors.successLight,
+  },
+  restockBtnText: { fontSize: 12, fontWeight: '700', color: Colors.success },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: Colors.primaryLight,
+  },
+  editBtnText: { fontSize: 12, fontWeight: '700', color: Colors.primary },
   fabStack: { position: 'absolute', bottom: 28, right: 20, alignItems: 'center', gap: 10 },
   fab: { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
   fabSecondary: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', opacity: 0.85, elevation: 4 },
@@ -707,10 +951,56 @@ const styles = StyleSheet.create({
   confirmPrimaryText: { fontSize: 14, fontWeight: '700', color: Colors.textOnPrimary },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textDark },
+  modalSubtitle: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   label: { fontSize: 13, fontWeight: '600', color: Colors.textDark, marginBottom: 4, marginTop: 10 },
   input: { backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.textDark },
   row: { flexDirection: 'row', gap: 10 },
   col: { flex: 1 },
+  editHelpText: { fontSize: 12, lineHeight: 18, color: Colors.textMuted, marginTop: 12 },
+  restockPaymentCard: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: Colors.primaryLight,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+    gap: 12,
+  },
+  paymentHeaderRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  paymentTitle: { fontSize: 15, fontWeight: '700', color: Colors.textDark },
+  paymentSubtext: { fontSize: 12, lineHeight: 18, color: Colors.textMuted, marginTop: 4 },
+  totalPill: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minWidth: 120,
+  },
+  totalPillLabel: { fontSize: 11, color: Colors.textMuted, textTransform: 'uppercase', fontWeight: '700' },
+  totalPillValue: { fontSize: 16, fontWeight: '800', color: Colors.textDark, marginTop: 4 },
+  paymentChoiceRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  paymentChoice: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  paymentChoiceActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  paymentChoiceText: { fontSize: 13, fontWeight: '700', color: Colors.textDark },
+  paymentChoiceTextActive: { color: Colors.textOnPrimary },
+  unpaidBox: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  unpaidLabel: { fontSize: 11, color: Colors.textMuted, textTransform: 'uppercase', fontWeight: '700' },
+  unpaidValue: { fontSize: 18, fontWeight: '800', color: Colors.textDark, marginTop: 4 },
   saveBtn: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
   saveBtnText: { color: Colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
   loadMoreBtn: { alignItems: 'center', paddingVertical: 16 },

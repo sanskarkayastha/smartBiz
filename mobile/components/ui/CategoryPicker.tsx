@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, Pressable, Modal, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './colors';
+import ModalCloseButton from './ModalCloseButton';
 import type { Category } from '@/services/inventory';
 
 type Props = {
@@ -32,9 +33,7 @@ export default function CategoryPicker({ value, onChange, categories }: Props) {
           <View style={styles.sheet}>
             <View style={styles.header}>
               <Text style={styles.headerTitle}>Select Category</Text>
-              <Pressable onPress={() => setOpen(false)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setOpen(false)} />
             </View>
 
             {categories.length === 0 ? (

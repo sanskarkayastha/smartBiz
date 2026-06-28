@@ -10,38 +10,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }).format(new Date())
 
   return (
-    <div className="min-h-screen px-3 py-3 sm:px-4 sm:py-4">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(124,160,255,0.12),_transparent_28rem),radial-gradient(circle_at_bottom_right,_rgba(244,202,120,0.10),_transparent_32rem)]" />
-      <div className="relative mx-auto max-w-[1600px]">
-        <div className="grid gap-3 xl:grid-cols-[264px_minmax(0,1fr)]">
+    <div className="min-h-screen bg-paper-2 px-3 py-4 sm:px-5 lg:px-8 lg:py-8">
+      <div className="relative mx-auto max-w-[1560px] overflow-hidden rounded-[28px] border border-white bg-paper shadow-[0_24px_70px_rgba(30,30,30,0.08)]">
+        <div className="grid min-h-[calc(100vh-4rem)] xl:grid-cols-[286px_minmax(0,1fr)]">
           <Sidebar fullName={session.fullName} email={session.email} />
-          <main className="min-w-0">
-            <div className="space-y-4">
-              <header className="rounded-[24px] border border-paper-3 bg-white/82 px-4 py-3 shadow-[0_10px_24px_rgba(31,42,62,0.035)] sm:px-5">
-                <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <main className="min-w-0 border-t border-paper-3 bg-paper-2 xl:border-l xl:border-t-0">
+            <div className="space-y-5">
+              <header className="border-b border-paper-3 bg-white px-4 py-4 sm:px-6">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-ink-3">Today&apos;s command center</p>
-                      <span className="rounded-full border border-paper-3 bg-paper px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-3">
-                        Dashboard
-                      </span>
-                    </div>
-                    <div className="mt-2 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-                      <div className="min-w-0">
-                        <h1
-                          className="text-xl font-extrabold tracking-[-0.04em] text-ink sm:text-[1.7rem]"
-                          style={{ fontFamily: 'var(--font-display)' }}
-                        >
-                          Welcome back, {session.fullName.split(' ')[0]}.
-                        </h1>
-                        <p className="mt-1 text-sm leading-6 text-ink-2">
-                          Revenue, stock, follow-ups, and AI guidance in one quick view.
-                        </p>
-                      </div>
-                      <div className="hidden rounded-full border border-paper-3 bg-brand-soft px-3 py-1.5 text-[11px] font-semibold text-ink lg:inline-flex">
-                        Live business signal
-                      </div>
-                    </div>
+                    <h1 className="text-2xl font-bold text-ink sm:text-[1.7rem]">
+                      Welcome back, {session.fullName.split(' ')[0]} <span className="text-brand">.</span>
+                    </h1>
+                    <p className="mt-1 text-sm text-ink-2">
+                      Sales, stock, suppliers, and customer dues in one admin view.
+                    </p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 xl:justify-end">
@@ -70,20 +53,32 @@ export default async function DashboardLayout({ children }: { children: React.Re
                         <button
                           key={index}
                           type="button"
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-[18px] border border-paper-3 bg-paper text-ink transition duration-200 hover:border-brand/30 hover:bg-white hover:text-brand"
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-[14px] border border-paper-3 bg-white text-ink transition duration-200 hover:border-brand/40 hover:bg-brand-soft hover:text-brand"
                         >
                           {icon}
                         </button>
                       ))}
                     </div>
-                    <div className="rounded-[16px] border border-paper-3 bg-paper px-3 py-2 text-right">
-                      <p className="text-sm font-semibold text-ink">{session.fullName}</p>
-                      <p className="text-xs text-ink-2">{today}</p>
+                    <div className="flex items-center gap-3 rounded-[16px] border border-paper-3 bg-white px-3 py-2">
+                      <div className="h-10 w-10 overflow-hidden rounded-full bg-[linear-gradient(135deg,var(--color-brand),oklch(0.78_0.18_72))] text-center text-sm font-bold leading-10 text-white">
+                        {session.fullName
+                          .split(' ')
+                          .map((part) => part[0])
+                          .join('')
+                          .toUpperCase()
+                          .slice(0, 2)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-ink">{session.fullName}</p>
+                        <p className="truncate text-xs text-ink-2">{today}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </header>
-              {children}
+              <div className="px-4 pb-5 sm:px-6 sm:pb-6">
+                {children}
+              </div>
             </div>
           </main>
         </div>

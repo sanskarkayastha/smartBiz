@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AddProductModal from '@/src/components/AddProductModal'
+import RestockProductModal from '@/src/components/RestockProductModal'
 import Pagination from '@/src/components/Pagination'
 import ManageCategoriesModal, { type Category } from '@/src/components/ManageCategoriesModal'
 
@@ -386,6 +387,7 @@ export default function InventoryClient({
                     </td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <RestockProductModal product={{ id: p.id, name: p.name, supplier: p.supplier, costPrice: p.costPrice }} />
                         <AddProductModal product={p} onClose={() => router.refresh()} categories={categories.map((c) => c.name)} />
                         <button
                           onClick={() => handleDelete(p)}

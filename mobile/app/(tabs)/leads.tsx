@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Colors } from '@/components/ui/colors';
+import ModalCloseButton from '@/components/ui/ModalCloseButton';
 import ParentTabBackLink from '@/components/ui/ParentTabBackLink';
 import VoiceButton from '@/components/ui/VoiceButton';
 import { leadsService, Lead, LeadStage, LeadSource, LeadFilters, CreateLeadPayload } from '@/services/leads';
@@ -620,9 +621,7 @@ export default function Leads() {
           <View style={styles.filterSheet}>
             <View style={styles.filterHeader}>
               <Text style={styles.filterTitle}>Filter Leads</Text>
-              <Pressable onPress={() => setShowFilterSheet(false)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setShowFilterSheet(false)} />
             </View>
 
             <Text style={styles.filterLabel}>Source</Text>
@@ -677,9 +676,7 @@ export default function Leads() {
           <ScrollView style={styles.modalSheet} showsVerticalScrollIndicator={false}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editTarget ? 'Edit Lead' : 'New Lead'}</Text>
-              <Pressable onPress={() => setShowModal(false)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setShowModal(false)} />
             </View>
 
             <Text style={styles.label}>Name *</Text>

@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Colors } from '@/components/ui/colors';
+import ModalCloseButton from '@/components/ui/ModalCloseButton';
 import ParentTabBackLink from '@/components/ui/ParentTabBackLink';
 import SearchBar from '@/components/ui/SearchBar';
 import { customersService, Customer, CreateCustomerPayload, CustomerFilters } from '@/services/customers';
@@ -387,9 +388,7 @@ export default function Customers() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editTarget ? 'Edit Customer' : 'New Customer'}</Text>
-              <Pressable onPress={() => setShowModal(false)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setShowModal(false)} />
             </View>
 
             <Text style={styles.label}>Name *</Text>
@@ -439,9 +438,7 @@ export default function Customers() {
           <View style={styles.filterSheet}>
             <View style={styles.filterHeader}>
               <Text style={styles.filterTitle}>Filter Customers</Text>
-              <Pressable onPress={() => setShowFilterSheet(false)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setShowFilterSheet(false)} />
             </View>
 
             <Pressable
@@ -480,9 +477,7 @@ export default function Customers() {
                   <Text style={styles.historySubtitle}>{historyCustomer.name}</Text>
                 )}
               </View>
-              <Pressable onPress={() => setShowHistory(false)}>
-                <Ionicons name="close" size={22} color={Colors.textDark} />
-              </Pressable>
+              <ModalCloseButton onPress={() => setShowHistory(false)} />
             </View>
 
             {loadingHistory ? (

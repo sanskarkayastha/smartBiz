@@ -44,11 +44,34 @@ public class SupplierController {
         return ResponseEntity.ok(supplierService.getProductsBySupplier(userId, id));
     }
 
+    @GetMapping("/{id}/ledger")
+    public ResponseEntity<List<SupplierLedgerEntryDTO>> getLedger(
+        @RequestHeader("X-User-Id") Long userId,
+        @PathVariable Long id) {
+        return ResponseEntity.ok(supplierService.getLedger(userId, id));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<SupplierDTO> update(
         @RequestHeader("X-User-Id") Long userId,
         @PathVariable Long id,
-        @RequestBody UpdateSupplierRequest request) {
+        @Valid @RequestBody UpdateSupplierRequest request) {
         return ResponseEntity.ok(supplierService.updateSupplier(userId, id, request));
+    }
+
+    @PostMapping("/{id}/payments")
+    public ResponseEntity<SupplierDTO> recordPayment(
+        @RequestHeader("X-User-Id") Long userId,
+        @PathVariable Long id,
+        @Valid @RequestBody RecordSupplierPaymentRequest request) {
+        return ResponseEntity.ok(supplierService.recordPayment(userId, id, request));
+    }
+
+    @PostMapping("/{id}/adjustments")
+    public ResponseEntity<SupplierDTO> adjustBalance(
+        @RequestHeader("X-User-Id") Long userId,
+        @PathVariable Long id,
+        @Valid @RequestBody AdjustSupplierBalanceRequest request) {
+        return ResponseEntity.ok(supplierService.adjustBalance(userId, id, request));
     }
 }

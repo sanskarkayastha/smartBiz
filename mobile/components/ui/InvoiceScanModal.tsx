@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from './colors';
+import ModalCloseButton from './ModalCloseButton';
 import {
   addImportArtifact,
   analyzeImportSession,
@@ -200,11 +201,9 @@ export default function InvoiceScanModal({
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Pressable onPress={handleClose} style={styles.closeBtn}>
-            <Ionicons name="close" size={22} color={Colors.textDark} />
-          </Pressable>
+          <ModalCloseButton onPress={handleClose} />
           <Text style={styles.title}>Import Purchase Bill</Text>
-          <View style={{ width: 36 }} />
+          <View style={{ width: 44 }} />
         </View>
 
         {!review ? (
@@ -405,14 +404,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   title: { fontSize: 17, fontWeight: '700', color: Colors.textDark },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },

@@ -40,4 +40,6 @@ export interface CreateProductInput {
   reorderLevel?: number
   supplier?: string
   sku?: string
+  paymentStatus?: 'PAID' | 'DUE' | 'PARTIAL'
+  amountPaidNow?: number
 }

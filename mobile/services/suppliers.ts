@@ -26,6 +26,20 @@ export type SupplierProduct = {
   lowStock: boolean;
 };
 
+export type SupplierLedgerEntryType = 'OPENING_BALANCE' | 'PURCHASE' | 'PAYMENT' | 'MANUAL_ADJUSTMENT';
+export type SupplierAdjustmentMode = 'ADD_DEBT' | 'SET_BALANCE';
+
+export type SupplierLedgerEntry = {
+  id: number;
+  type: SupplierLedgerEntryType;
+  amount: number;
+  productId: number | null;
+  quantity: number | null;
+  unitCost: number | null;
+  note: string | null;
+  createdAt: string;
+};
+
 export type SupplierSummary = {
   totalSuppliers: number;
   suppliersWithBalance: number;
@@ -48,6 +62,7 @@ export type CreateSupplierPayload = {
   name: string;
   phone?: string;
   email?: string;
+  openingBalance?: number;
   balanceOwed?: number;
   notes?: string;
 };
@@ -57,6 +72,18 @@ export type UpdateSupplierPayload = {
   email?: string;
   balanceOwed?: number;
   notes?: string;
+};
+
+export type RecordSupplierPaymentPayload = {
+  amount: number;
+  note?: string;
+};
+
+export type AdjustSupplierBalancePayload = {
+  mode: SupplierAdjustmentMode;
+  amount?: number;
+  targetBalance?: number;
+  note?: string;
 };
 
 export type SupplierFilters = {
@@ -90,6 +117,21 @@ export const supplierService = {
 
   async getSupplierProducts(id: number): Promise<SupplierProduct[]> {
     const { data } = await api.get<SupplierProduct[]>(`/inventory/suppliers/${id}/products`);
+    return data;
+  },
+
+  async getSupplierLedger(id: number): Promise<SupplierLedgerEntry[]> {
+    const { data } = await api.get<SupplierLedgerEntry[]>(`/inventory/suppliers/${id}/ledger`);
+    return data;
+  },
+
+  async recordSupplierPayment(id: number, payload: RecordSupplierPaymentPayload): Promise<Supplier> {
+    const { data } = await api.post<Supplier>(`/inventory/suppliers/${id}/payments`, payload);
+    return data;
+  },
+
+  async adjustSupplierBalance(id: number, payload: AdjustSupplierBalancePayload): Promise<Supplier> {
+    const { data } = await api.post<Supplier>(`/inventory/suppliers/${id}/adjustments`, payload);
     return data;
   },
 };

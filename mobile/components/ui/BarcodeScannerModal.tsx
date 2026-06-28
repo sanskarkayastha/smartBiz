@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, type BarcodeType, useCameraPermissions } from 'expo-camera';
 import { Colors } from './colors';
+import ModalCloseButton from './ModalCloseButton';
 
 type Props = {
   visible: boolean;
@@ -59,9 +60,7 @@ export default function BarcodeScannerModal({
               <Text style={styles.title}>{title}</Text>
               <Text style={styles.subtitle}>{subtitle}</Text>
             </View>
-            <Pressable onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color={Colors.textDark} />
-            </Pressable>
+            <ModalCloseButton onPress={onClose} />
           </View>
 
           {!permission?.granted ? (
@@ -128,14 +127,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     color: Colors.textMuted,
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.background,
   },
   permissionState: {
     flex: 1,

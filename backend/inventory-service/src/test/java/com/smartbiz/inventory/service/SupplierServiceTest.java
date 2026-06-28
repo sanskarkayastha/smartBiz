@@ -1,11 +1,17 @@
 package com.smartbiz.inventory.service;
 
 import com.smartbiz.inventory.dto.PagedResponse;
+import com.smartbiz.inventory.dto.PaymentStatus;
+import com.smartbiz.inventory.dto.RecordSupplierPaymentRequest;
 import com.smartbiz.inventory.dto.SupplierDTO;
+import com.smartbiz.inventory.dto.SupplierLedgerEntryDTO;
 import com.smartbiz.inventory.dto.SupplierSummaryDTO;
 import com.smartbiz.inventory.model.Product;
 import com.smartbiz.inventory.model.Supplier;
+import com.smartbiz.inventory.model.SupplierLedgerEntry;
+import com.smartbiz.inventory.model.SupplierLedgerEntryType;
 import com.smartbiz.inventory.repository.ProductRepository;
+import com.smartbiz.inventory.repository.SupplierLedgerEntryRepository;
 import com.smartbiz.inventory.repository.SupplierRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,17 +23,21 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class SupplierServiceTest {
 
     @Mock SupplierRepository supplierRepository;
+    @Mock SupplierLedgerEntryRepository supplierLedgerEntryRepository;
     @Mock ProductRepository productRepository;
 
     @InjectMocks SupplierService supplierService;
@@ -89,6 +99,86 @@ class SupplierServiceTest {
         assertThat(result.suppliersNeedingRestock()).isEqualTo(1);
         assertThat(result.lowStockProducts()).isEqualTo(1);
         assertThat(result.outOfStockProducts()).isEqualTo(1);
+    }
+
+    @Test
+    void recordPurchase_partialPayment_addsOnlyOutstandingAmount() {
+        Supplier supplier = Supplier.builder()
+            .id(1L)
+            .userId(10L)
+            .name("ABC Traders")
+            .balanceOwed(new BigDecimal("200.00"))
+            .build();
+
+        when(supplierRepository.findByUserIdAndNameIgnoreCase(10L, "ABC Traders")).thenReturn(Optional.of(supplier));
+        when(supplierRepository.save(any(Supplier.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Supplier updated = supplierService.recordPurchase(
+            10L,
+            "ABC Traders",
+            15L,
+            10,
+            new BigDecimal("100.00"),
+            PaymentStatus.PARTIAL,
+            new BigDecimal("250.00"),
+            "Restock"
+        );
+
+        assertThat(updated.getBalanceOwed()).isEqualByComparingTo("950.00");
+        verify(supplierLedgerEntryRepository).save(any(SupplierLedgerEntry.class));
+    }
+
+    @Test
+    void recordPayment_reducesSupplierBalance() {
+        Supplier supplier = Supplier.builder()
+            .id(1L)
+            .userId(10L)
+            .name("ABC Traders")
+            .balanceOwed(new BigDecimal("1200.00"))
+            .build();
+
+        when(supplierRepository.findByIdAndUserId(1L, 10L)).thenReturn(Optional.of(supplier));
+        when(supplierRepository.save(any(Supplier.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SupplierDTO result = supplierService.recordPayment(
+            10L,
+            1L,
+            new RecordSupplierPaymentRequest(new BigDecimal("300.00"), "Cash paid")
+        );
+
+        assertThat(result.balanceOwed()).isEqualByComparingTo("900.00");
+    }
+
+    @Test
+    void getLedger_returnsNewestEntriesFirst() {
+        Supplier supplier = Supplier.builder()
+            .id(1L)
+            .userId(10L)
+            .name("ABC Traders")
+            .balanceOwed(new BigDecimal("500.00"))
+            .build();
+
+        SupplierLedgerEntry entry = SupplierLedgerEntry.builder()
+            .id(10L)
+            .supplierId(1L)
+            .userId(10L)
+            .type(SupplierLedgerEntryType.PURCHASE)
+            .amount(new BigDecimal("500.00"))
+            .quantity(5)
+            .unitCost(new BigDecimal("100.00"))
+            .note("Restock")
+            .createdAt(LocalDateTime.now())
+            .build();
+
+        when(supplierRepository.findByIdAndUserId(1L, 10L)).thenReturn(Optional.of(supplier));
+        when(supplierLedgerEntryRepository.findTop20BySupplierIdAndUserIdOrderByCreatedAtDescIdDesc(1L, 10L))
+            .thenReturn(List.of(entry));
+
+        List<SupplierLedgerEntryDTO> result = supplierService.getLedger(10L, 1L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).type()).isEqualTo(SupplierLedgerEntryType.PURCHASE);
+        assertThat(result.get(0).amount()).isEqualByComparingTo("500.00");
     }
 
     private Product product(String name, String supplier, int quantity, Integer reorderLevel) {

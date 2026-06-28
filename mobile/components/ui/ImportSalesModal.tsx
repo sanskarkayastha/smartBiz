@@ -14,6 +14,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as XLSX from 'xlsx';
 import { Colors } from '@/components/ui/colors';
+import ModalCloseButton from '@/components/ui/ModalCloseButton';
 import {
   addImportArtifact,
   analyzeImportSession,
@@ -190,9 +191,7 @@ export default function ImportSalesModal({
               without changing live stock.
             </Text>
           </View>
-          <Pressable onPress={handleClose} hitSlop={8}>
-            <Ionicons name="close" size={24} color={Colors.textDark} />
-          </Pressable>
+          <ModalCloseButton onPress={handleClose} />
         </View>
 
         <ScrollView

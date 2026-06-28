@@ -7,6 +7,7 @@ type Product = {
   sku: string | null
   category: string | null
   price: number
+  costPrice: number | null
   quantity: number
   reorderLevel: number | null
   supplier: string | null
