@@ -11,7 +11,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-paper-2 p-2 sm:p-3 lg:p-4">
-      <div className="relative min-h-[calc(100vh-1rem)] overflow-hidden rounded-[24px] bg-paper sm:min-h-[calc(100vh-1.5rem)] lg:min-h-[calc(100vh-2rem)]">
+      <div className="relative min-h-[calc(100vh-1rem)] overflow-hidden rounded-[24px] border border-paper-3 bg-white sm:min-h-[calc(100vh-1.5rem)] lg:min-h-[calc(100vh-2rem)]">
         <div className="grid min-h-[calc(100vh-1rem)] sm:min-h-[calc(100vh-1.5rem)] lg:min-h-[calc(100vh-2rem)] xl:grid-cols-[286px_minmax(0,1fr)]">
           <Sidebar fullName={session.fullName} email={session.email} />
           <main className="min-w-0 bg-paper-2">

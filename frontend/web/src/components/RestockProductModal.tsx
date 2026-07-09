@@ -139,7 +139,7 @@ export default function RestockProductModal({ product }: { product: Product }) {
     <>
       <button
         onClick={handleOpen}
-        className="flex items-center gap-1.5 rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
+        className="inline-flex items-center gap-1.5 rounded-[10px] border border-mint/35 px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-mint/14"
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
         Restock
@@ -173,7 +173,7 @@ export default function RestockProductModal({ product }: { product: Product }) {
                   onChange={(e) => handleSupplierChange(e.target.value)}
                   onBlur={() => setShowSupplierSuggestions(false)}
                   placeholder="Leave blank if this restock should not affect supplier dues"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                  className="w-full rounded-lg border border-paper-3 px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand/24"
                 />
                 {showSupplierSuggestions && supplierSuggestions.length > 0 && (
                   <ul className="absolute left-0 top-full z-10 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg">
@@ -197,7 +197,7 @@ export default function RestockProductModal({ product }: { product: Product }) {
               <Field label="Note" value={note} onChange={setNote} placeholder="e.g. Weekly refill" />
 
               {canTrackPayment && (
-                <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                <div className="rounded-2xl border border-paper-3 bg-brand-soft/70 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">Supplier payment</p>
@@ -219,7 +219,7 @@ export default function RestockProductModal({ product }: { product: Product }) {
                         onClick={() => setPaymentStatus(status)}
                         className={`rounded-full px-3 py-2 text-xs font-semibold transition-colors ${
                           paymentStatus === status
-                            ? 'bg-[#135BEC] text-white'
+                            ? 'bg-brand text-snow'
                             : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
                         }`}
                       >
@@ -253,7 +253,7 @@ export default function RestockProductModal({ product }: { product: Product }) {
                 <button type="button" onClick={() => setOpen(false)} className="flex-1 rounded-lg border border-gray-200 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50">
                   Cancel
                 </button>
-                <button type="submit" disabled={loading} className="flex-1 rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60">
+                <button type="submit" disabled={loading} className="flex-1 rounded-lg bg-brand py-2.5 text-sm font-semibold text-snow transition-colors hover:opacity-90 disabled:opacity-60">
                   {loading ? 'Saving...' : 'Save Restock'}
                 </button>
               </div>
@@ -292,7 +292,7 @@ function Field({
         placeholder={placeholder}
         min={min}
         step={step}
-        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+        className="w-full rounded-lg border border-paper-3 px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand/24"
       />
     </div>
   )

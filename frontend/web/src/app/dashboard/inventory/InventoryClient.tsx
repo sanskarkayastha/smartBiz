@@ -20,9 +20,9 @@ type Product = {
 }
 
 function statusLabel(quantity: number, reorderLevel: number | null) {
-  if (quantity === 0) return { text: 'Out of Stock', cls: 'bg-red-50 text-red-600' }
-  if (reorderLevel !== null && quantity <= reorderLevel) return { text: 'Low Stock', cls: 'bg-yellow-50 text-yellow-700' }
-  return { text: 'In Stock', cls: 'bg-green-50 text-green-700' }
+  if (quantity === 0) return { text: 'Out of Stock', cls: 'bg-rose/14 text-rose' }
+  if (reorderLevel !== null && quantity <= reorderLevel) return { text: 'Low Stock', cls: 'bg-amber/20 text-ink' }
+  return { text: 'In Stock', cls: 'bg-mint/18 text-ink' }
 }
 
 const STOCK_OPTIONS = [
@@ -96,7 +96,9 @@ export default function InventoryClient({
         const data = await res.json()
         setSuggestions((data.content ?? []).map((p: { name: string }) => p.name))
         setShowSuggestions(true)
-      } catch { /* ignore */ }
+      } catch {
+        // Suggestion failures should not block product search.
+      }
     }, 300)
   }
 
@@ -215,13 +217,14 @@ export default function InventoryClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
-          <p className="text-sm text-gray-500 mt-1">{totalElements} products</p>
+          <h1 className="text-2xl font-bold text-ink">Inventory</h1>
+          <p className="mt-1 text-sm text-ink-2">{totalElements} products</p>
         </div>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => setShowManageCategories(true)}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-1.5 rounded-[14px] border border-paper-3 bg-white px-3 py-2 text-sm font-semibold text-ink transition-colors hover:bg-paper"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
             Categories
@@ -230,26 +233,24 @@ export default function InventoryClient({
         </div>
       </div>
 
-      {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Search */}
-        <div className="relative flex-1 min-w-[200px]">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <div className="relative min-w-[200px] flex-1">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
           <input
             type="text"
-            placeholder="Search name, SKU, supplier…"
+            placeholder="Search name, SKU, supplier..."
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') commitSearch(search) }}
             onBlur={() => setShowSuggestions(false)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#135BEC] focus:border-transparent bg-white"
+            className="w-full rounded-xl border border-paper-3 bg-white py-2.5 pl-9 pr-4 text-sm text-ink placeholder:text-ink-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand/24"
           />
           {showSuggestions && suggestions.length > 0 && (
-            <ul className="absolute z-10 top-full left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
+            <ul className="absolute left-0 top-full z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-paper-3 bg-white shadow-lg">
               {suggestions.map((name) => (
-                <li key={name} onMouseDown={() => commitSearch(name)} className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-800">
+                <li key={name} onMouseDown={() => commitSearch(name)} className="cursor-pointer px-3 py-2 text-sm text-ink hover:bg-paper">
                   {name}
                 </li>
               ))}
@@ -257,11 +258,12 @@ export default function InventoryClient({
           )}
         </div>
 
-        {/* Category */}
         <select
           value={category}
           onChange={(e) => handleCategoryChange(e.target.value)}
-          className={`px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC] bg-white ${category ? 'border-[#135BEC] text-[#135BEC] font-medium' : 'border-gray-200 text-gray-700'}`}
+          className={`rounded-xl border bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/24 ${
+            category ? 'border-brand text-brand font-semibold' : 'border-paper-3 text-ink-2'
+          }`}
         >
           <option value="">All Categories</option>
           {categories.map((c) => (
@@ -269,20 +271,21 @@ export default function InventoryClient({
           ))}
         </select>
 
-        {/* Stock Status */}
         <select
           value={stockStatus}
           onChange={(e) => handleStockStatusChange(e.target.value)}
-          className={`px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC] bg-white ${stockStatus ? 'border-[#135BEC] text-[#135BEC] font-medium' : 'border-gray-200 text-gray-700'}`}
+          className={`rounded-xl border bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/24 ${
+            stockStatus ? 'border-brand text-brand font-semibold' : 'border-paper-3 text-ink-2'
+          }`}
         >
           {STOCK_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
 
-        {/* Clear filters */}
         {activeFilterCount > 0 && (
           <button
+            type="button"
             onClick={() => {
               setSearch('')
               setCategory('')
@@ -291,7 +294,7 @@ export default function InventoryClient({
               setShowSuggestions(false)
               router.push('/dashboard/inventory')
             }}
-            className="flex items-center gap-1.5 px-3 py-2.5 text-sm text-gray-500 hover:text-gray-800 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-1.5 rounded-xl border border-paper-3 bg-white px-3 py-2.5 text-sm text-ink-2 transition-colors hover:bg-paper hover:text-ink"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             Clear {activeFilterCount > 1 ? `(${activeFilterCount})` : ''}
@@ -300,24 +303,26 @@ export default function InventoryClient({
       </div>
 
       {selectedIds.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose/20 bg-rose/10 px-4 py-3">
           <div>
-            <p className="text-sm font-semibold text-red-700">
+            <p className="text-sm font-semibold text-ink">
               {selectedIds.length} product{selectedIds.length === 1 ? '' : 's'} selected
             </p>
-            <p className="text-xs text-red-600">Delete them together instead of repeating single-product deletes.</p>
+            <p className="text-xs text-ink-2">Delete them together instead of repeating single-product deletes.</p>
           </div>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setSelectedIds([])}
-              className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+              className="rounded-xl border border-paper-3 bg-white px-3 py-2 text-sm font-semibold text-ink transition-colors hover:bg-paper"
             >
               Clear Selection
             </button>
             <button
+              type="button"
               onClick={handleBulkDelete}
               disabled={bulkDeleting}
-              className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-rose px-4 py-2 text-sm font-semibold text-snow transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {bulkDeleting ? (
                 <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" opacity=".3"/><path d="M12 2a10 10 0 0110 10"/></svg>
@@ -330,28 +335,28 @@ export default function InventoryClient({
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-paper-3 bg-white">
         {products.length > 0 ? (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
+              <tr className="border-b border-paper-3 bg-paper">
                 <th className="px-5 py-3 text-left">
                   <input
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleSelectAll}
                     aria-label="Select all products on this page"
-                    className="h-4 w-4 rounded border-gray-300 text-[#135BEC] focus:ring-[#135BEC]"
+                    className="h-4 w-4 rounded border-paper-3 accent-[var(--color-brand)]"
                   />
                 </th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Product</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">SKU</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cost Price</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Selling Price</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Qty</th>
-                <th className="text-center px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-3">Product</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-3">SKU</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-3">Category</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-3">Cost Price</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-3">Selling Price</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-3">Qty</th>
+                <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wide text-ink-3">Status</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -359,29 +364,29 @@ export default function InventoryClient({
                 const status = statusLabel(p.quantity, p.reorderLevel)
                 const selected = selectedIds.includes(p.id)
                 return (
-                  <tr key={p.id} className={`border-b border-gray-50 ${selected ? 'bg-blue-50/60' : i % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
+                  <tr key={p.id} className={`border-b border-paper-3 last:border-b-0 ${selected ? 'bg-brand-soft/70' : i % 2 === 1 ? 'bg-paper/45' : ''}`}>
                     <td className="px-5 py-3 align-top">
                       <input
                         type="checkbox"
                         checked={selected}
                         onChange={() => toggleSelection(p.id)}
                         aria-label={`Select ${p.name}`}
-                        className="mt-1 h-4 w-4 rounded border-gray-300 text-[#135BEC] focus:ring-[#135BEC]"
+                        className="mt-1 h-4 w-4 rounded border-paper-3 accent-[var(--color-brand)]"
                       />
                     </td>
                     <td className="px-5 py-3">
-                      <p className="font-medium text-gray-900">{p.name}</p>
-                      {p.supplier && <p className="text-xs text-gray-400">{p.supplier}</p>}
+                      <p className="font-medium text-ink">{p.name}</p>
+                      {p.supplier && <p className="text-xs text-ink-3">{p.supplier}</p>}
                     </td>
-                    <td className="px-5 py-3 text-gray-500 font-mono text-xs">{p.sku ?? '—'}</td>
-                    <td className="px-5 py-3 text-gray-600">{p.category ?? '—'}</td>
-                    <td className="px-5 py-3 text-right text-gray-500">
-                      {p.costPrice != null ? `NPR ${Number(p.costPrice).toLocaleString()}` : '—'}
+                    <td className="px-5 py-3 font-mono text-xs text-ink-2">{p.sku ?? '-'}</td>
+                    <td className="px-5 py-3 text-ink-2">{p.category ?? '-'}</td>
+                    <td className="px-5 py-3 text-right text-ink-2">
+                      {p.costPrice != null ? `NPR ${Number(p.costPrice).toLocaleString()}` : '-'}
                     </td>
-                    <td className="px-5 py-3 text-right font-medium text-gray-900">NPR {Number(p.price).toLocaleString()}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-900">{p.quantity}</td>
+                    <td className="px-5 py-3 text-right font-medium text-ink">NPR {Number(p.price).toLocaleString()}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-ink">{p.quantity}</td>
                     <td className="px-5 py-3 text-center">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${status.cls}`}>
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${status.cls}`}>
                         {status.text}
                       </span>
                     </td>
@@ -390,9 +395,10 @@ export default function InventoryClient({
                         <RestockProductModal product={{ id: p.id, name: p.name, supplier: p.supplier, costPrice: p.costPrice }} />
                         <AddProductModal product={p} onClose={() => router.refresh()} categories={categories.map((c) => c.name)} />
                         <button
+                          type="button"
                           onClick={() => handleDelete(p)}
                           disabled={deleting === p.id || bulkDeleting}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                          className="flex items-center gap-1.5 rounded-lg border border-rose/24 px-3 py-1.5 text-xs font-semibold text-rose transition-colors hover:bg-rose/10 disabled:opacity-50"
                         >
                           {deleting === p.id ? (
                             <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" opacity=".3"/><path d="M12 2a10 10 0 0110 10"/></svg>
@@ -409,14 +415,14 @@ export default function InventoryClient({
             </tbody>
           </table>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-20 text-ink-3">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-3">
               <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
             </svg>
-            <p className="text-sm font-medium">
+            <p className="text-sm font-medium text-ink">
               {activeFilterCount ? 'No products match your filters' : 'No products yet'}
             </p>
-            <p className="text-xs mt-1">
+            <p className="mt-1 text-xs text-ink-2">
               {activeFilterCount ? 'Try clearing your filters' : 'Click "Add Product" to create your first product'}
             </p>
           </div>

@@ -186,8 +186,8 @@ export default function AddProductModal({ product, onClose, triggerLabel, catego
         onClick={openModal}
         className={
           isEdit
-            ? 'flex items-center gap-1.5 rounded-lg border border-[#135BEC]/30 px-3 py-1.5 text-xs font-medium text-[#135BEC] transition-colors hover:bg-[#135BEC]/5'
-            : 'flex items-center gap-2 rounded-lg bg-[#135BEC] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700'
+            ? 'inline-flex items-center gap-1.5 rounded-[10px] border border-brand/30 px-3 py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand-soft'
+            : 'inline-flex h-12 items-center gap-2 rounded-[14px] bg-brand px-4 text-sm font-bold text-snow transition-colors hover:opacity-90'
         }
       >
         {isEdit ? (
@@ -224,7 +224,7 @@ export default function AddProductModal({ product, onClose, triggerLabel, catego
                     <select
                       value={form.category}
                       onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                      className="w-full rounded-lg border border-paper-3 bg-white px-3 py-2 text-sm text-ink focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand/24"
                     >
                       <option value="">Select category</option>
                       {categories.map((c) => (
@@ -240,7 +240,7 @@ export default function AddProductModal({ product, onClose, triggerLabel, catego
                       value={form.category}
                       onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                       placeholder="e.g. Grains"
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                      className="w-full rounded-lg border border-paper-3 px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand/24"
                     />
                   )}
                 </div>
@@ -269,7 +269,7 @@ export default function AddProductModal({ product, onClose, triggerLabel, catego
                   onChange={(e) => handleSupplierChange(e.target.value)}
                   onBlur={() => setShowSupplierSuggestions(false)}
                   placeholder="e.g. ABC Traders"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                  className="w-full rounded-lg border border-paper-3 px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand/24"
                 />
                 {showSupplierSuggestions && supplierSuggestions.length > 0 && (
                   <ul className="absolute left-0 top-full z-10 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg">
@@ -291,7 +291,7 @@ export default function AddProductModal({ product, onClose, triggerLabel, catego
               </div>
 
               {canTrackSupplierPayment && (
-                <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                <div className="rounded-2xl border border-paper-3 bg-brand-soft/70 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">Supplier payment</p>
@@ -313,7 +313,7 @@ export default function AddProductModal({ product, onClose, triggerLabel, catego
                         onClick={() => setPaymentStatus(status)}
                         className={`rounded-full px-3 py-2 text-xs font-semibold transition-colors ${
                           paymentStatus === status
-                            ? 'bg-[#135BEC] text-white'
+                            ? 'bg-brand text-snow'
                             : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
                         }`}
                       >
@@ -361,7 +361,7 @@ export default function AddProductModal({ product, onClose, triggerLabel, catego
                 <button type="button" onClick={closeModal} className="flex-1 rounded-lg border border-gray-200 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50">
                   Cancel
                 </button>
-                <button type="submit" disabled={loading} className="flex-1 rounded-lg bg-[#135BEC] py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60">
+                <button type="submit" disabled={loading} className="flex-1 rounded-lg bg-brand py-2.5 text-sm font-semibold text-snow transition-colors hover:opacity-90 disabled:opacity-60">
                   {loading ? 'Saving...' : isEdit ? 'Update Product' : 'Save Product'}
                 </button>
               </div>
@@ -392,7 +392,7 @@ function Field({ label, value, onChange, placeholder, type = 'text', min, step }
         placeholder={placeholder}
         min={min}
         step={step}
-        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+        className="w-full rounded-lg border border-paper-3 px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand/24"
       />
     </div>
   )

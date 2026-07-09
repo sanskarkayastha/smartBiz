@@ -128,7 +128,7 @@ export default function ManageCategoriesModal({ categories, onAdd, onDelete, onR
                         if (e.key === 'Enter') commitEdit(cat.id)
                         if (e.key === 'Escape') cancelEdit()
                       }}
-                      className="flex-1 px-2.5 py-1.5 border border-[#135BEC] rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#135BEC]/30"
+                      className="flex-1 rounded-lg border border-brand px-2.5 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand/24"
                     />
                     <button
                       onClick={() => commitEdit(cat.id)}
@@ -151,7 +151,7 @@ export default function ManageCategoriesModal({ categories, onAdd, onDelete, onR
                     <span className="flex-1 text-sm text-gray-800">{cat.name}</span>
                     <button
                       onClick={() => startEdit(cat)}
-                      className="p-1.5 text-gray-400 hover:text-[#135BEC] hover:bg-[#135BEC]/5 rounded-lg transition-colors"
+                      className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-brand-soft hover:text-brand"
                       title="Rename"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -180,12 +180,12 @@ export default function ManageCategoriesModal({ categories, onAdd, onDelete, onR
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#135BEC] focus:border-transparent"
+              className="flex-1 rounded-lg border border-paper-3 px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand/24"
             />
             <button
               onClick={handleAdd}
               disabled={saving || !newName.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 bg-[#135BEC] text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-snow transition-colors hover:opacity-90 disabled:opacity-50"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add
