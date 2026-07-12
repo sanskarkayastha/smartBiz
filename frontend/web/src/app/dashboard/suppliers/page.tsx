@@ -17,16 +17,6 @@ type Supplier = {
   outOfStockCount: number
 }
 
-type SupplierSummary = {
-  totalSuppliers: number
-  suppliersWithBalance: number
-  totalBalanceOwed: number
-  linkedProducts: number
-  suppliersNeedingRestock: number
-  lowStockProducts: number
-  outOfStockProducts: number
-}
-
 export default async function SuppliersPage({
   searchParams,
 }: {
@@ -42,37 +32,24 @@ export default async function SuppliersPage({
   if (search) qs.set('search', search)
   if (hasBalance) qs.set('hasBalance', 'true')
 
-  const [data, summary] = await Promise.all([
-    apiFetch<{ content: Supplier[]; totalPages: number; totalElements: number }>(
-      `/inventory/suppliers?${qs.toString()}`,
-      session
-    ),
-    apiFetch<SupplierSummary>('/inventory/suppliers/summary', session),
-  ])
+  const data = await apiFetch<{ content: Supplier[]; totalPages: number; totalElements: number }>(
+    `/inventory/suppliers?${qs.toString()}`,
+    session
+  )
 
   const suppliers = data?.content ?? []
   const totalPages = data?.totalPages ?? 1
   const totalElements = data?.totalElements ?? 0
-  const supplierSummary: SupplierSummary = summary ?? {
-    totalSuppliers: 0,
-    suppliersWithBalance: 0,
-    totalBalanceOwed: 0,
-    linkedProducts: 0,
-    suppliersNeedingRestock: 0,
-    lowStockProducts: 0,
-    outOfStockProducts: 0,
-  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Suppliers</h1>
-        <p className="mt-1 text-sm text-gray-500">{totalElements} suppliers</p>
+        <h1 className="text-2xl font-bold text-ink">Suppliers</h1>
+        <p className="mt-1 text-sm text-ink-2">{totalElements} suppliers</p>
       </div>
 
       <SuppliersClient
         suppliers={suppliers}
-        summary={supplierSummary}
         currentPage={page}
         totalPages={totalPages}
         totalElements={totalElements}

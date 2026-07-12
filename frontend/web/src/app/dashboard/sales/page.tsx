@@ -109,16 +109,11 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
   const hasActiveFilter = Boolean(dateParam || dateFromParam || dateToParam)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1
-            className="text-3xl font-extrabold tracking-[-0.04em] text-ink"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            Sales
-          </h1>
-          <p className="mt-2 text-sm text-ink-2">{filterSummary}</p>
+          <h1 className="text-2xl font-bold text-ink">Sales</h1>
+          <p className="mt-1 text-sm text-ink-2">{filterSummary}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <ImportSalesModal products={allProducts} />
@@ -137,12 +132,12 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
           {groupedSales.map((group) => (
             <section
               key={group.key}
-              className="overflow-hidden rounded-[28px] border border-paper-3 bg-white/84 shadow-[0_18px_50px_rgba(31,42,62,0.08)]"
+              className="overflow-hidden rounded-[22px] border border-paper-3 bg-white"
             >
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-paper-3 bg-paper/75 px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-paper-3 bg-paper px-5 py-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink-3">Sales day</p>
-                  <h2 className="mt-1 text-lg font-bold tracking-[-0.03em] text-ink">{group.label}</h2>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-3">Sales day</p>
+                  <h2 className="mt-1 text-lg font-bold text-ink">{group.label}</h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-ink">
@@ -157,14 +152,14 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[760px] text-sm">
                   <thead>
-                    <tr className="border-b border-paper-3">
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">#</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">Time</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">Items</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">Customer</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">Payment</th>
-                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">Total</th>
-                      <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">Status</th>
+                    <tr className="border-b border-paper-3 text-xs font-semibold text-ink-3">
+                      <th className="px-5 py-3 text-left">#</th>
+                      <th className="px-5 py-3 text-left">Time</th>
+                      <th className="px-5 py-3 text-left">Items</th>
+                      <th className="px-5 py-3 text-left">Customer</th>
+                      <th className="px-5 py-3 text-left">Payment</th>
+                      <th className="px-5 py-3 text-right">Total</th>
+                      <th className="px-5 py-3 text-center">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -214,7 +209,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
           ))}
         </div>
       ) : (
-        <div className="rounded-[28px] border border-paper-3 bg-white/84 px-6 py-16 text-center shadow-[0_18px_50px_rgba(31,42,62,0.08)]">
+        <div className="rounded-[22px] border border-paper-3 bg-white px-6 py-16 text-center">
           <p className="text-base font-semibold text-ink">
             {hasActiveFilter ? 'No sales matched this filter.' : 'No sales recorded yet.'}
           </p>

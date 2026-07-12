@@ -95,16 +95,16 @@ export default function SalesFilters({ initialDate, initialDateFrom, initialDate
   }
 
   return (
-    <section className="rounded-[28px] border border-paper-3 bg-white/84 p-5 shadow-[0_18px_50px_rgba(31,42,62,0.08)]">
+    <section className="rounded-[22px] border border-paper-3 bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink-3">Sales filters</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-3">Sales filters</p>
           <p className="mt-2 text-sm text-ink-2">{summary}</p>
         </div>
         <button
           type="button"
           onClick={clearFilters}
-          className="rounded-full border border-paper-3 bg-paper px-4 py-2 text-xs font-semibold text-ink transition hover:border-brand hover:text-brand"
+          className="rounded-[12px] border border-paper-3 bg-white px-4 py-2 text-xs font-semibold text-ink transition hover:bg-paper hover:text-brand"
         >
           Clear filters
         </button>
@@ -125,8 +125,8 @@ export default function SalesFilters({ initialDate, initialDateFrom, initialDate
                 setMode(tab.id as FilterMode)
                 setError('')
               }}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                active ? 'bg-night text-snow' : 'border border-paper-3 bg-white text-ink hover:border-brand hover:text-brand'
+              className={`rounded-[12px] px-4 py-2 text-sm font-semibold transition ${
+                active ? 'bg-night text-snow' : 'border border-paper-3 bg-white text-ink-2 hover:bg-paper hover:text-ink'
               }`}
             >
               {tab.label}
@@ -143,7 +143,7 @@ export default function SalesFilters({ initialDate, initialDateFrom, initialDate
               type="date"
               value={exactDate}
               onChange={(e) => setExactDate(e.target.value)}
-              className="w-full rounded-2xl border border-paper-3 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-brand"
+              className="h-12 w-full rounded-[14px] border border-paper-3 bg-white px-4 text-sm text-ink outline-none transition focus:border-transparent focus:ring-2 focus:ring-brand/24"
             />
           </label>
         ) : null}
@@ -156,7 +156,7 @@ export default function SalesFilters({ initialDate, initialDateFrom, initialDate
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full rounded-2xl border border-paper-3 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-brand"
+                className="h-12 w-full rounded-[14px] border border-paper-3 bg-white px-4 text-sm text-ink outline-none transition focus:border-transparent focus:ring-2 focus:ring-brand/24"
               />
             </label>
             <label className="block">
@@ -165,7 +165,7 @@ export default function SalesFilters({ initialDate, initialDateFrom, initialDate
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="w-full rounded-2xl border border-paper-3 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-brand"
+                className="h-12 w-full rounded-[14px] border border-paper-3 bg-white px-4 text-sm text-ink outline-none transition focus:border-transparent focus:ring-2 focus:ring-brand/24"
               />
             </label>
           </>
@@ -173,7 +173,7 @@ export default function SalesFilters({ initialDate, initialDateFrom, initialDate
       </div>
 
       {error ? (
-        <p className="mt-4 rounded-2xl bg-rose/16 px-4 py-3 text-sm font-medium text-ink">
+        <p className="mt-4 rounded-[14px] bg-rose/14 px-4 py-3 text-sm font-medium text-rose">
           {error}
         </p>
       ) : null}
@@ -182,7 +182,7 @@ export default function SalesFilters({ initialDate, initialDateFrom, initialDate
         <button
           type="button"
           onClick={applyFilters}
-          className="inline-flex items-center justify-center rounded-2xl bg-night px-5 py-3 text-sm font-semibold text-snow transition hover:bg-night-2"
+          className="inline-flex h-12 items-center justify-center rounded-[14px] bg-night px-5 text-sm font-semibold text-snow transition hover:bg-night-2"
         >
           Apply filters
         </button>

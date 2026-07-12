@@ -54,10 +54,10 @@ export default async function CustomersPage({
   const totalElements = customersData?.totalElements ?? 0
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
-        <p className="text-sm text-gray-500 mt-1">{totalElements} customers</p>
+        <h1 className="text-2xl font-bold text-ink">Customers</h1>
+        <p className="mt-1 text-sm text-ink-2">{totalElements} customers</p>
       </div>
 
       <CustomersClient

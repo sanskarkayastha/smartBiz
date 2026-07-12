@@ -20,9 +20,13 @@ type Product = {
 }
 
 function statusLabel(quantity: number, reorderLevel: number | null) {
-  if (quantity === 0) return { text: 'Out of Stock', cls: 'bg-rose/14 text-rose' }
-  if (reorderLevel !== null && quantity <= reorderLevel) return { text: 'Low Stock', cls: 'bg-amber/20 text-ink' }
-  return { text: 'In Stock', cls: 'bg-mint/18 text-ink' }
+  if (quantity === 0) return { text: 'Out of stock', cls: 'bg-rose/14 text-rose' }
+  if (reorderLevel !== null && quantity <= reorderLevel) return { text: 'Low stock', cls: 'bg-amber/20 text-ink' }
+  return { text: 'In stock', cls: 'bg-mint/18 text-ink' }
+}
+
+function formatCurrency(value: number) {
+  return `NPR ${Math.round(value || 0).toLocaleString()}`
 }
 
 const STOCK_OPTIONS = [
@@ -214,17 +218,17 @@ export default function InventoryClient({
   const allSelected = products.length > 0 && selectedIds.length === products.length
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-ink">Inventory</h1>
           <p className="mt-1 text-sm text-ink-2">{totalElements} products</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setShowManageCategories(true)}
-            className="flex items-center gap-1.5 rounded-[14px] border border-paper-3 bg-white px-3 py-2 text-sm font-semibold text-ink transition-colors hover:bg-paper"
+            className="inline-flex h-12 items-center gap-2 rounded-[14px] border border-paper-3 bg-white px-4 text-sm font-semibold text-ink transition-colors hover:bg-paper"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
             Categories
@@ -233,77 +237,81 @@ export default function InventoryClient({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[200px] flex-1">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input
-            type="text"
-            placeholder="Search name, SKU, supplier..."
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') commitSearch(search) }}
-            onBlur={() => setShowSuggestions(false)}
-            className="w-full rounded-xl border border-paper-3 bg-white py-2.5 pl-9 pr-4 text-sm text-ink placeholder:text-ink-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand/24"
-          />
-          {showSuggestions && suggestions.length > 0 && (
-            <ul className="absolute left-0 top-full z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-paper-3 bg-white shadow-lg">
-              {suggestions.map((name) => (
-                <li key={name} onMouseDown={() => commitSearch(name)} className="cursor-pointer px-3 py-2 text-sm text-ink hover:bg-paper">
-                  {name}
-                </li>
+      <section className="rounded-[22px] border border-paper-3 bg-white p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+          <div className="relative min-w-[220px] flex-1">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="Search name, SKU, supplier..."
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitSearch(search) }}
+              onBlur={() => setShowSuggestions(false)}
+              className="h-12 w-full rounded-[14px] border border-paper-3 bg-white pl-10 pr-4 text-sm text-ink placeholder:text-ink-3 transition-colors focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand/24"
+            />
+            {showSuggestions && suggestions.length > 0 && (
+              <ul className="absolute left-0 top-full z-10 mt-2 max-h-48 w-full overflow-y-auto rounded-[14px] border border-paper-3 bg-white p-1 shadow-lg">
+                {suggestions.map((name) => (
+                  <li key={name} onMouseDown={() => commitSearch(name)} className="cursor-pointer rounded-[10px] px-3 py-2 text-sm text-ink hover:bg-paper">
+                    {name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={category}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className={`h-12 rounded-[14px] border bg-white px-3 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-brand/24 ${
+                category ? 'border-brand font-semibold text-brand' : 'border-paper-3 text-ink-2'
+              }`}
+            >
+              <option value="">All Categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.name}>{c.name}</option>
               ))}
-            </ul>
-          )}
+            </select>
+
+            <select
+              value={stockStatus}
+              onChange={(e) => handleStockStatusChange(e.target.value)}
+              className={`h-12 rounded-[14px] border bg-white px-3 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-brand/24 ${
+                stockStatus ? 'border-brand font-semibold text-brand' : 'border-paper-3 text-ink-2'
+              }`}
+            >
+              {STOCK_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('')
+                  setCategory('')
+                  setStockStatus('')
+                  setSuggestions([])
+                  setShowSuggestions(false)
+                  router.push('/dashboard/inventory')
+                }}
+                className="inline-flex h-12 items-center gap-2 rounded-[14px] border border-paper-3 bg-white px-4 text-sm font-semibold text-ink-2 transition-colors hover:bg-paper hover:text-ink"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Clear {activeFilterCount > 1 ? `(${activeFilterCount})` : ''}
+              </button>
+            )}
+          </div>
         </div>
-
-        <select
-          value={category}
-          onChange={(e) => handleCategoryChange(e.target.value)}
-          className={`rounded-xl border bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/24 ${
-            category ? 'border-brand text-brand font-semibold' : 'border-paper-3 text-ink-2'
-          }`}
-        >
-          <option value="">All Categories</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.name}>{c.name}</option>
-          ))}
-        </select>
-
-        <select
-          value={stockStatus}
-          onChange={(e) => handleStockStatusChange(e.target.value)}
-          className={`rounded-xl border bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/24 ${
-            stockStatus ? 'border-brand text-brand font-semibold' : 'border-paper-3 text-ink-2'
-          }`}
-        >
-          {STOCK_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-
-        {activeFilterCount > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              setSearch('')
-              setCategory('')
-              setStockStatus('')
-              setSuggestions([])
-              setShowSuggestions(false)
-              router.push('/dashboard/inventory')
-            }}
-            className="flex items-center gap-1.5 rounded-xl border border-paper-3 bg-white px-3 py-2.5 text-sm text-ink-2 transition-colors hover:bg-paper hover:text-ink"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            Clear {activeFilterCount > 1 ? `(${activeFilterCount})` : ''}
-          </button>
-        )}
-      </div>
+      </section>
 
       {selectedIds.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose/20 bg-rose/10 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-rose/20 bg-rose/10 px-4 py-3">
           <div>
             <p className="text-sm font-semibold text-ink">
               {selectedIds.length} product{selectedIds.length === 1 ? '' : 's'} selected
@@ -314,7 +322,7 @@ export default function InventoryClient({
             <button
               type="button"
               onClick={() => setSelectedIds([])}
-              className="rounded-xl border border-paper-3 bg-white px-3 py-2 text-sm font-semibold text-ink transition-colors hover:bg-paper"
+              className="rounded-[12px] border border-paper-3 bg-white px-3 py-2 text-sm font-semibold text-ink transition-colors hover:bg-paper"
             >
               Clear Selection
             </button>
@@ -322,7 +330,7 @@ export default function InventoryClient({
               type="button"
               onClick={handleBulkDelete}
               disabled={bulkDeleting}
-              className="inline-flex items-center gap-2 rounded-xl bg-rose px-4 py-2 text-sm font-semibold text-snow transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-[12px] bg-rose px-4 py-2 text-sm font-semibold text-snow transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {bulkDeleting ? (
                 <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" opacity=".3"/><path d="M12 2a10 10 0 0110 10"/></svg>
@@ -335,87 +343,108 @@ export default function InventoryClient({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-paper-3 bg-white">
+      <div className="overflow-hidden rounded-[22px] border border-paper-3 bg-white">
         {products.length > 0 ? (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-paper-3 bg-paper">
-                <th className="px-5 py-3 text-left">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={toggleSelectAll}
-                    aria-label="Select all products on this page"
-                    className="h-4 w-4 rounded border-paper-3 accent-[var(--color-brand)]"
-                  />
-                </th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-3">Product</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-3">SKU</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-3">Category</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-3">Cost Price</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-3">Selling Price</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-3">Qty</th>
-                <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wide text-ink-3">Status</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((p, i) => {
-                const status = statusLabel(p.quantity, p.reorderLevel)
-                const selected = selectedIds.includes(p.id)
-                return (
-                  <tr key={p.id} className={`border-b border-paper-3 last:border-b-0 ${selected ? 'bg-brand-soft/70' : i % 2 === 1 ? 'bg-paper/45' : ''}`}>
-                    <td className="px-5 py-3 align-top">
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => toggleSelection(p.id)}
-                        aria-label={`Select ${p.name}`}
-                        className="mt-1 h-4 w-4 rounded border-paper-3 accent-[var(--color-brand)]"
-                      />
-                    </td>
-                    <td className="px-5 py-3">
-                      <p className="font-medium text-ink">{p.name}</p>
-                      {p.supplier && <p className="text-xs text-ink-3">{p.supplier}</p>}
-                    </td>
-                    <td className="px-5 py-3 font-mono text-xs text-ink-2">{p.sku ?? '-'}</td>
-                    <td className="px-5 py-3 text-ink-2">{p.category ?? '-'}</td>
-                    <td className="px-5 py-3 text-right text-ink-2">
-                      {p.costPrice != null ? `NPR ${Number(p.costPrice).toLocaleString()}` : '-'}
-                    </td>
-                    <td className="px-5 py-3 text-right font-medium text-ink">NPR {Number(p.price).toLocaleString()}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-ink">{p.quantity}</td>
-                    <td className="px-5 py-3 text-center">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${status.cls}`}>
-                        {status.text}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <RestockProductModal product={{ id: p.id, name: p.name, supplier: p.supplier, costPrice: p.costPrice }} />
-                        <AddProductModal product={p} onClose={() => router.refresh()} categories={categories.map((c) => c.name)} />
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(p)}
-                          disabled={deleting === p.id || bulkDeleting}
-                          className="flex items-center gap-1.5 rounded-lg border border-rose/24 px-3 py-1.5 text-xs font-semibold text-rose transition-colors hover:bg-rose/10 disabled:opacity-50"
-                        >
-                          {deleting === p.id ? (
-                            <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" opacity=".3"/><path d="M12 2a10 10 0 0110 10"/></svg>
-                          ) : (
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                          )}
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1080px] text-sm">
+              <thead>
+                <tr className="bg-paper text-left text-xs font-semibold text-ink-3">
+                  <th className="px-5 py-3">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Select all products on this page"
+                      className="h-4 w-4 rounded border-paper-3 accent-[var(--color-brand)]"
+                    />
+                  </th>
+                  <th className="px-5 py-3">Product</th>
+                  <th className="px-5 py-3">Category</th>
+                  <th className="px-5 py-3 text-right">Cost</th>
+                  <th className="px-5 py-3 text-right">Selling Price</th>
+                  <th className="px-5 py-3 text-right">Stock</th>
+                  <th className="px-5 py-3 text-center">Status</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((p, i) => {
+                  const status = statusLabel(p.quantity, p.reorderLevel)
+                  const selected = selectedIds.includes(p.id)
+                  return (
+                    <tr key={p.id} className={`border-b border-paper-3 last:border-b-0 ${selected ? 'bg-brand-soft/70' : i % 2 === 1 ? 'bg-paper/45' : ''}`}>
+                      <td className="px-5 py-4 align-top">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleSelection(p.id)}
+                          aria-label={`Select ${p.name}`}
+                          className="mt-1 h-4 w-4 rounded border-paper-3 accent-[var(--color-brand)]"
+                        />
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-brand-soft text-sm font-bold text-brand">
+                            {p.name.charAt(0).toUpperCase()}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-ink">{p.name}</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <span className="rounded-full bg-paper px-2.5 py-1 text-xs font-semibold text-ink-2">
+                                SKU {p.sku ?? 'Not set'}
+                              </span>
+                              {p.supplier ? (
+                                <span className="rounded-full bg-paper px-2.5 py-1 text-xs font-semibold text-ink-2">
+                                  {p.supplier}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-ink-2">{p.category ?? 'Uncategorized'}</td>
+                      <td className="px-5 py-4 text-right text-ink-2">
+                        {p.costPrice != null ? formatCurrency(Number(p.costPrice)) : '-'}
+                      </td>
+                      <td className="px-5 py-4 text-right font-bold text-ink">{formatCurrency(Number(p.price))}</td>
+                      <td className="px-5 py-4 text-right">
+                        <p className="font-bold text-ink">{p.quantity}</p>
+                        <p className="mt-1 text-xs text-ink-3">
+                          Reorder at {p.reorderLevel ?? '-'}
+                        </p>
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <span className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${status.cls}`}>
+                          {status.text}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <RestockProductModal product={{ id: p.id, name: p.name, supplier: p.supplier, costPrice: p.costPrice }} />
+                          <AddProductModal product={p} onClose={() => router.refresh()} categories={categories.map((c) => c.name)} />
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(p)}
+                            disabled={deleting === p.id || bulkDeleting}
+                            className="flex items-center gap-1.5 rounded-[10px] border border-rose/24 px-3 py-1.5 text-xs font-semibold text-rose transition-colors hover:bg-rose/10 disabled:opacity-50"
+                          >
+                            {deleting === p.id ? (
+                              <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" opacity=".3"/><path d="M12 2a10 10 0 0110 10"/></svg>
+                            ) : (
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                            )}
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-ink-3">
+          <div className="flex flex-col items-center justify-center px-4 py-20 text-ink-3">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-3">
               <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
             </svg>
