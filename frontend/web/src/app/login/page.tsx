@@ -21,6 +21,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      console.log("here")
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -28,6 +29,7 @@ export default function LoginPage() {
       })
       const data = await res.json()
       if (!res.ok) {
+        console.log("here1")
         if (data.code === 'EMAIL_NOT_VERIFIED') {
           router.push(`/verify-email?email=${encodeURIComponent(email)}`)
           return
