@@ -11,6 +11,7 @@ type Product = {
   quantity: number
   reorderLevel: number | null
   supplier: string | null
+  imageUrl: string | null
 }
 
 const PAGE_SIZE = 15

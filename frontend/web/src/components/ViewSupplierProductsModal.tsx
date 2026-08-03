@@ -49,7 +49,7 @@ export default function ViewSupplierProductsModal({ supplierId, supplierName }: 
     <>
       <button
         onClick={handleOpen}
-        className="flex items-center gap-1.5 rounded-xl border border-blue-200 px-3 py-1.5 text-xs font-medium text-[#135BEC] transition-colors hover:bg-blue-50"
+        className="flex items-center gap-1.5 rounded-xl border border-paper-3 px-3 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink"
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>

@@ -187,7 +187,7 @@ export default function EditSupplierModal({
 
   const triggerClassName = triggerTone === 'payment'
     ? 'flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100'
-    : 'flex items-center gap-1.5 rounded-lg border border-[#135BEC]/30 px-3 py-1.5 text-xs font-medium text-[#135BEC] transition-colors hover:bg-[#135BEC]/5'
+    : 'flex items-center gap-1.5 rounded-lg border border-paper-3 px-3 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink'
 
   return (
     <>
@@ -206,26 +206,26 @@ export default function EditSupplierModal({
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
           <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
+            <div className="relative mb-5 flex min-h-11 items-center justify-center px-12 text-center">
+              <div className="max-w-xl">
                 <h2 className="text-lg font-bold text-gray-900">{supplier.name}</h2>
                 <p className="mt-1 text-sm text-slate-500">Update supplier details, record payments, and review how the current balance was built.</p>
               </div>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setOpen(false)} aria-label="Close supplier details" className="absolute right-0 inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-paper hover:text-gray-600">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
               <div className="space-y-5">
-                <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#135BEC]">Current balance</p>
+                <div className="rounded-2xl border border-paper-3 bg-paper p-4 text-center">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink-2">Current balance</p>
                   <p className="mt-2 text-3xl font-semibold text-slate-900">{formatCurrency(currentBalance)}</p>
                   <p className="mt-2 text-sm text-slate-500">Payments reduce this amount, purchases and manual debt increase it, and “set current balance” writes a delta adjustment behind the scenes.</p>
                 </div>
 
                 <form onSubmit={handleContactSave} className="rounded-2xl border border-slate-100 p-4">
-                  <div className="mb-4">
+                  <div className="mb-4 text-center">
                     <h3 className="text-sm font-semibold text-slate-900">Supplier details</h3>
                     <p className="mt-1 text-xs leading-5 text-slate-500">Contact and notes update without touching the balance.</p>
                   </div>
@@ -240,10 +240,10 @@ export default function EditSupplierModal({
                       onChange={set('notes')}
                       rows={3}
                       placeholder="Any notes about this supplier..."
-                      className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                      className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-night/20"
                     />
                   </div>
-                  <div className="mt-4 flex justify-end">
+                  <div className="mt-4 flex justify-center">
                     <button type="submit" disabled={savingContact} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-60">
                       {savingContact ? 'Saving...' : 'Save Details'}
                     </button>
@@ -251,19 +251,19 @@ export default function EditSupplierModal({
                 </form>
 
                 <div className="rounded-2xl border border-slate-100 p-4">
-                  <div className="mb-4">
+                  <div className="mb-4 text-center">
                     <h3 className="text-sm font-semibold text-slate-900">Balance actions</h3>
                     <p className="mt-1 text-xs leading-5 text-slate-500">Choose the exact action instead of overwriting the balance manually.</p>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap justify-center gap-2">
                     <button type="button" onClick={() => setActionMode('payment')} className={`rounded-full px-3 py-2 text-xs font-semibold ${actionMode === 'payment' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
                       Record payment
                     </button>
                     <button type="button" onClick={() => setActionMode('debt')} className={`rounded-full px-3 py-2 text-xs font-semibold ${actionMode === 'debt' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
                       Add manual debt
                     </button>
-                    <button type="button" onClick={() => setActionMode('setBalance')} className={`rounded-full px-3 py-2 text-xs font-semibold ${actionMode === 'setBalance' ? 'bg-[#135BEC] text-white' : 'bg-slate-100 text-slate-600'}`}>
+                    <button type="button" onClick={() => setActionMode('setBalance')} className={`rounded-full px-3 py-2 text-xs font-semibold ${actionMode === 'setBalance' ? 'bg-night text-snow' : 'bg-slate-100 text-slate-600'}`}>
                       Set current balance
                     </button>
                   </div>
@@ -299,10 +299,10 @@ export default function EditSupplierModal({
                     />
                   </div>
 
-                  {actionError && <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionError}</p>}
+                  {actionError && <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600">{actionError}</p>}
 
-                  <div className="mt-4 flex justify-end">
-                    <button type="button" onClick={submitAction} disabled={actionSaving} className="rounded-lg bg-[#135BEC] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60">
+                  <div className="mt-4 flex justify-center">
+                    <button type="button" onClick={submitAction} disabled={actionSaving} className="rounded-lg bg-night px-4 py-2 text-sm font-semibold text-snow transition-colors hover:bg-night-2 disabled:opacity-60">
                       {actionSaving ? 'Saving...' : actionMode === 'payment' ? 'Record Payment' : actionMode === 'debt' ? 'Add Debt' : 'Set Balance'}
                     </button>
                   </div>
@@ -310,7 +310,7 @@ export default function EditSupplierModal({
               </div>
 
               <div className="rounded-2xl border border-slate-100 p-4">
-                <div className="mb-4">
+                <div className="mb-4 text-center">
                   <h3 className="text-sm font-semibold text-slate-900">Recent balance activity</h3>
                   <p className="mt-1 text-xs leading-5 text-slate-500">Newest entries appear first so you can see what changed this balance last.</p>
                 </div>
@@ -375,7 +375,7 @@ function Field({ label, value, onChange, placeholder, type = 'text', min, step }
         placeholder={placeholder}
         min={min}
         step={step}
-        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-night/20"
       />
     </div>
   )

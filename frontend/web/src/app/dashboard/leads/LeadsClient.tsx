@@ -216,7 +216,7 @@ export default function LeadsClient({
             onKeyDown={(e) => { if (e.key === 'Enter') commitSearch(search) }}
             onBlur={() => setShowSuggestions(false)}
             placeholder="Search by name, phone, or email…"
-            className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC] bg-white"
+            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-night/20"
           />
           {showSuggestions && suggestions.length > 0 && (
             <ul className="absolute z-10 top-full left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
@@ -233,7 +233,7 @@ export default function LeadsClient({
         <select
           value={source}
           onChange={(e) => handleSourceChange(e.target.value)}
-          className={`px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC] bg-white ${source ? 'border-[#135BEC] text-[#135BEC] font-medium' : 'border-gray-200 text-gray-700'}`}
+          className={`rounded-xl border bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-night/20 ${source ? 'border-night font-medium text-ink' : 'border-gray-200 text-gray-700'}`}
         >
           {SOURCE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -283,7 +283,7 @@ export default function LeadsClient({
               onClick={() => handleStageClick(value)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
                 active
-                  ? 'bg-[#135BEC] text-white'
+                  ? 'bg-night text-snow'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -328,8 +328,8 @@ export default function LeadsClient({
                   className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
                   onClick={() => setExpandedId(expanded ? null : lead.id)}
                 >
-                  <div className="w-9 h-9 rounded-full bg-[#135BEC]/10 flex items-center justify-center shrink-0">
-                    <span className="text-xs font-bold text-[#135BEC]">{lead.name.slice(0, 2).toUpperCase()}</span>
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-paper-2">
+                    <span className="text-xs font-bold text-ink">{lead.name.slice(0, 2).toUpperCase()}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">

@@ -20,15 +20,34 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.DayOfWeek;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class SalesService {
+    private static final int MAX_TREND_DAYS = 366;
+
+    private static final class MutableTrendPoint {
+        private BigDecimal revenue = BigDecimal.ZERO;
+        private long orders;
+        private long itemsSold;
+
+        private void add(BigDecimal saleRevenue, long saleItems) {
+            revenue = revenue.add(saleRevenue != null ? saleRevenue : BigDecimal.ZERO);
+            orders++;
+            itemsSold += saleItems;
+        }
+    }
+
     private record SaleProcessingOptions(
             boolean validateStock,
             boolean deductStock,
@@ -211,6 +230,111 @@ public class SalesService {
                 : BigDecimal.ZERO;
 
         return new SaleSummaryDTO(revenue, count, avg, due);
+    }
+
+    public SalesTrendDTO getTrend(Long userId, LocalDate from, LocalDate to, AnalyticsBucket bucket) {
+        validateTrendRange(from, to, bucket);
+
+        LocalDateTime start = from.atStartOfDay();
+        LocalDateTime endExclusive = to.plusDays(1).atStartOfDay();
+        List<Sale> sales = saleRepository
+                .findByUserIdAndSaleDateGreaterThanEqualAndSaleDateLessThanOrderBySaleDateDesc(
+                        userId, start, endExclusive);
+
+        List<Long> saleIds = sales.stream().map(Sale::getId).toList();
+        Map<Long, Long> itemsBySale = saleIds.isEmpty()
+                ? Map.of()
+                : saleItemRepository.findAllBySaleIdIn(saleIds).stream()
+                        .collect(Collectors.groupingBy(
+                                SaleItem::getSaleId,
+                                Collectors.summingLong(item -> item.getQuantity() != null ? item.getQuantity() : 0L)
+                        ));
+
+        LinkedHashMap<LocalDateTime, MutableTrendPoint> buckets = initializeBuckets(from, to, bucket);
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+        long totalItems = 0L;
+
+        for (Sale sale : sales) {
+            LocalDateTime key = bucketStart(sale.getSaleDate(), bucket);
+            long saleItems = itemsBySale.getOrDefault(sale.getId(), 0L);
+            MutableTrendPoint point = buckets.get(key);
+            if (point != null) {
+                point.add(sale.getTotalAmount(), saleItems);
+            }
+            totalRevenue = totalRevenue.add(
+                    sale.getTotalAmount() != null ? sale.getTotalAmount() : BigDecimal.ZERO);
+            totalItems += saleItems;
+        }
+
+        long totalOrders = sales.size();
+        BigDecimal averageOrderValue = totalOrders > 0
+                ? totalRevenue.divide(BigDecimal.valueOf(totalOrders), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        List<SalesTrendPointDTO> points = buckets.entrySet().stream()
+                .map(entry -> new SalesTrendPointDTO(
+                        entry.getKey(),
+                        entry.getValue().revenue,
+                        entry.getValue().orders,
+                        entry.getValue().itemsSold
+                ))
+                .toList();
+
+        return new SalesTrendDTO(
+                from,
+                to,
+                bucket,
+                new SalesTrendTotalsDTO(totalRevenue, totalOrders, totalItems, averageOrderValue),
+                points
+        );
+    }
+
+    private void validateTrendRange(LocalDate from, LocalDate to, AnalyticsBucket bucket) {
+        if (from == null || to == null || bucket == null) {
+            throw new IllegalArgumentException("from, to, and bucket are required");
+        }
+        if (from.isAfter(to)) {
+            throw new IllegalArgumentException("from must be on or before to");
+        }
+        long inclusiveDays = ChronoUnit.DAYS.between(from, to) + 1;
+        if (inclusiveDays > MAX_TREND_DAYS) {
+            throw new IllegalArgumentException("Analytics range cannot exceed 366 days");
+        }
+    }
+
+    private LinkedHashMap<LocalDateTime, MutableTrendPoint> initializeBuckets(
+            LocalDate from,
+            LocalDate to,
+            AnalyticsBucket bucket) {
+        LinkedHashMap<LocalDateTime, MutableTrendPoint> points = new LinkedHashMap<>();
+        LocalDateTime current = bucketStart(from.atStartOfDay(), bucket);
+        LocalDateTime last = bucketStart(to.atTime(23, 59, 59), bucket);
+
+        while (!current.isAfter(last)) {
+            points.put(current, new MutableTrendPoint());
+            current = nextBucket(current, bucket);
+        }
+        return points;
+    }
+
+    private LocalDateTime bucketStart(LocalDateTime value, AnalyticsBucket bucket) {
+        return switch (bucket) {
+            case HOUR -> value.withMinute(0).withSecond(0).withNano(0);
+            case DAY -> value.toLocalDate().atStartOfDay();
+            case WEEK -> value.toLocalDate()
+                    .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                    .atStartOfDay();
+            case MONTH -> value.toLocalDate().withDayOfMonth(1).atStartOfDay();
+        };
+    }
+
+    private LocalDateTime nextBucket(LocalDateTime value, AnalyticsBucket bucket) {
+        return switch (bucket) {
+            case HOUR -> value.plusHours(1);
+            case DAY -> value.plusDays(1);
+            case WEEK -> value.plusWeeks(1);
+            case MONTH -> value.plusMonths(1);
+        };
     }
 
     private List<Sale> getSalesByDateRange(Long userId, LocalDate startDate, LocalDate endDate) {

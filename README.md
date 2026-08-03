@@ -36,6 +36,24 @@ Built as a college Final Year Project.
 
 ## Quick Start
 
+### Cloudinary product-image setup
+
+Product images are optional. Product CRUD continues to work when Cloudinary is disabled.
+
+1. In the Cloudinary Console, create a **signed** upload preset named `smartbiz_product_images`.
+2. Restrict it to images, allow JPEG/PNG/WebP/HEIC, set a 5 MB maximum, and add an incoming `limit` transformation capped at 1600Ã—1600 with automatic quality.
+3. Add these backend-only values to the root `.env` file:
+
+```text
+CLOUDINARY_ENABLED=true
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+CLOUDINARY_UPLOAD_PRESET=smartbiz_product_images
+```
+
+Never add `CLOUDINARY_API_SECRET` to `mobile/.env` or `frontend/web/.env.local`. The clients receive only a short-lived signed upload request from inventory-service.
+
 ### 1. Clone the repo
 
 ```bash

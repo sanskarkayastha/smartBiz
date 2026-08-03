@@ -18,7 +18,7 @@ export interface Product {
   reorderLevel: number
   supplier: string
   barcode: string
-  imageUrl: string
+  imageUrl: string | null
   lowStock: boolean
   createdAt: string
   updatedAt: string

@@ -1,0 +1,24 @@
+<svg width="620" height="160" viewBox="0 0 620 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SmartBiz logo</title>
+  <desc id="desc">SmartBiz logo lockup with the shelf-shaped S mark and wordmark.</desc>
+  <defs>
+    <linearGradient id="tile" x1="23" y1="19" x2="126" y2="133" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1B5EFF"/>
+      <stop offset="1" stop-color="#22314D"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="95" y1="34" x2="115" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F97316"/>
+      <stop offset="1" stop-color="#FFB65C"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="18" y="18" width="124" height="124" rx="30" fill="url(#tile)"/>
+  <path d="M104 47H62C52.611 47 45 54.611 45 64C45 73.389 52.611 81 62 81H100C109.389 81 117 88.611 117 98C117 107.389 109.389 115 100 115H55" stroke="#F8FAFE" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M61 64H90" stroke="#CFE0FF" stroke-width="5" stroke-linecap="round"/>
+  <path d="M74 98H103" stroke="#CFE0FF" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="114" cy="47" r="9" fill="url(#signal)"/>
+  <path d="M110.5 47.2L113 49.8L118.1 43.8" stroke="#FFF7ED" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <text x="168" y="75" fill="#22314D" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="46" font-weight="800" letter-spacing="0">SmartBiz</text>
+  <text x="171" y="106" fill="#7B8AA6" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="17" font-weight="600" letter-spacing="0">Inventory, sales, and customers in one counter-ready system</text>
+</svg>

@@ -1,0 +1,24 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SmartBiz mark</title>
+  <desc id="desc">A rounded SmartBiz app mark with a shelf-shaped S and a small sales signal.</desc>
+  <defs>
+    <linearGradient id="tile" x1="44" y1="32" x2="220" y2="226" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1B5EFF"/>
+      <stop offset="1" stop-color="#22314D"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="168" y1="58" x2="200" y2="96" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F97316"/>
+      <stop offset="1" stop-color="#FFB65C"/>
+    </linearGradient>
+    <filter id="softShadow" x="16" y="18" width="224" height="226" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="15" flood-color="#15264A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect x="28" y="28" width="200" height="200" rx="46" fill="url(#tile)" filter="url(#softShadow)"/>
+  <path d="M167 75H95C79.536 75 67 87.536 67 103C67 118.464 79.536 131 95 131H161C176.464 131 189 143.536 189 159C189 174.464 176.464 187 161 187H83" stroke="#F8FAFE" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M93 103H142" stroke="#CFE0FF" stroke-width="8" stroke-linecap="round"/>
+  <path d="M114 159H163" stroke="#CFE0FF" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="184" cy="75" r="14" fill="url(#signal)"/>
+  <path d="M178.5 75.5L182.5 79.5L190.5 70.5" stroke="#FFF7ED" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

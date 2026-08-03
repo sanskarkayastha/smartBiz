@@ -71,14 +71,14 @@ export default function AddCustomerModal({ customer, onSaved, trigger }: Props) 
   const defaultTrigger = isEdit ? (
     <button
       onClick={() => { setOpen(true); setError('') }}
-      className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+      className="rounded px-2 py-1 text-xs font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink"
     >
       Edit
     </button>
   ) : (
     <button
       onClick={() => { setOpen(true); setError('') }}
-      className="flex items-center gap-2 px-4 py-2 bg-[#135BEC] text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+      className="flex items-center gap-2 rounded-xl bg-night px-4 py-2.5 text-sm font-semibold text-snow transition-colors hover:bg-night-2"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Add Customer
@@ -104,22 +104,22 @@ export default function AddCustomerModal({ customer, onSaved, trigger }: Props) 
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Name *</label>
                 <input type="text" value={form.name} onChange={set('name')} placeholder="Full name"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#135BEC] focus:border-transparent" />
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-night/20" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Phone</label>
                 <input type="tel" value={form.phone} onChange={set('phone')} placeholder="98XXXXXXXX"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#135BEC] focus:border-transparent" />
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-night/20" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Email</label>
                 <input type="email" value={form.email} onChange={set('email')} placeholder="customer@email.com"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#135BEC] focus:border-transparent" />
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-night/20" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Address</label>
                 <input type="text" value={form.address} onChange={set('address')} placeholder="City, District"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#135BEC] focus:border-transparent" />
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-night/20" />
               </div>
 
               {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
@@ -128,7 +128,7 @@ export default function AddCustomerModal({ customer, onSaved, trigger }: Props) 
                 <button type="button" onClick={() => setOpen(false)} className="flex-1 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
                   Cancel
                 </button>
-                <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-[#135BEC] text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors">
+                <button type="submit" disabled={loading} className="flex-1 rounded-lg bg-night py-2.5 text-sm font-semibold text-snow transition-colors hover:bg-night-2 disabled:opacity-60">
                   {loading ? 'Saving…' : isEdit ? 'Update Customer' : 'Save Customer'}
                 </button>
               </div>

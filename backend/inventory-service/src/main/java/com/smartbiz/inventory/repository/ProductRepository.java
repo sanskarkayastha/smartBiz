@@ -20,6 +20,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     boolean existsByBarcodeAndUserId(String barcode, Long userId);
     boolean existsByBarcodeAndUserIdAndIdNot(String barcode, Long userId, Long id);
     boolean existsBySkuAndUserId(String sku, Long userId);
+    boolean existsByIdAndUserIdAndImagePublicId(Long id, Long userId, String imagePublicId);
 
     @Query("SELECT p FROM Product p WHERE p.userId = :userId AND LOWER(TRIM(COALESCE(p.supplier, ''))) = LOWER(TRIM(:supplier))")
     List<Product> findByUserIdAndSupplierIgnoreCase(@Param("userId") Long userId, @Param("supplier") String supplier);

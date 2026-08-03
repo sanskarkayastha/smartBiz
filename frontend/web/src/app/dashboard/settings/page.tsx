@@ -67,8 +67,8 @@ export default function SettingsPage() {
       {/* Profile Card */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-14 h-14 rounded-full bg-[#135BEC]/10 flex items-center justify-center shrink-0">
-            <span className="text-lg font-bold text-[#135BEC]">{initials || '?'}</span>
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-paper-2">
+            <span className="text-lg font-bold text-ink">{initials || '?'}</span>
           </div>
           <div>
             <p className="font-semibold text-gray-900 text-base">{fullName || '—'}</p>
@@ -99,7 +99,7 @@ export default function SettingsPage() {
             </div>
             <button
               onClick={() => { setEditing(true); setError('') }}
-              className="mt-2 w-full py-2.5 bg-[#135BEC] text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+              className="mt-2 w-full rounded-lg bg-night py-2.5 text-sm font-semibold text-snow transition-colors hover:bg-night-2"
             >
               Edit Profile
             </button>
@@ -112,7 +112,7 @@ export default function SettingsPage() {
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-night/20"
               />
             </div>
             <div>
@@ -132,7 +132,7 @@ export default function SettingsPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="98XXXXXXXX"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-night/20"
               />
             </div>
 
@@ -149,7 +149,7 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 py-2.5 bg-[#135BEC] text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors"
+                className="flex-1 rounded-lg bg-night py-2.5 text-sm font-semibold text-snow transition-colors hover:bg-night-2 disabled:opacity-60"
               >
                 {loading ? 'Saving…' : 'Save Changes'}
               </button>

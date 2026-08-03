@@ -93,6 +93,11 @@ services:
       APP_JWT_SECRET: ${JWT_SECRET:-smartbiz-dev-secret-key-at-least-32-chars-long-min}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      CLOUDINARY_ENABLED: ${CLOUDINARY_ENABLED:-false}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      CLOUDINARY_UPLOAD_PRESET: ${CLOUDINARY_UPLOAD_PRESET:-smartbiz_product_images}
     depends_on:
       eureka-server:
         condition: service_started

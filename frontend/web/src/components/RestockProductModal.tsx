@@ -149,12 +149,12 @@ export default function RestockProductModal({ product }: { product: Product }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
           <div className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
+            <div className="relative mb-5 flex min-h-11 items-center justify-center px-12 text-center">
+              <div className="max-w-md">
                 <h2 className="text-lg font-bold text-gray-900">Restock {product.name}</h2>
                 <p className="mt-1 text-sm text-slate-500">Add incoming stock and update this supplier if any amount is still due.</p>
               </div>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setOpen(false)} aria-label="Close restock form" className="absolute right-0 inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-paper hover:text-gray-600">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -198,20 +198,20 @@ export default function RestockProductModal({ product }: { product: Product }) {
 
               {canTrackPayment && (
                 <div className="rounded-2xl border border-paper-3 bg-brand-soft/70 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
+                  <div className="flex flex-col items-center gap-3 text-center">
+                    <div className="max-w-md">
                       <p className="text-sm font-semibold text-slate-900">Supplier payment</p>
                       <p className="mt-1 text-xs leading-5 text-slate-500">
                         Track whether this restock was paid, fully due, or only partly paid.
                       </p>
                     </div>
-                    <div className="rounded-2xl bg-white px-4 py-3 text-right shadow-sm">
+                    <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Purchase total</p>
                       <p className="mt-1 text-lg font-semibold text-slate-900">NPR {purchaseTotal.toLocaleString()}</p>
                     </div>
                   </div>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
                     {(['PAID', 'DUE', 'PARTIAL'] as PaymentStatus[]).map((status) => (
                       <button
                         key={status}
@@ -231,7 +231,7 @@ export default function RestockProductModal({ product }: { product: Product }) {
                   {paymentStatus === 'PARTIAL' && (
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <Field label="Amount Paid Now (NPR)" value={amountPaidNow} onChange={setAmountPaidNow} placeholder="0.00" type="number" min="0" step="0.01" />
-                      <div className="rounded-2xl bg-white px-4 py-4">
+                      <div className="rounded-2xl bg-white px-4 py-4 text-center">
                         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Unpaid amount</p>
                         <p className="mt-1 text-lg font-semibold text-slate-900">NPR {unpaidTotal.toLocaleString()}</p>
                       </div>
@@ -239,7 +239,7 @@ export default function RestockProductModal({ product }: { product: Product }) {
                   )}
 
                   {paymentStatus !== 'PARTIAL' && (
-                    <div className="mt-4 rounded-2xl bg-white px-4 py-4">
+                    <div className="mt-4 rounded-2xl bg-white px-4 py-4 text-center">
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Unpaid amount</p>
                       <p className="mt-1 text-lg font-semibold text-slate-900">NPR {unpaidTotal.toLocaleString()}</p>
                     </div>
@@ -247,7 +247,7 @@ export default function RestockProductModal({ product }: { product: Product }) {
                 </div>
               )}
 
-              {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+              {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600">{error}</p>}
 
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setOpen(false)} className="flex-1 rounded-lg border border-gray-200 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50">

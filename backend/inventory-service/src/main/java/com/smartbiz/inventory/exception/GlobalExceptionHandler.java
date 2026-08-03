@@ -57,6 +57,13 @@ public class GlobalExceptionHandler {
             .body(Map.of("error", e.getMessage()));
     }
 
+    @ExceptionHandler(ImageStorageUnavailableException.class)
+    public ResponseEntity<Map<String, String>> handleImageStorageUnavailable(ImageStorageUnavailableException e) {
+        log.warn(e.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(Map.of("error", e.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException e) {
         Map<String, String> errors = new HashMap<>();

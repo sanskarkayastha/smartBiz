@@ -14,6 +14,7 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import type { ComponentProps } from 'react';
 import { useState, useEffect } from 'react';
 import { Colors } from '@/components/ui/colors';
 import ModalCloseButton from '@/components/ui/ModalCloseButton';
@@ -21,6 +22,19 @@ import ParentTabBackLink from '@/components/ui/ParentTabBackLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/auth';
 import { inventoryService, type Category } from '@/services/inventory';
+
+type MenuItem = {
+  icon: ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  chevron: boolean;
+  danger?: boolean;
+  onPress: () => void;
+};
+
+type MenuSection = {
+  title: string;
+  items: MenuItem[];
+};
 
 export default function Settings() {
   const router = useRouter();
@@ -115,7 +129,7 @@ export default function Settings() {
     .toUpperCase()
     .slice(0, 2) ?? 'U';
 
-  const MENU_SECTIONS = [
+  const MENU_SECTIONS: MenuSection[] = [
     {
       title: 'Account',
       items: [

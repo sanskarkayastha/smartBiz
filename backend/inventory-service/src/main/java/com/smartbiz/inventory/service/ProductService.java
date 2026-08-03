@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -29,6 +30,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final StockHistoryRepository stockHistoryRepository;
     private final SupplierService supplierService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size + ':' + #search + ':' + #category + ':' + #stockStatus")
     public PagedResponse<ProductDTO> findAll(Long userId, int page, int size, String search, String category, String stockStatus) {
@@ -77,7 +79,6 @@ public class ProductService {
             .reorderLevel(request.reorderLevel())
             .supplier(normalizedSupplier)
             .barcode(normalizedBarcode)
-            .imageUrl(request.imageUrl())
             .build();
 
         product = productRepository.save(product);
@@ -124,8 +125,6 @@ public class ProductService {
             ensureBarcodeAvailable(userId, normalizedBarcode, productId);
             product.setBarcode(normalizedBarcode);
         }
-        if (request.imageUrl() != null) product.setImageUrl(request.imageUrl());
-
         if (request.quantity() != null && !request.quantity().equals(product.getQuantity())) {
             int change = request.quantity() - product.getQuantity();
             product.setQuantity(request.quantity());
@@ -198,6 +197,9 @@ public class ProductService {
         Product product = productRepository.findByIdAndUserId(productId, userId)
             .orElseThrow(() -> new ProductNotFoundException(productId));
         productRepository.delete(product);
+        if (product.getImagePublicId() != null) {
+            eventPublisher.publishEvent(new ProductImageDeleteEvent(product.getImagePublicId()));
+        }
         log.info("Product deleted: {} for userId={}", productId, userId);
     }
 

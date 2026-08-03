@@ -73,7 +73,7 @@ export default function AuthShell({
                   {[38, 64, 44, 82, 58, 91, 73].map((value, index) => (
                     <div
                       key={index}
-                      className="flex-1 rounded-t-full bg-brand"
+                      className="flex-1 rounded-t-full bg-snow"
                       style={{ height: `${Math.max(value, 18)}px`, opacity: 0.42 + value / 140 }}
                     />
                   ))}
@@ -83,7 +83,7 @@ export default function AuthShell({
               <ul className="space-y-3">
                 {HIGHLIGHTS.map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm text-snow-2">
-                    <span className="mt-1.5 h-2 w-2 rounded-full bg-brand" />
+                    <span className="mt-1.5 h-2 w-2 rounded-full bg-snow" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -95,7 +95,7 @@ export default function AuthShell({
         <section className="flex items-center bg-white/92 p-6 sm:p-8 lg:p-10">
           <div className="mx-auto w-full max-w-sm">
             <Link href="/" className="inline-flex items-center gap-3 lg:hidden">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand text-white shadow-[0_14px_30px_rgba(72,110,255,0.26)]">
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-night text-snow shadow-[0_14px_30px_rgba(32,31,29,0.18)]">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                   <path d="M9 22v-7h6v7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />

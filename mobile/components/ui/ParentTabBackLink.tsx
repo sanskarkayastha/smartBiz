@@ -15,9 +15,11 @@ const PARENT_TAB_CONFIG = {
   },
 };
 
+type ParentTab = keyof typeof PARENT_TAB_CONFIG;
+
 export default function ParentTabBackLink() {
   const router = useRouter();
-  const segments = useSegments();
+  const segments = useSegments() as string[];
   const insets = useSafeAreaInsets();
 
   const parentSegment = segments[1];
@@ -25,7 +27,7 @@ export default function ParentTabBackLink() {
     return null;
   }
 
-  const config = PARENT_TAB_CONFIG[parentSegment];
+  const config = PARENT_TAB_CONFIG[parentSegment as ParentTab];
 
   return (
     <View style={[styles.wrap, { paddingTop: insets.top + 8 }]}>

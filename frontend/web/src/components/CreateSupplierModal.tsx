@@ -53,7 +53,7 @@ export default function CreateSupplierModal() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 rounded-xl bg-[#135BEC] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0f4bc7]"
+        className="flex items-center gap-2 rounded-xl bg-night px-4 py-2.5 text-sm font-semibold text-snow transition-colors hover:bg-night-2"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
           <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -82,7 +82,7 @@ export default function CreateSupplierModal() {
                   placeholder="e.g. ABC Traders"
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-night/20"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -93,7 +93,7 @@ export default function CreateSupplierModal() {
                     placeholder="e.g. 9800000000"
                     value={form.phone}
                     onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-night/20"
                   />
                 </div>
                 <div>
@@ -103,7 +103,7 @@ export default function CreateSupplierModal() {
                     placeholder="supplier@email.com"
                     value={form.email}
                     onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-night/20"
                   />
                 </div>
               </div>
@@ -116,7 +116,7 @@ export default function CreateSupplierModal() {
                   placeholder="0"
                   value={form.openingBalance}
                   onChange={(e) => setForm((f) => ({ ...f, openingBalance: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-night/20"
                 />
                 <p className="mt-2 text-xs leading-5 text-slate-500">
                   Use this for money you already owed before tracking it in SmartBiz.
@@ -129,7 +129,7 @@ export default function CreateSupplierModal() {
                   value={form.notes}
                   onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                   rows={2}
-                  className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#135BEC]"
+                  className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-night/20"
                 />
               </div>
             </div>
@@ -146,7 +146,7 @@ export default function CreateSupplierModal() {
               <button
                 onClick={handleSave}
                 disabled={saving || !form.name.trim()}
-                className="flex-1 rounded-xl bg-[#135BEC] py-2.5 text-sm font-semibold text-white hover:bg-[#0f4bc7] disabled:opacity-50"
+                className="flex-1 rounded-xl bg-night py-2.5 text-sm font-semibold text-snow transition-colors hover:bg-night-2 disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Add Supplier'}
               </button>

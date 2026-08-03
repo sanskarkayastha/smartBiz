@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -41,6 +42,7 @@ class ProductServiceTest {
     @Mock ProductRepository productRepository;
     @Mock StockHistoryRepository stockHistoryRepository;
     @Mock SupplierService supplierService;
+    @Mock ApplicationEventPublisher eventPublisher;
 
     @InjectMocks ProductService productService;
 
@@ -63,7 +65,7 @@ class ProductServiceTest {
     void createProduct_success_returnsDTO() {
         CreateProductRequest request = new CreateProductRequest(
             "Test Product", "TEST-001", "Groceries",
-            new BigDecimal("500.00"), 20, 5, null, null, null, null, null, null
+            new BigDecimal("500.00"), 20, 5, null, null, null, null, null
         );
 
         when(productRepository.save(any(Product.class))).thenReturn(product);
@@ -90,7 +92,7 @@ class ProductServiceTest {
 
         CreateProductRequest request = new CreateProductRequest(
             "Test Product", "TEST-001", "Groceries",
-            new BigDecimal("500.00"), 20, 5, "ABC Traders", null, null, new BigDecimal("300.00"),
+            new BigDecimal("500.00"), 20, 5, "ABC Traders", null, new BigDecimal("300.00"),
             PaymentStatus.DUE, null
         );
 
@@ -187,5 +189,16 @@ class ProductServiceTest {
 
         assertThatThrownBy(() -> productService.findById(10L, 999L))
             .isInstanceOf(ProductNotFoundException.class);
+    }
+
+    @Test
+    void deleteProductWithImageSchedulesCloudinaryCleanup() {
+        product.setImagePublicId("smartbiz/products/10/1/image-1");
+        when(productRepository.findByIdAndUserId(1L, 10L)).thenReturn(Optional.of(product));
+
+        productService.delete(10L, 1L);
+
+        verify(productRepository).delete(product);
+        verify(eventPublisher).publishEvent(new ProductImageDeleteEvent("smartbiz/products/10/1/image-1"));
     }
 }

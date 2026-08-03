@@ -53,6 +53,9 @@ public class Product {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "image_public_id")
+    private String imagePublicId;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

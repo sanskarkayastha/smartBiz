@@ -11,6 +11,8 @@ import VoiceButton from '@/components/ui/VoiceButton';
 import InvoiceScanModal from '@/components/ui/InvoiceScanModal';
 import CategoryPicker from '@/components/ui/CategoryPicker';
 import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
+import ProductImageField, { type SelectedProductImage } from '@/components/ui/ProductImageField';
+import ProductImageThumbnail from '@/components/ui/ProductImageThumbnail';
 import { inventoryService, Product, CreateProductPayload, ProductFilters, type Category, type PaymentStatus } from '@/services/inventory';
 import { parseVoiceForProducts, ParsedProduct } from '@/services/ai';
 
@@ -49,6 +51,11 @@ export default function Inventory() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CreateProductPayload>>({});
+  const [editImage, setEditImage] = useState<SelectedProductImage | null>(null);
+  const [editRemoveImage, setEditRemoveImage] = useState(false);
+  const [editDetailsSaved, setEditDetailsSaved] = useState(false);
+  const [editImageError, setEditImageError] = useState('');
+  const [editImageStage, setEditImageStage] = useState<'idle' | 'details' | 'upload' | 'attach'>('idle');
   const [restockingProduct, setRestockingProduct] = useState<Product | null>(null);
   const [showRestockModal, setShowRestockModal] = useState(false);
   const [restockSaving, setRestockSaving] = useState(false);
@@ -99,7 +106,6 @@ export default function Inventory() {
       setLoading(false);
       setRefreshing(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadMore = async () => {
@@ -181,6 +187,11 @@ export default function Inventory() {
       supplier: product.supplier ?? undefined,
       barcode: product.barcode ?? undefined,
     });
+    setEditImage(null);
+    setEditRemoveImage(false);
+    setEditDetailsSaved(false);
+    setEditImageError('');
+    setEditImageStage('idle');
     setShowEditModal(true);
   };
 
@@ -209,15 +220,48 @@ export default function Inventory() {
       return;
     }
     if (!editingProduct) return;
+    let productDetailsSaved = editDetailsSaved;
     setEditSaving(true);
+    setEditImageError('');
     try {
-      await inventoryService.updateProduct(editingProduct.id, editForm);
+      if (!editDetailsSaved) {
+        setEditImageStage('details');
+        await inventoryService.updateProduct(editingProduct.id, editForm);
+        setEditDetailsSaved(true);
+        productDetailsSaved = true;
+      }
+
+      if (editImage) {
+        let confirmation: Awaited<ReturnType<typeof inventoryService.uploadImageToCloudinary>> | null = null;
+        try {
+          setEditImageStage('upload');
+          const upload = await inventoryService.requestImageUploadSignature(editingProduct.id);
+          confirmation = await inventoryService.uploadImageToCloudinary(editImage, upload);
+          setEditImageStage('attach');
+          await inventoryService.attachProductImage(editingProduct.id, confirmation);
+        } catch (imageError) {
+          if (confirmation) {
+            await inventoryService.discardProductImage(editingProduct.id, confirmation).catch(() => {});
+          }
+          throw imageError;
+        }
+      } else if (editRemoveImage && editingProduct.imageUrl) {
+        setEditImageStage('attach');
+        await inventoryService.removeProductImage(editingProduct.id);
+      }
+
       setShowEditModal(false);
       load();
-    } catch {
-      Alert.alert('Error', 'Failed to update product');
+    } catch (error) {
+      if (productDetailsSaved) {
+        setEditImageError(error instanceof Error ? error.message : 'The product image could not be updated.');
+        load();
+      } else {
+        Alert.alert('Error', 'Failed to update product');
+      }
     } finally {
       setEditSaving(false);
+      setEditImageStage('idle');
     }
   };
 
@@ -393,9 +437,7 @@ export default function Inventory() {
                 <View style={styles.cardWrapper}>
                   <Pressable style={({ pressed }) => [styles.card, pressed && { opacity: 0.82 }]} onPress={() => openEditModal(item)}>
                     <View style={styles.cardAccent} />
-                    <View style={[styles.productImage, { backgroundColor: bgColor }]}>
-                      <Ionicons name="cube-outline" size={26} color={Colors.textDark} />
-                    </View>
+                    <ProductImageThumbnail imageUrl={item.imageUrl} backgroundColor={bgColor} />
                     <View style={styles.productInfo}>
                       <View style={styles.productTopRow}>
                         <View style={styles.productTitleBlock}>
@@ -523,9 +565,27 @@ export default function Inventory() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Product</Text>
-              <ModalCloseButton onPress={() => setShowEditModal(false)} />
+              <ModalCloseButton onPress={() => { if (!editSaving) setShowEditModal(false); }} />
             </View>
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+            <Text style={styles.label}>Product Image</Text>
+            <ProductImageField
+              existingImageUrl={editingProduct?.imageUrl}
+              selectedImage={editImage}
+              removed={editRemoveImage}
+              onSelect={(image) => {
+                setEditImage(image);
+                setEditRemoveImage(false);
+                setEditImageError('');
+              }}
+              onRemove={() => {
+                setEditImage(null);
+                setEditRemoveImage(!!editingProduct?.imageUrl);
+                setEditImageError('');
+              }}
+              disabled={editSaving}
+            />
 
             <Text style={styles.label}>Product Name *</Text>
             <TextInput
@@ -617,6 +677,14 @@ export default function Inventory() {
               autoCorrect={false}
             />
 
+            {!!editImageError && (
+              <View style={styles.imageErrorBox}>
+                <Text style={styles.imageErrorTitle}>Product details saved</Text>
+                <Text style={styles.imageErrorText}>{editImageError}</Text>
+                <Text style={styles.imageErrorHint}>Tap Retry Image below or close and try again later.</Text>
+              </View>
+            )}
+
             </ScrollView>
 
             <Text style={styles.editHelpText}>
@@ -625,9 +693,14 @@ export default function Inventory() {
 
             <Pressable style={({ pressed }) => [styles.saveBtn, editSaving && { opacity: 0.7 }, pressed && !editSaving && { opacity: 0.85 }]} onPress={handleUpdateProduct} disabled={editSaving}>
               {editSaving ? (
-                <ActivityIndicator color={Colors.textOnPrimary} />
+                <>
+                  <ActivityIndicator color={Colors.textOnPrimary} />
+                  <Text style={styles.saveBtnText}>
+                    {editImageStage === 'details' ? 'Saving changes...' : editImageStage === 'upload' ? 'Uploading image...' : 'Attaching image...'}
+                  </Text>
+                </>
               ) : (
-                <Text style={styles.saveBtnText}>Save Changes</Text>
+                <Text style={styles.saveBtnText}>{editDetailsSaved && editImageError ? 'Retry Image' : 'Save Changes'}</Text>
               )}
             </Pressable>
           </View>
@@ -859,7 +932,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.dangerBorder,
   },
-  productImage: { width: 60, height: 60, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  imageErrorBox: { marginTop: 14, borderRadius: 12, padding: 12, backgroundColor: Colors.warningLight },
+  imageErrorTitle: { fontSize: 13, fontWeight: '800', color: Colors.textDark },
+  imageErrorText: { marginTop: 4, fontSize: 13, lineHeight: 19, color: Colors.danger },
+  imageErrorHint: { marginTop: 3, fontSize: 12, color: Colors.textMuted },
   productInfo: { flex: 1, minWidth: 0 },
   productTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
   productTitleBlock: { flex: 1, minWidth: 0 },

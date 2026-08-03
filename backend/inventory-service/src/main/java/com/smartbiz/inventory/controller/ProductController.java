@@ -2,6 +2,7 @@ package com.smartbiz.inventory.controller;
 
 import com.smartbiz.inventory.dto.*;
 import com.smartbiz.inventory.service.ProductService;
+import com.smartbiz.inventory.service.ProductImageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProductController {
     private final ProductService productService;
+    private final ProductImageService productImageService;
 
     @GetMapping
     public ResponseEntity<PagedResponse<ProductDTO>> getAll(
@@ -82,6 +84,37 @@ public class ProductController {
         @RequestHeader("X-User-Id") Long userId,
         @PathVariable Long id) {
         productService.delete(userId, id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/image/signature")
+    public ResponseEntity<ProductImageUploadSignature> createImageUploadSignature(
+        @RequestHeader("X-User-Id") Long userId,
+        @PathVariable Long id) {
+        return ResponseEntity.ok(productImageService.createUploadSignature(userId, id));
+    }
+
+    @PutMapping("/{id}/image")
+    public ResponseEntity<ProductDTO> attachImage(
+        @RequestHeader("X-User-Id") Long userId,
+        @PathVariable Long id,
+        @Valid @RequestBody ConfirmProductImageRequest request) {
+        return ResponseEntity.ok(productImageService.attach(userId, id, request));
+    }
+
+    @DeleteMapping("/{id}/image")
+    public ResponseEntity<ProductDTO> removeImage(
+        @RequestHeader("X-User-Id") Long userId,
+        @PathVariable Long id) {
+        return ResponseEntity.ok(productImageService.remove(userId, id));
+    }
+
+    @PostMapping("/{id}/image/discard")
+    public ResponseEntity<Void> discardImage(
+        @RequestHeader("X-User-Id") Long userId,
+        @PathVariable Long id,
+        @Valid @RequestBody ConfirmProductImageRequest request) {
+        productImageService.discard(userId, id, request);
         return ResponseEntity.noContent().build();
     }
 }

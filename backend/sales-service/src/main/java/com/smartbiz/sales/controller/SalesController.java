@@ -1,10 +1,12 @@
 package com.smartbiz.sales.controller;
 
 import com.smartbiz.sales.dto.CreateSaleRequest;
+import com.smartbiz.sales.dto.AnalyticsBucket;
 import com.smartbiz.sales.dto.DailyRevenueDTO;
 import com.smartbiz.sales.dto.ImportSalesRequest;
 import com.smartbiz.sales.dto.SaleDTO;
 import com.smartbiz.sales.dto.SaleSummaryDTO;
+import com.smartbiz.sales.dto.SalesTrendDTO;
 import com.smartbiz.sales.service.SalesService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -60,5 +62,14 @@ public class SalesController {
     @GetMapping("/analytics/weekly")
     public ResponseEntity<List<DailyRevenueDTO>> getWeeklySummary(@RequestHeader("X-User-Id") Long userId) {
         return ResponseEntity.ok(salesService.getWeeklySummary(userId));
+    }
+
+    @GetMapping("/analytics/trend")
+    public ResponseEntity<SalesTrendDTO> getTrend(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) AnalyticsBucket bucket) {
+        return ResponseEntity.ok(salesService.getTrend(userId, from, to, bucket));
     }
 }

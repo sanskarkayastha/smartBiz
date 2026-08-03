@@ -8,6 +8,7 @@ import InputField from '@/components/ui/InputField';
 import ModalCloseButton from '@/components/ui/ModalCloseButton';
 import CategoryPicker from '@/components/ui/CategoryPicker';
 import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
+import ProductImageField, { type SelectedProductImage } from '@/components/ui/ProductImageField';
 import { inventoryService, type Category, type PaymentStatus } from '@/services/inventory';
 import { supplierService } from '@/services/suppliers';
 
@@ -24,6 +25,10 @@ export default function AddProduct() {
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [showScanner, setShowScanner] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<SelectedProductImage | null>(null);
+  const [savedProductId, setSavedProductId] = useState<number | null>(null);
+  const [imageSaveError, setImageSaveError] = useState('');
+  const [saveStage, setSaveStage] = useState<'idle' | 'product' | 'upload' | 'attach'>('idle');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('DUE');
   const [amountPaidNow, setAmountPaidNow] = useState('');
   const [supplierSuggestions, setSupplierSuggestions] = useState<string[]>([]);
@@ -101,8 +106,9 @@ export default function AddProduct() {
     }
 
     setSaving(true);
+    setSaveStage('product');
     try {
-      await inventoryService.createProduct({
+      const createdProduct = await inventoryService.createProduct({
         name: productName.trim(),
         category: category || undefined,
         supplier: supplier.trim() || undefined,
@@ -115,14 +121,92 @@ export default function AddProduct() {
           amountPaidNow: paymentStatus === 'PARTIAL' ? parseFloat(amountPaidNow) : undefined,
         } : {}),
       });
+      if (selectedImage) {
+        try {
+          await saveSelectedImage(createdProduct.id);
+        } catch (imageError) {
+          setSavedProductId(createdProduct.id);
+          setImageSaveError(imageError instanceof Error ? imageError.message : 'The product image could not be saved.');
+          return;
+        }
+      }
       router.back();
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Failed to save product. Please try again.';
       Alert.alert('Save Failed', msg);
     } finally {
       setSaving(false);
+      setSaveStage('idle');
     }
   };
+
+  const saveSelectedImage = async (productId: number) => {
+    if (!selectedImage) return;
+    let confirmation: Awaited<ReturnType<typeof inventoryService.uploadImageToCloudinary>> | null = null;
+    try {
+      setSaveStage('upload');
+      const upload = await inventoryService.requestImageUploadSignature(productId);
+      confirmation = await inventoryService.uploadImageToCloudinary(selectedImage, upload);
+      setSaveStage('attach');
+      await inventoryService.attachProductImage(productId, confirmation);
+    } catch (error) {
+      if (confirmation) {
+        await inventoryService.discardProductImage(productId, confirmation).catch(() => {});
+      }
+      throw error;
+    }
+  };
+
+  const handleRetryImage = async () => {
+    if (!savedProductId) return;
+    setSaving(true);
+    setImageSaveError('');
+    try {
+      await saveSelectedImage(savedProductId);
+      router.back();
+    } catch (error) {
+      setImageSaveError(error instanceof Error ? error.message : 'The product image could not be saved.');
+    } finally {
+      setSaving(false);
+      setSaveStage('idle');
+    }
+  };
+
+  const savingLabel = saveStage === 'product'
+    ? 'Saving product...'
+    : saveStage === 'upload'
+      ? 'Uploading image...'
+      : saveStage === 'attach'
+        ? 'Attaching image...'
+        : 'Save Product';
+
+  if (savedProductId) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.header}>
+          <ModalCloseButton onPress={() => { if (!saving) router.back(); }} />
+          <Text style={styles.headerTitle}>Product Saved</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.partialState}>
+          <View style={styles.partialIcon}>
+            <Ionicons name="checkmark" size={28} color={Colors.success} />
+          </View>
+          <Text style={styles.partialTitle}>Your inventory details are safe</Text>
+          <Text style={styles.partialText}>{imageSaveError}</Text>
+          <Text style={styles.partialHint}>Only the image still needs attention.</Text>
+          <Pressable style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={handleRetryImage} disabled={saving}>
+            {saving
+              ? <><ActivityIndicator color={Colors.textOnPrimary} /><Text style={styles.saveBtnText}>{savingLabel}</Text></>
+              : <><Ionicons name="refresh" size={18} color={Colors.textOnPrimary} /><Text style={styles.saveBtnText}>Retry Image</Text></>}
+          </Pressable>
+          <Pressable style={styles.doneBtn} onPress={() => router.back()} disabled={saving}>
+            <Text style={styles.doneBtnText}>Done</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -143,10 +227,12 @@ export default function AddProduct() {
           keyboardShouldPersistTaps="handled"
         >
           <Text style={styles.sectionLabel}>Product Photo</Text>
-          <Pressable style={styles.photoBox}>
-            <Ionicons name="camera-outline" size={32} color={Colors.textMuted} />
-            <Text style={styles.photoText}>Tap to upload photo</Text>
-          </Pressable>
+          <ProductImageField
+            selectedImage={selectedImage}
+            onSelect={setSelectedImage}
+            onRemove={() => setSelectedImage(null)}
+            disabled={saving}
+          />
 
           <Text style={styles.sectionLabel}>Details</Text>
           <View style={styles.fieldsGroup}>
@@ -306,10 +392,10 @@ export default function AddProduct() {
             disabled={saving}
           >
             {saving
-              ? <ActivityIndicator color={Colors.textOnPrimary} />
+              ? <><ActivityIndicator color={Colors.textOnPrimary} /><Text style={styles.saveBtnText}>{savingLabel}</Text></>
               : <>
                   <Ionicons name="save-outline" size={18} color={Colors.textOnPrimary} />
-                  <Text style={styles.saveBtnText}>Save Product</Text>
+                  <Text style={styles.saveBtnText}>{savingLabel}</Text>
                 </>}
           </Pressable>
         </ScrollView>
@@ -351,19 +437,29 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: 8,
   },
-  photoBox: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
+  partialState: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  partialIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: Colors.successLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  partialTitle: { marginTop: 18, fontSize: 19, fontWeight: '800', color: Colors.textDark, textAlign: 'center' },
+  partialText: { marginTop: 8, fontSize: 14, lineHeight: 21, color: Colors.danger, textAlign: 'center' },
+  partialHint: { marginTop: 4, fontSize: 13, color: Colors.textMuted, textAlign: 'center' },
+  doneBtn: {
+    marginTop: 10,
+    borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 14,
-    backgroundColor: Colors.card,
-    height: 140,
-    justifyContent: 'center',
+    paddingVertical: 14,
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 20,
+    backgroundColor: Colors.card,
   },
-  photoText: { fontSize: 13, color: Colors.textMuted },
+  doneBtnText: { fontSize: 15, fontWeight: '700', color: Colors.textDark },
   fieldsGroup: {
     backgroundColor: Colors.card,
     borderRadius: 14,

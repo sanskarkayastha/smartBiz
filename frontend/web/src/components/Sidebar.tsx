@@ -127,7 +127,7 @@ export default function Sidebar({ fullName, email }: Props) {
       <div>
         <div className="px-4 pb-4 pt-5">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[linear-gradient(135deg,var(--color-brand),oklch(0.77_0.18_63))] text-white">
+            <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[linear-gradient(135deg,var(--color-night),var(--color-night-edge))] text-snow">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M13 2 5 13h6l-1 9 9-12h-6l1-8Z" fill="currentColor" />
               </svg>
@@ -138,14 +138,6 @@ export default function Sidebar({ fullName, email }: Props) {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-3 rounded-[13px] border border-paper-3 bg-white px-3 py-2.5">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-ink-3">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-            <span className="min-w-0 flex-1 truncate text-sm text-ink-2">Search</span>
-            <span className="rounded-md border border-paper-3 px-1.5 py-0.5 text-[10px] font-semibold text-ink-3">K</span>
-          </div>
         </div>
 
         <nav className="px-3.5 py-4">
@@ -206,18 +198,6 @@ export default function Sidebar({ fullName, email }: Props) {
                 <p className="truncate text-sm font-semibold text-ink">{fullName}</p>
                 <p className="truncate text-xs text-ink-2">{email}</p>
               </div>
-            </div>
-            <div className="mt-4 rounded-[14px] bg-paper px-3 py-3">
-              <p className="text-sm font-bold text-ink">Starter Plan</p>
-              <p className="mt-1 text-xs leading-5 text-ink-2">
-                Keep your shop organized with sales, stock, CRM, and AI tools.
-              </p>
-              <button
-                type="button"
-                className="mt-3 inline-flex w-full items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,var(--color-brand),oklch(0.77_0.18_63))] px-3 py-2.5 text-xs font-bold text-white"
-              >
-                Upgrade Plan
-              </button>
             </div>
           </div>
 

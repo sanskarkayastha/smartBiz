@@ -18,6 +18,5 @@ public record UpdateProductRequest(
     Integer reorderLevel,
     String supplier,
     String barcode,
-    String imageUrl,
     BigDecimal costPrice
 ) {}

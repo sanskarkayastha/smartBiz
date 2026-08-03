@@ -25,7 +25,6 @@ public record CreateProductRequest(
     Integer reorderLevel,
     String supplier,
     String barcode,
-    String imageUrl,
     BigDecimal costPrice,
     PaymentStatus paymentStatus,
     @DecimalMin(value = "0.0", inclusive = true, message = "Amount paid now cannot be negative")

@@ -6,6 +6,7 @@ import AddProductModal from '@/src/components/AddProductModal'
 import RestockProductModal from '@/src/components/RestockProductModal'
 import Pagination from '@/src/components/Pagination'
 import ManageCategoriesModal, { type Category } from '@/src/components/ManageCategoriesModal'
+import ProductThumbnail from '@/src/components/ProductThumbnail'
 
 type Product = {
   id: number
@@ -17,6 +18,7 @@ type Product = {
   quantity: number
   reorderLevel: number | null
   supplier: string | null
+  imageUrl: string | null
 }
 
 function statusLabel(quantity: number, reorderLevel: number | null) {
@@ -126,6 +128,13 @@ export default function InventoryClient({
     router.push(`/dashboard/inventory${qs ? `?${qs}` : ''}`)
   }
 
+  function handleCategoryCreated(created: Category) {
+    setCategories((current) =>
+      [...current.filter((item) => item.id !== created.id), created]
+        .sort((a, b) => a.name.localeCompare(b.name))
+    )
+  }
+
   function syncInventoryAfterDelete(successfulDeletes: number) {
     if (successfulDeletes <= 0) return
 
@@ -233,7 +242,11 @@ export default function InventoryClient({
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
             Categories
           </button>
-          <AddProductModal onClose={() => router.refresh()} categories={categories.map((c) => c.name)} />
+          <AddProductModal
+            onClose={() => router.refresh()}
+            categories={categories.map((c) => c.name)}
+            onCategoryCreated={handleCategoryCreated}
+          />
         </div>
       </div>
 
@@ -384,9 +397,7 @@ export default function InventoryClient({
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex min-w-0 items-start gap-3">
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-brand-soft text-sm font-bold text-brand">
-                            {p.name.charAt(0).toUpperCase()}
-                          </span>
+                          <ProductThumbnail imageUrl={p.imageUrl} name={p.name} />
                           <div className="min-w-0">
                             <p className="font-semibold text-ink">{p.name}</p>
                             <div className="mt-2 flex flex-wrap gap-2">
@@ -421,7 +432,12 @@ export default function InventoryClient({
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <RestockProductModal product={{ id: p.id, name: p.name, supplier: p.supplier, costPrice: p.costPrice }} />
-                          <AddProductModal product={p} onClose={() => router.refresh()} categories={categories.map((c) => c.name)} />
+                          <AddProductModal
+                            product={p}
+                            onClose={() => router.refresh()}
+                            categories={categories.map((c) => c.name)}
+                            onCategoryCreated={handleCategoryCreated}
+                          />
                           <button
                             type="button"
                             onClick={() => handleDelete(p)}
@@ -469,7 +485,7 @@ export default function InventoryClient({
       {showManageCategories && (
         <ManageCategoriesModal
           categories={categories}
-          onAdd={(cat) => setCategories((prev) => [...prev, cat].sort((a, b) => a.name.localeCompare(b.name)))}
+          onAdd={handleCategoryCreated}
           onDelete={(id) => setCategories((prev) => prev.filter((c) => c.id !== id))}
           onRename={(updated) => setCategories((prev) => prev.map((c) => c.id === updated.id ? updated : c).sort((a, b) => a.name.localeCompare(b.name)))}
           onClose={() => setShowManageCategories(false)}
