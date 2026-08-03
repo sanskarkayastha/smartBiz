@@ -47,6 +47,26 @@ export type Sale = {
   }[];
 };
 
+export type EsewaMerchantSettings = {
+  configured: boolean;
+  maskedProductCode: string | null;
+  environment: string;
+  updatedAt: string | null;
+};
+
+export type PosPayment = {
+  paymentId: string;
+  saleId: number;
+  amount: number;
+  currency: string;
+  status: 'BOOKED' | 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'EXPIRED' | 'REVIEW';
+  qrPayload: string | null;
+  deeplink: string | null;
+  referenceCode: string | null;
+  expiresAt: string;
+  environment: 'UAT' | 'PRODUCTION';
+};
+
 export const salesService = {
   async createSale(
     items: SaleItem[],
@@ -76,6 +96,35 @@ export const salesService = {
 
   async getWeeklySummary(): Promise<DailyRevenue[]> {
     const { data } = await api.get<DailyRevenue[]>('/sales/analytics/weekly');
+    return data;
+  },
+
+  async getEsewaSettings(): Promise<EsewaMerchantSettings> {
+    const { data } = await api.get<EsewaMerchantSettings>('/sales/payment-settings/esewa');
+    return data;
+  },
+
+  async saveEsewaSettings(productCode: string, accessKey: string): Promise<EsewaMerchantSettings> {
+    const { data } = await api.put<EsewaMerchantSettings>('/sales/payment-settings/esewa', { productCode, accessKey });
+    return data;
+  },
+
+  async deleteEsewaSettings(): Promise<void> {
+    await api.delete('/sales/payment-settings/esewa');
+  },
+
+  async createEsewaPayment(payload: CreateSalePayload): Promise<PosPayment> {
+    const { data } = await api.post<PosPayment>('/sales/payments/esewa', payload);
+    return data;
+  },
+
+  async getEsewaPayment(id: string): Promise<PosPayment> {
+    const { data } = await api.get<PosPayment>(`/sales/payments/esewa/${id}`);
+    return data;
+  },
+
+  async cancelEsewaPayment(id: string): Promise<PosPayment> {
+    const { data } = await api.post<PosPayment>(`/sales/payments/esewa/${id}/cancel`);
     return data;
   },
 };

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface LeadRepository extends JpaRepository<Lead, Long> {
+    long countByUserId(Long userId);
     List<Lead> findByUserIdOrderByCreatedAtDesc(Long userId);
     Page<Lead> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
     Optional<Lead> findByIdAndUserId(Long id, Long userId);

@@ -7,6 +7,8 @@ import com.smartbiz.crm.dto.UpdateCustomerRequest;
 import com.smartbiz.crm.exception.CustomerNotFoundException;
 import com.smartbiz.crm.model.Customer;
 import com.smartbiz.crm.repository.CustomerRepository;
+import com.smartbiz.crm.repository.ProcessedSalePurchaseRepository;
+import com.smartbiz.crm.model.ProcessedSalePurchase;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -21,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.smartbiz.payment.PlanAccessClient;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +32,8 @@ public class CrmService {
     private static final String CACHE_NAME = "customers";
 
     private final CustomerRepository customerRepository;
+    private final PlanAccessClient planAccessClient;
+    private final ProcessedSalePurchaseRepository processedSalePurchaseRepository;
 
     @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size + ':' + #search + ':' + #hasDue")
     public PagedResponse<CustomerDTO> findByUserId(Long userId, int page, int size, String search, Boolean hasDue) {
@@ -49,6 +54,7 @@ public class CrmService {
     @Transactional
     @CacheEvict(value = CACHE_NAME, allEntries = true)
     public CustomerDTO create(Long userId, CreateCustomerRequest request) {
+        planAccessClient.requireWithinLimit(userId, "Customers", customerRepository.countByUserId(userId), 100);
         Customer customer = new Customer();
         customer.setUserId(userId);
         customer.setName(request.getName());
@@ -96,6 +102,20 @@ public class CrmService {
             customerRepository.save(customer);
             log.info("Updated purchase total for customerId={} by {}", customerId, amount);
         });
+    }
+
+    @Transactional
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
+    public void updatePurchaseTotalExactlyOnce(Long userId, Long saleId, Long customerId, BigDecimal amount) {
+        if (processedSalePurchaseRepository.existsByUserIdAndSaleId(userId, saleId)) return;
+        Customer customer = customerRepository.findByIdAndUserId(customerId, userId)
+            .orElseThrow(() -> new CustomerNotFoundException("Customer not found: " + customerId));
+        processedSalePurchaseRepository.save(ProcessedSalePurchase.builder()
+            .userId(userId).saleId(saleId).customerId(customerId).amount(amount).build());
+        customer.setTotalPurchases(customer.getTotalPurchases().add(amount));
+        customer.setLastPurchaseDate(LocalDateTime.now());
+        customerRepository.save(customer);
+        log.info("Applied sale {} to customer {} exactly once", saleId, customerId);
     }
 
     @Transactional

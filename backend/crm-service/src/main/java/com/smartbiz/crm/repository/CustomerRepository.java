@@ -13,6 +13,7 @@ import java.util.Optional;
 
 @Repository
 public interface CustomerRepository extends JpaRepository<Customer, Long> {
+    long countByUserId(Long userId);
 
     List<Customer> findByUserIdOrderByCreatedAtDesc(Long userId);
     Page<Customer> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);

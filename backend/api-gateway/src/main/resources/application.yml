@@ -31,6 +31,13 @@ spring:
           filters:
             - StripPrefix=0
 
+        - id: billing-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/billing/**
+          filters:
+            - StripPrefix=0
+
         - id: inventory-service
           uri: lb://INVENTORY-SERVICE
           predicates:

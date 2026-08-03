@@ -10,6 +10,7 @@
   KeyboardAvoidingView,
   Platform,
   FlatList,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -145,6 +146,13 @@ export default function Settings() {
       ],
     },
     {
+      title: 'Payments',
+      items: [
+        { icon: 'diamond-outline' as const, label: 'Plan & Billing', chevron: true, onPress: () => router.push('/billing-settings') },
+        { icon: 'qr-code-outline' as const, label: 'Receive with eSewa', chevron: true, onPress: () => router.push('/esewa-settings') },
+      ],
+    },
+    {
       title: 'Inventory',
       items: [
         { icon: 'grid-outline' as const, label: 'Manage Categories', chevron: true, onPress: () => setShowManageCategories(true) },
@@ -160,10 +168,11 @@ export default function Settings() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <ParentTabBackLink />
-      <Text style={styles.title}>Settings</Text>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ParentTabBackLink />
+        <Text style={styles.title}>Settings</Text>
 
-      <View style={styles.profileCard}>
+        <View style={styles.profileCard}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{initials}</Text>
         </View>
@@ -174,10 +183,10 @@ export default function Settings() {
         <Pressable style={styles.editIcon} onPress={openEditProfile}>
           <Ionicons name="pencil-outline" size={18} color={Colors.primary} />
         </Pressable>
-      </View>
+        </View>
 
-      {MENU_SECTIONS.map((section, si) => (
-        <View key={si} style={styles.sectionWrapper}>
+        {MENU_SECTIONS.map((section, si) => (
+          <View key={si} style={styles.sectionWrapper}>
           {section.title ? <Text style={styles.sectionLabel}>{section.title}</Text> : null}
           <View style={styles.menuCard}>
             {section.items.map((item, index) => (
@@ -202,8 +211,9 @@ export default function Settings() {
               </Pressable>
             ))}
           </View>
-        </View>
-      ))}
+          </View>
+        ))}
+      </ScrollView>
 
       {/* Manage Categories Modal */}
       <Modal visible={showManageCategories} animationType="slide" transparent onRequestClose={() => setShowManageCategories(false)}>
@@ -304,6 +314,7 @@ export default function Settings() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
+  content: { paddingBottom: 28 },
   title: { fontSize: 22, fontWeight: 'bold', color: Colors.textDark, paddingHorizontal: 16, paddingVertical: 14 },
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: Colors.card, borderRadius: 16, marginHorizontal: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: Colors.border },
   avatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center' },

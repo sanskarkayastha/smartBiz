@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.smartbiz.payment.PlanAccessClient;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +31,7 @@ public class LeadService {
     private final LeadRepository leadRepository;
     private final CustomerRepository customerRepository;
     private final CrmService crmService;
+    private final PlanAccessClient planAccessClient;
 
     @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size + ':' + #search + ':' + #stage + ':' + #source + ':' + #overdueOnly")
     public PagedResponse<LeadDTO> getLeads(Long userId, int page, int size, String search, String stage, String source, Boolean overdueOnly) {
@@ -51,6 +53,7 @@ public class LeadService {
     @Transactional
     @CacheEvict(value = CACHE_NAME, allEntries = true)
     public LeadDTO createLead(Long userId, CreateLeadRequest request) {
+        planAccessClient.requireWithinLimit(userId, "Leads", leadRepository.countByUserId(userId), 100);
         Lead lead = new Lead();
         lead.setUserId(userId);
         lead.setName(request.getName());

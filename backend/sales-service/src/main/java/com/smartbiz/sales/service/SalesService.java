@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.HttpClientErrorException;
@@ -23,6 +24,8 @@ import java.time.LocalDateTime;
 import java.time.DayOfWeek;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
+import java.time.ZoneId;
+import com.smartbiz.payment.PlanAccessClient;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -60,6 +63,8 @@ public class SalesService {
             new SaleProcessingOptions(true, true, true, true, "COMPLETED");
     private static final SaleProcessingOptions IMPORTED_SALE_OPTIONS =
             new SaleProcessingOptions(false, false, false, false, "IMPORTED");
+    private static final SaleProcessingOptions ESEWA_PENDING_OPTIONS =
+            new SaleProcessingOptions(true, false, false, false, "PAYMENT_PENDING");
 
     private static final String INVENTORY_BASE = "http://INVENTORY-SERVICE/inventory/products";
     private static final String CRM_BASE = "http://CRM-SERVICE/customers";
@@ -68,10 +73,54 @@ public class SalesService {
     private final SaleItemRepository saleItemRepository;
     private final RestTemplate restTemplate;
     private final TransactionTemplate transactionTemplate;
+    private final PlanAccessClient planAccessClient;
+    @Value("${app.internal-service-token:smartbiz-internal-dev-token}") private String internalServiceToken;
 
     @Transactional
     public SaleDTO createSale(Long userId, CreateSaleRequest request) {
+        enforceSalesLimit(userId);
         return createSaleInternal(userId, request, LIVE_SALE_OPTIONS);
+    }
+
+    @Transactional
+    public SaleDTO createPendingEsewaSale(Long userId, CreateSaleRequest request, java.util.UUID reservationId, LocalDateTime expiresAt) {
+        enforceSalesLimit(userId);
+        request.setPaymentMethod("ESEWA");
+        SaleDTO result = createSaleInternal(userId, request, ESEWA_PENDING_OPTIONS);
+        Sale sale = saleRepository.findByIdAndUserId(result.getId(), userId)
+            .orElseThrow(() -> new SaleNotFoundException("Sale not found: " + result.getId()));
+        sale.setStockReservationId(reservationId);
+        sale.setPaymentExpiresAt(expiresAt);
+        saleRepository.save(sale);
+        return result;
+    }
+
+    @Transactional
+    public SaleDTO finalizeEsewaSale(Long userId, Long saleId, String paymentReference) {
+        Sale sale = saleRepository.findLockedByIdAndUserId(saleId, userId)
+            .orElseThrow(() -> new SaleNotFoundException("Sale not found: " + saleId));
+        if ("COMPLETED".equals(sale.getStatus())) return toDTO(sale, saleItemRepository.findBySaleId(saleId));
+        if (!List.of("PAYMENT_PENDING", "PAYMENT_REVIEW").contains(sale.getStatus())) {
+            throw new IllegalStateException("Sale cannot be finalized from status " + sale.getStatus());
+        }
+        sale.setStatus("COMPLETED");
+        sale.setPaymentReference(paymentReference);
+        sale.setFinalizedAt(LocalDateTime.now());
+        saleRepository.save(sale);
+        if (sale.getCustomerId() != null) updateCustomerTotalExactlyOnce(userId, saleId, sale.getCustomerId(), sale.getTotalAmount());
+        return toDTO(sale, saleItemRepository.findBySaleId(saleId));
+    }
+
+    @Transactional
+    public SaleDTO cancelEsewaSale(Long userId, Long saleId, boolean review) {
+        Sale sale = saleRepository.findLockedByIdAndUserId(saleId, userId)
+            .orElseThrow(() -> new SaleNotFoundException("Sale not found: " + saleId));
+        if ("COMPLETED".equals(sale.getStatus())) throw new IllegalStateException("Completed sale cannot be canceled");
+        if (!"CANCELED".equals(sale.getStatus())) {
+            sale.setStatus(review ? "PAYMENT_REVIEW" : "CANCELED");
+            saleRepository.save(sale);
+        }
+        return toDTO(sale, saleItemRepository.findBySaleId(saleId));
     }
 
     private SaleDTO createSaleInternal(Long userId, CreateSaleRequest request, SaleProcessingOptions options) {
@@ -148,6 +197,7 @@ public class SalesService {
     }
 
     public List<SaleDTO> importSales(Long userId, ImportSalesRequest request) {
+        planAccessClient.requirePro(userId, "Sales file imports");
         List<CreateSaleRequest> sales = request.sales().stream()
                 .sorted(Comparator.comparing(sale -> {
                     LocalDateTime parsedSaleDate = sale.parseSaleDate();
@@ -233,13 +283,16 @@ public class SalesService {
     }
 
     public SalesTrendDTO getTrend(Long userId, LocalDate from, LocalDate to, AnalyticsBucket bucket) {
+        planAccessClient.requirePro(userId, "Advanced sales trends");
         validateTrendRange(from, to, bucket);
 
         LocalDateTime start = from.atStartOfDay();
         LocalDateTime endExclusive = to.plusDays(1).atStartOfDay();
         List<Sale> sales = saleRepository
                 .findByUserIdAndSaleDateGreaterThanEqualAndSaleDateLessThanOrderBySaleDateDesc(
-                        userId, start, endExclusive);
+                        userId, start, endExclusive).stream()
+                .filter(sale -> List.of("COMPLETED", "IMPORTED").contains(sale.getStatus()))
+                .toList();
 
         List<Long> saleIds = sales.stream().map(Sale::getId).toList();
         Map<Long, Long> itemsBySale = saleIds.isEmpty()
@@ -439,5 +492,20 @@ public class SalesService {
         dto.setUnitPrice(item.getUnitPrice());
         dto.setSubtotal(item.getSubtotal());
         return dto;
+    }
+
+    private void updateCustomerTotalExactlyOnce(Long userId, Long saleId, Long customerId, BigDecimal amount) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Internal-Service-Token", internalServiceToken);
+        Map<String, Object> body = Map.of("userId", userId, "saleId", saleId, "customerId", customerId, "amount", amount);
+        restTemplate.exchange(CRM_BASE + "/internal/purchases", HttpMethod.POST, new HttpEntity<>(body, headers), Void.class);
+    }
+
+    private void enforceSalesLimit(Long userId) {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kathmandu"));
+        LocalDateTime start = today.withDayOfMonth(1).atStartOfDay();
+        LocalDateTime end = today.plusMonths(1).withDayOfMonth(1).atStartOfDay();
+        planAccessClient.requireWithinLimit(userId, "Monthly sales", saleRepository.countQuotaSales(userId, start, end), 300);
     }
 }

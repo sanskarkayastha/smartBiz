@@ -13,6 +13,7 @@
 	<description>Product and stock management microservice</description>
 
 	<dependencies>
+		<dependency><groupId>com.smartbiz</groupId><artifactId>payment-common</artifactId><version>${project.version}</version></dependency>
 		<dependency>
 			<groupId>com.cloudinary</groupId>
 			<artifactId>cloudinary-http5</artifactId>

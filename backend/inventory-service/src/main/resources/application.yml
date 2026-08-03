@@ -46,6 +46,8 @@ logging:
     com.smartbiz.inventory: DEBUG
 
 app:
+  internal-service-token: ${INTERNAL_SERVICE_TOKEN:smartbiz-internal-dev-token}
+  auth-service-url: ${AUTH_SERVICE_URL:http://localhost:8081}
   cloudinary:
     enabled: ${CLOUDINARY_ENABLED:false}
     cloud-name: ${CLOUDINARY_CLOUD_NAME:}

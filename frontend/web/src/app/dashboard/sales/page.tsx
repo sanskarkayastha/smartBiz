@@ -21,7 +21,7 @@ type SearchParams = Promise<{
   dateTo?: string
 }>
 
-const PAYMENT_LABELS: Record<string, string> = { CASH: 'Cash', CARD: 'Card', DIGITAL: 'Digital', DUE: 'Due' }
+const PAYMENT_LABELS: Record<string, string> = { CASH: 'Cash', CARD: 'Card', ESEWA: 'eSewa', DIGITAL: 'Digital', DUE: 'Due' }
 
 function formatCurrency(value: number) {
   return `NPR ${Number(value).toLocaleString()}`

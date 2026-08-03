@@ -56,6 +56,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error(e.getMessage(), "FEATURE_DISABLED"));
     }
 
+    @ExceptionHandler(BillingException.class)
+    public ResponseEntity<Map<String, String>> handleBilling(BillingException e) {
+        log.warn("Billing request failed: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error(e.getMessage(), "BILLING_ERROR"));
+    }
+
     @ExceptionHandler(OAuthStateException.class)
     public ResponseEntity<Map<String, String>> handleOAuthState(OAuthStateException e) {
         log.warn("OAuth state issue: {}", e.getMessage());

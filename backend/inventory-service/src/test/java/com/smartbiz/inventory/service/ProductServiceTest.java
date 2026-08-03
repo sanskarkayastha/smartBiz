@@ -22,6 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.context.ApplicationEventPublisher;
+import com.smartbiz.payment.PlanAccessClient;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -43,6 +44,7 @@ class ProductServiceTest {
     @Mock StockHistoryRepository stockHistoryRepository;
     @Mock SupplierService supplierService;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock PlanAccessClient planAccessClient;
 
     @InjectMocks ProductService productService;
 

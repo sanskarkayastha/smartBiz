@@ -8,6 +8,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.smartbiz.payment.PlanAccessClient;
+import com.smartbiz.crm.repository.ProcessedSalePurchaseRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +32,10 @@ class CrmServiceTest {
 
     @InjectMocks
     CrmService crmService;
+    @Mock
+    PlanAccessClient planAccessClient;
+    @Mock
+    ProcessedSalePurchaseRepository processedSalePurchaseRepository;
 
     @Test
     void findByUserId_normalizesMissingFiltersBeforeQuerying() {

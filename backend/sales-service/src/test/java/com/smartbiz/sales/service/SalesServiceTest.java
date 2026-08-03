@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.smartbiz.payment.PlanAccessClient;
 import org.springframework.http.*;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.HttpClientErrorException;
@@ -36,6 +37,7 @@ class SalesServiceTest {
     @Mock TransactionTemplate transactionTemplate;
 
     @InjectMocks SalesService salesService;
+    @Mock PlanAccessClient planAccessClient;
 
     private InventoryProductDTO product;
     private CreateSaleRequest request;

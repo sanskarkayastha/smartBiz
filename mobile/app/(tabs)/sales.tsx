@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Colors } from '@/components/ui/colors';
 import ModalCloseButton from '@/components/ui/ModalCloseButton';
 import ImportSalesModal from '@/components/ui/ImportSalesModal';
@@ -24,8 +24,9 @@ import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
 import { inventoryService, type Product } from '@/services/inventory';
 import { salesService, type Sale } from '@/services/sales';
 import { customersService, type Customer } from '@/services/customers';
+import { consumeCompletedPosPayment } from '@/services/paymentEvents';
 
-type PaymentMethod = 'CASH' | 'CARD' | 'DIGITAL' | 'DUE';
+type PaymentMethod = 'CASH' | 'CARD' | 'ESEWA' | 'DUE';
 
 type CartItem = {
   product: Product;
@@ -44,6 +45,7 @@ function hasInvalidSalePrice(cart: CartItem[]) {
 }
 
 export default function Sales() {
+  const router = useRouter();
   const [tab, setTab] = useState<'pos' | 'history'>('pos');
 
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -107,6 +109,14 @@ export default function Sales() {
       }
     }, [loadPOS, loadHistory, tab]),
   );
+
+  useFocusEffect(useCallback(() => {
+    if (consumeCompletedPosPayment()) {
+      setCart([]); setProductSearch(''); setCustomerSearch(''); setSelectedCustomer(null);
+      setPaymentMethod('CASH'); setSaleDateInput(''); setShowCustomerDropdown(false);
+      void loadPOS(); void loadHistory();
+    }
+  }, [loadPOS, loadHistory]));
 
   const searchResults = productSearch.trim()
     ? availableProducts.filter(
@@ -233,17 +243,21 @@ export default function Sales() {
         customerName = newCustomer.name;
       }
 
-      await salesService.createSale(
-        cart.map((item) => ({
+      const saleItems = cart.map((item) => ({
           productId: item.product.id,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-        })),
-        paymentMethod,
-        customerId,
-        customerName,
-        normalizedSaleDate,
-      );
+      }));
+
+      if (paymentMethod === 'ESEWA') {
+        const payment = await salesService.createEsewaPayment({
+          items: saleItems, paymentMethod: 'ESEWA', customerId, customerName, saleDate: normalizedSaleDate,
+        });
+        router.push({ pathname: '/esewa-payment', params: { paymentId: payment.paymentId, amount: String(payment.amount) } });
+        return;
+      }
+
+      await salesService.createSale(saleItems, paymentMethod, customerId, customerName, normalizedSaleDate);
 
       await Promise.all([loadPOS(), loadHistory()]);
 
@@ -617,7 +631,7 @@ export default function Sales() {
 
                 <Text style={styles.paymentLabel}>PAYMENT METHOD</Text>
                 <View style={styles.paymentRow}>
-                  {(['CASH', 'CARD', 'DIGITAL', 'DUE'] as PaymentMethod[]).map((method) => (
+                  {(['CASH', 'CARD', 'ESEWA', 'DUE'] as PaymentMethod[]).map((method) => (
                     <Pressable
                       key={method}
                       style={({ pressed }) => [
@@ -635,7 +649,7 @@ export default function Sales() {
                           paymentMethod === method && styles.paymentBtnTextActive,
                         ]}
                       >
-                        {method}
+                        {method === 'ESEWA' ? 'eSewa' : method}
                       </Text>
                     </Pressable>
                   ))}
@@ -671,7 +685,9 @@ export default function Sales() {
                 <Text style={styles.completeBtnText}>
                   {cart.length === 0
                     ? 'Add items to complete sale'
-                    : `Complete Sale | NPR ${totalAmount.toLocaleString()}`}
+                    : paymentMethod === 'ESEWA'
+                      ? `Show eSewa QR | NPR ${totalAmount.toLocaleString()}`
+                      : `Complete Sale | NPR ${totalAmount.toLocaleString()}`}
                 </Text>
               )}
             </Pressable>

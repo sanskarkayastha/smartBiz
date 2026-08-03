@@ -13,6 +13,7 @@
 	<description>Claude API integration for insights and forecasting (Phase 2)</description>
 
 	<dependencies>
+		<dependency><groupId>com.smartbiz</groupId><artifactId>payment-common</artifactId><version>${project.version}</version></dependency>
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>

@@ -30,6 +30,8 @@ eureka:
     prefer-ip-address: true
 
 app:
+  internal-service-token: ${INTERNAL_SERVICE_TOKEN:smartbiz-internal-dev-token}
+  auth-service-url: ${AUTH_SERVICE_URL:http://localhost:8081}
   gemini-api-key: ${GEMINI_API_KEY:}
   gemini-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent
   inventory-url: ${INVENTORY_SERVICE_URL:http://localhost:8082}

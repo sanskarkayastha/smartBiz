@@ -73,6 +73,8 @@ public class UserService {
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .fullName(request.fullName().trim())
                 .role("USER")
+                .paidPlan("FREE")
+                .trialEndsAt(LocalDateTime.now().plusDays(14))
                 .emailVerified(false)
                 .build());
 
@@ -249,6 +251,7 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setEmailVerified(false);
         user.setEmailVerifiedAt(null);
+        if (user.getTrialEndsAt() == null) user.setTrialEndsAt(LocalDateTime.now().plusDays(14));
         return user;
     }
 
@@ -308,6 +311,8 @@ public class UserService {
             .email(normalizedEmail)
             .fullName(resolveDisplayName(profile.fullName(), normalizedEmail))
             .role("USER")
+            .paidPlan("FREE")
+            .trialEndsAt(LocalDateTime.now().plusDays(14))
             .emailVerified(true)
             .emailVerifiedAt(LocalDateTime.now())
             .googleSubject(profile.subject())

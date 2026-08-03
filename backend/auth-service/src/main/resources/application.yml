@@ -45,6 +45,11 @@ eureka:
     prefer-ip-address: true
 
 app:
+  services:
+    inventory-url: ${INVENTORY_SERVICE_URL:http://INVENTORY-SERVICE:8082}
+    sales-url: ${SALES_SERVICE_URL:http://SALES-SERVICE:8084}
+    crm-url: ${CRM_SERVICE_URL:http://CRM-SERVICE:8083}
+    ai-url: ${AI_SERVICE_URL:http://AI-SERVICE:8085}
   jwt:
     secret: your-secret-key-change-in-production-at-least-32-characters-long
     expiration: 86400000  # 24 hours in milliseconds
@@ -63,6 +68,21 @@ app:
       client-secret: ${GOOGLE_CLIENT_SECRET:}
       public-base-url: ${AUTH_PUBLIC_BASE_URL:http://localhost:8080}
       allowed-redirect-prefixes: ${GOOGLE_ALLOWED_REDIRECT_PREFIXES:http://localhost:3000/api/auth/google/callback,mobile://auth/callback}
+  internal-service-token: ${INTERNAL_SERVICE_TOKEN:smartbiz-internal-dev-token}
+  billing:
+    public-base-url: ${BILLING_PUBLIC_BASE_URL:http://localhost:8080}
+    web-return-url: ${BILLING_WEB_RETURN_URL:http://localhost:3000/dashboard/settings}
+    mobile-return-url: ${BILLING_MOBILE_RETURN_URL:smartbiz://billing/result}
+    stripe:
+      enabled: ${STRIPE_ENABLED:false}
+      secret-key: ${STRIPE_SECRET_KEY:}
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    esewa:
+      enabled: ${ESEWA_BILLING_ENABLED:true}
+      product-code: ${ESEWA_SMARTBIZ_PRODUCT_CODE:EPAYTEST}
+      secret-key: ${ESEWA_SMARTBIZ_SECRET_KEY:8gBm/:&EnhH.1/q}
+      form-url: ${ESEWA_FORM_URL:https://rc-epay.esewa.com.np/api/epay/main/v2/form}
+      status-url: ${ESEWA_STATUS_URL:https://uat.esewa.com.np/api/epay/transaction/status/}
 
 logging:
   level:

@@ -5,6 +5,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -21,6 +23,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     boolean existsByBarcodeAndUserIdAndIdNot(String barcode, Long userId, Long id);
     boolean existsBySkuAndUserId(String sku, Long userId);
     boolean existsByIdAndUserIdAndImagePublicId(Long id, Long userId, String imagePublicId);
+    long countByUserId(Long userId);
 
     @Query("SELECT p FROM Product p WHERE p.userId = :userId AND LOWER(TRIM(COALESCE(p.supplier, ''))) = LOWER(TRIM(:supplier))")
     List<Product> findByUserIdAndSupplierIgnoreCase(@Param("userId") Long userId, @Param("supplier") String supplier);
@@ -47,4 +50,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         @Param("category") String category,
         @Param("stockStatus") String stockStatus,
         Pageable pageable);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Product p WHERE p.userId = :userId AND p.id IN :ids ORDER BY p.id")
+    List<Product> findAllLockedByUserAndIds(@Param("userId") Long userId, @Param("ids") List<Long> ids);
 }

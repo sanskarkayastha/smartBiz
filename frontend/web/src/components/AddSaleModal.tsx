@@ -1,18 +1,22 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { QRCodeSVG } from 'qrcode.react'
 
 type Product = { id: number; name: string; price: number; quantity: number }
-type PaymentMethod = 'CASH' | 'CARD' | 'DIGITAL' | 'DUE'
+type PaymentMethod = 'CASH' | 'CARD' | 'ESEWA' | 'DUE'
 type CartItem = { product: Product; quantity: number; unitPrice: number }
 type CustomerSuggestion = { id: number; name: string; phone: string | null }
 type CustomerApiResponse = CustomerSuggestion[] | { content?: CustomerSuggestion[] }
+type PosPayment = { paymentId: string; saleId: number; amount: number; status: 'BOOKED' | 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'EXPIRED' | 'REVIEW'; qrPayload: string | null; deeplink: string | null; referenceCode: string | null; expiresAt: string; environment: 'UAT' | 'PRODUCTION' }
+
+const ESEWA_INTENT_DEMO_URL = 'https://gitlab.com/esewa-pub/esewa-intent-payment-app'
 
 const PAYMENT_METHODS: Array<{ value: PaymentMethod; label: string; helper: string }> = [
   { value: 'CASH', label: 'Cash', helper: 'Paid in cash' },
   { value: 'CARD', label: 'Card', helper: 'Card payment' },
-  { value: 'DIGITAL', label: 'Digital', helper: 'Wallet or QR' },
+  { value: 'ESEWA', label: 'eSewa', helper: 'Verified amount-filled QR' },
   { value: 'DUE', label: 'Due', helper: 'Pay later' },
 ]
 
@@ -61,6 +65,38 @@ function PlusIcon() {
   )
 }
 
+function EsewaPaymentStep({ payment, checking, onCheck, onCancel, onDone, onBack }: {
+  payment: PosPayment; checking: boolean; onCheck: () => void; onCancel: () => void; onDone: () => void; onBack: () => void
+}) {
+  const [now, setNow] = useState<number | null>(null)
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer) }, [])
+  const seconds = now === null ? null : Math.max(0, Math.floor((new Date(payment.expiresAt).getTime() - now) / 1000))
+  const countdown = seconds === null ? '--:--' : `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
+  const waiting = payment.status === 'BOOKED' || payment.status === 'PENDING'
+  const isUat = payment.environment === 'UAT' || payment.deeplink?.includes('rc-links.esewa.com.np')
+  return (
+    <div className="absolute inset-0 z-20 flex flex-col bg-paper">
+      <header className="flex min-h-20 items-center justify-between gap-5 border-b border-paper-3 bg-white px-6">
+        <div><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand">{isUat ? 'eSewa test payment' : 'eSewa payment'}</p><h3 className="mt-1 text-xl font-extrabold text-ink">{isUat ? 'Scan with the test app' : 'Ask the buyer to scan'}</h3></div>
+        {waiting ? <span className="rounded-xl bg-amber/25 px-3 py-2 text-sm font-extrabold tabular-nums text-ink">{countdown}</span> : null}
+      </header>
+      <div className="flex flex-1 items-center justify-center overflow-y-auto px-6 py-8">
+        {waiting && payment.qrPayload ? <div className="text-center"><div className="inline-flex rounded-[28px] border border-paper-3 bg-white p-5 shadow-sm"><QRCodeSVG value={payment.qrPayload} size={260} bgColor="#FDFEFF" fgColor="#17243D" /></div><p className="mt-6 text-[10px] font-extrabold uppercase tracking-[0.16em] text-ink-3">Amount to pay</p><p className="mt-1 text-3xl font-extrabold tabular-nums text-ink">NPR {Number(payment.amount).toLocaleString()}</p>{isUat ? <div className="mx-auto mt-4 max-w-md rounded-2xl border border-amber bg-amber/20 px-4 py-3 text-sm leading-6 text-ink"><p className="font-extrabold">UAT QR</p><p className="mt-1">The normal eSewa app cannot open this test QR. Install eSewa&apos;s Intent demo app, then scan with the phone camera.</p><a href={ESEWA_INTENT_DEMO_URL} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center font-bold text-brand underline underline-offset-4">View official test app setup</a></div> : <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-ink-2">Open eSewa, scan this code, and confirm the amount. SmartBiz records the sale only after eSewa verifies payment.</p>}</div> : null}
+        {payment.status === 'SUCCEEDED' ? <div className="max-w-md text-center"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-mint text-3xl font-black text-ink">✓</div><h3 className="mt-6 text-2xl font-extrabold text-ink">Payment verified</h3><p className="mt-2 text-sm leading-6 text-ink-2">NPR {Number(payment.amount).toLocaleString()} received. Stock and the sale are finalized.</p></div> : null}
+        {['FAILED', 'CANCELED', 'EXPIRED'].includes(payment.status) ? <div className="max-w-md text-center"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-rose/18 text-3xl font-black text-ink">×</div><h3 className="mt-6 text-2xl font-extrabold text-ink">Payment not completed</h3><p className="mt-2 text-sm leading-6 text-ink-2">Reserved stock was released. Return to the cart and choose another method.</p></div> : null}
+        {payment.status === 'REVIEW' ? <div className="max-w-md text-center"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-amber/25 text-3xl font-black text-ink">!</div><h3 className="mt-6 text-2xl font-extrabold text-ink">Verification needs attention</h3><p className="mt-2 text-sm leading-6 text-ink-2">Stock stays reserved until eSewa returns a safe final status. Do not collect a second payment.</p></div> : null}
+      </div>
+      <div className="flex flex-wrap items-center justify-center gap-3 border-t border-paper-3 bg-white px-6 py-5">
+        {waiting && payment.deeplink ? <a href={payment.deeplink} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-brand px-5 text-sm font-bold text-snow">{isUat ? 'Open eSewa test payment' : 'Open eSewa on this device'}</a> : null}
+        {waiting || payment.status === 'REVIEW' ? <button type="button" onClick={onCheck} disabled={checking} className="min-h-12 rounded-2xl border border-paper-3 bg-white px-5 text-sm font-bold text-ink disabled:opacity-60">{checking ? 'Checking…' : 'Check payment'}</button> : null}
+        {waiting ? <button type="button" onClick={onCancel} className="min-h-12 px-4 text-sm font-bold text-rose">Cancel safely</button> : null}
+        {payment.status === 'SUCCEEDED' ? <button type="button" onClick={onDone} className="min-h-12 rounded-2xl bg-brand px-6 text-sm font-bold text-snow">Done</button> : null}
+        {['FAILED', 'CANCELED', 'EXPIRED'].includes(payment.status) ? <button type="button" onClick={onBack} className="min-h-12 rounded-2xl bg-night px-6 text-sm font-bold text-snow">Back to cart</button> : null}
+      </div>
+    </div>
+  )
+}
+
 export default function AddSaleModal({ products }: { products: Product[] }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -74,8 +110,24 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [posPayment, setPosPayment] = useState<PosPayment | null>(null)
+  const [checkingPayment, setCheckingPayment] = useState(false)
   const customerRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+
+  const posPaymentId = posPayment?.paymentId
+  const checkPosPayment = useCallback(async () => {
+    if (!posPaymentId) return
+    setCheckingPayment(true)
+    try { const response = await fetch(`/api/sales/esewa-payments/${posPaymentId}`); if (response.ok) setPosPayment(await response.json()) }
+    finally { setCheckingPayment(false) }
+  }, [posPaymentId])
+
+  useEffect(() => {
+    if (!posPayment || !['BOOKED', 'PENDING', 'REVIEW'].includes(posPayment.status)) return
+    const timer = window.setInterval(() => void checkPosPayment(), 2500)
+    return () => window.clearInterval(timer)
+  }, [posPayment, checkPosPayment])
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -141,6 +193,7 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
 
   function addToCart(product: Product) {
     setError('')
+    setPosPayment(null)
     setCart((previous) => {
       const existing = previous.find((item) => item.product.id === product.id)
       if (existing) {
@@ -236,7 +289,7 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
       const typedCustomerName = customerSearch.trim() || undefined
       const customerName = resolvedCustomer?.name ?? typedCustomerName
 
-      const res = await fetch('/api/sales', {
+      const res = await fetch(paymentMethod === 'ESEWA' ? '/api/sales/esewa-payments' : '/api/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -258,8 +311,8 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
         return
       }
 
-      setOpen(false)
-      router.refresh()
+      if (paymentMethod === 'ESEWA') setPosPayment(await res.json())
+      else { setOpen(false); router.refresh() }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Network error. Please try again.')
     } finally {
@@ -288,6 +341,7 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
             aria-describedby="record-sale-description"
             className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-[0_24px_80px_rgba(24,33,52,0.28)] sm:max-h-[92vh] sm:max-w-6xl sm:rounded-[28px] sm:border sm:border-paper-3"
           >
+            {posPayment ? <EsewaPaymentStep payment={posPayment} checking={checkingPayment} onCheck={() => void checkPosPayment()} onCancel={async () => { setCheckingPayment(true); try { const response = await fetch(`/api/sales/esewa-payments/${posPayment.paymentId}`, { method: 'POST' }); setPosPayment(await response.json()) } finally { setCheckingPayment(false) } }} onDone={() => { setOpen(false); setPosPayment(null); setCart([]); router.refresh() }} onBack={() => setPosPayment(null)} /> : null}
             <header className="flex shrink-0 items-start justify-between gap-5 border-b border-paper-3 px-5 py-4 sm:px-6 sm:py-5">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -643,7 +697,7 @@ export default function AddSaleModal({ products }: { products: Product[] }) {
                     disabled={loading || cart.length === 0}
                     className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-brand px-4 text-sm font-bold text-snow transition-colors hover:bg-night-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-night focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-paper-2 disabled:text-ink-3"
                   >
-                    {loading ? 'Recording sale…' : cart.length === 0 ? 'Add products to continue' : `Record sale · ${formatCurrency(total)}`}
+                    {loading ? (paymentMethod === 'ESEWA' ? 'Preparing QR…' : 'Recording sale…') : cart.length === 0 ? 'Add products to continue' : paymentMethod === 'ESEWA' ? `Show eSewa QR · ${formatCurrency(total)}` : `Record sale · ${formatCurrency(total)}`}
                   </button>
                 </div>
               </aside>

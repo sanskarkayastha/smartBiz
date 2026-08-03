@@ -71,6 +71,22 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       AUTH_PUBLIC_BASE_URL: ${AUTH_PUBLIC_BASE_URL:-http://localhost:8080}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-smartbiz-internal-dev-token}
+      INVENTORY_SERVICE_URL: http://inventory-service:8082
+      SALES_SERVICE_URL: http://sales-service:8084
+      CRM_SERVICE_URL: http://crm-service:8083
+      AI_SERVICE_URL: http://ai-service:8085
+      BILLING_PUBLIC_BASE_URL: ${BILLING_PUBLIC_BASE_URL:-http://localhost:8080}
+      BILLING_WEB_RETURN_URL: ${BILLING_WEB_RETURN_URL:-http://localhost:3000/dashboard/settings}
+      BILLING_MOBILE_RETURN_URL: ${BILLING_MOBILE_RETURN_URL:-smartbiz://billing/result}
+      STRIPE_ENABLED: ${STRIPE_ENABLED:-false}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      ESEWA_BILLING_ENABLED: ${ESEWA_BILLING_ENABLED:-true}
+      ESEWA_SMARTBIZ_PRODUCT_CODE: ${ESEWA_SMARTBIZ_PRODUCT_CODE:-EPAYTEST}
+      ESEWA_SMARTBIZ_SECRET_KEY: ${ESEWA_SMARTBIZ_SECRET_KEY:-8gBm/:&EnhH.1/q}
+      ESEWA_FORM_URL: ${ESEWA_FORM_URL:-https://rc-epay.esewa.com.np/api/epay/main/v2/form}
+      ESEWA_STATUS_URL: ${ESEWA_STATUS_URL:-https://uat.esewa.com.np/api/epay/transaction/status/}
       GOOGLE_ALLOWED_REDIRECT_PREFIXES: ${GOOGLE_ALLOWED_REDIRECT_PREFIXES:-http://localhost:3000/api/auth/google/callback,mobile://auth/callback}
     depends_on:
       - eureka-server
@@ -98,6 +114,8 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
       CLOUDINARY_UPLOAD_PRESET: ${CLOUDINARY_UPLOAD_PRESET:-smartbiz_product_images}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-smartbiz-internal-dev-token}
+      AUTH_SERVICE_URL: http://auth-service:8081
     depends_on:
       eureka-server:
         condition: service_started
@@ -122,6 +140,8 @@ services:
       APP_JWT_SECRET: ${JWT_SECRET:-smartbiz-dev-secret-key-at-least-32-chars-long-min}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-smartbiz-internal-dev-token}
+      AUTH_SERVICE_URL: http://auth-service:8081
     depends_on:
       eureka-server:
         condition: service_started
@@ -144,6 +164,16 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       APP_JWT_SECRET: ${JWT_SECRET:-smartbiz-dev-secret-key-at-least-32-chars-long-min}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-smartbiz-internal-dev-token}
+      AUTH_SERVICE_URL: http://auth-service:8081
+      PAYMENTS_PUBLIC_BASE_URL: ${PAYMENTS_PUBLIC_BASE_URL:-http://localhost:8080}
+      ESEWA_ENVIRONMENT: ${ESEWA_ENVIRONMENT:-UAT}
+      ESEWA_CREDENTIAL_ENCRYPTION_KEY: ${ESEWA_CREDENTIAL_ENCRYPTION_KEY:-smartbiz-dev-credential-key-change-me}
+      ESEWA_INTENT_BOOK_URL: ${ESEWA_INTENT_BOOK_URL:-https://rc-checkout.esewa.com.np/api/client/intent/payment/book}
+      ESEWA_INTENT_STATUS_URL: ${ESEWA_INTENT_STATUS_URL:-https://rc-checkout.esewa.com.np/api/client/intent/payment/status}
+      ESEWA_INTENT_CANCEL_URL: ${ESEWA_INTENT_CANCEL_URL:-https://rc-checkout.esewa.com.np/api/client/intent/payment/cancel}
+      ESEWA_UAT_PRODUCT_CODE: ${ESEWA_UAT_PRODUCT_CODE:-INTENT}
+      ESEWA_UAT_ACCESS_KEY: ${ESEWA_UAT_ACCESS_KEY:-LB0REg8HUSw3MTYrI1s6JTE8Kyc6JyAqJiA3MQ==}
     depends_on:
       - eureka-server
     networks:
@@ -167,6 +197,8 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:8082
       SALES_SERVICE_URL: http://sales-service:8084
       CRM_SERVICE_URL: http://crm-service:8083
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-smartbiz-internal-dev-token}
+      AUTH_SERVICE_URL: http://auth-service:8081
     depends_on:
       - eureka-server
       - inventory-service

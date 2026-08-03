@@ -4,6 +4,8 @@ import com.smartbiz.ai.dto.*;
 import com.smartbiz.ai.service.AiService;
 import com.smartbiz.ai.service.ImportSessionService;
 import com.smartbiz.ai.service.InsightService;
+import com.smartbiz.ai.service.AiUsageService;
+import com.smartbiz.payment.PlanAccessClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,11 +20,14 @@ public class AiController {
     private final AiService aiService;
     private final ImportSessionService importSessionService;
     private final InsightService insightService;
+    private final AiUsageService aiUsageService;
+    private final PlanAccessClient planAccessClient;
 
     @PostMapping("/query")
     public ResponseEntity<AiQueryResponse> query(
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody AiQueryRequest request) {
+        aiUsageService.consume(userId);
         AiQueryResponse response = aiService.answerQuery(
             userId, request.messages(), request.image(), request.mimeType(), request.fileText(), request.importSessionId()
         );
@@ -45,6 +50,7 @@ public class AiController {
     public ResponseEntity<ScanInvoiceResponse> scanInvoice(
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody ScanInvoiceRequest request) {
+        planAccessClient.requirePro(userId, "Invoice scanning");
         return ResponseEntity.ok(aiService.scanInvoice(request));
     }
 
@@ -52,6 +58,7 @@ public class AiController {
     public ResponseEntity<ParseVoiceResponse> parseVoice(
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody ParseVoiceRequest request) {
+        aiUsageService.consume(userId);
         return ResponseEntity.ok(aiService.parseVoice(request));
     }
 
@@ -59,6 +66,7 @@ public class AiController {
     public ResponseEntity<ParseSalesFileResponse> parseSalesFile(
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody ParseSalesFileRequest request) {
+        planAccessClient.requirePro(userId, "Sales file imports");
         return ResponseEntity.ok(aiService.parseSalesFile(request));
     }
 
@@ -66,6 +74,7 @@ public class AiController {
     public ResponseEntity<ImportSessionDTO> createImportSession(
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody(required = false) CreateImportSessionRequest request) {
+        planAccessClient.requirePro(userId, "AI import sessions");
         return ResponseEntity.ok(importSessionService.createOrResumeSession(userId, request));
     }
 
@@ -73,6 +82,7 @@ public class AiController {
     public ResponseEntity<ImportSessionDTO> getImportSession(
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long id) {
+        planAccessClient.requirePro(userId, "AI import sessions");
         return ResponseEntity.ok(importSessionService.getSession(userId, id));
     }
 
@@ -81,6 +91,7 @@ public class AiController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long id,
             @RequestBody ImportSessionArtifactRequest request) {
+        planAccessClient.requirePro(userId, "AI import sessions");
         return ResponseEntity.ok(importSessionService.addArtifact(userId, id, request));
     }
 
@@ -89,6 +100,7 @@ public class AiController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long id,
             @RequestBody(required = false) AnalyzeImportSessionRequest request) {
+        planAccessClient.requirePro(userId, "AI import sessions");
         return ResponseEntity.ok(importSessionService.analyzeSession(userId, id, request));
     }
 
@@ -97,6 +109,7 @@ public class AiController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long id,
             @RequestBody ReconcileImportSessionRequest request) {
+        planAccessClient.requirePro(userId, "AI import sessions");
         return ResponseEntity.ok(importSessionService.reconcileSession(userId, id, request));
     }
 
@@ -105,6 +118,7 @@ public class AiController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long id,
             @RequestBody(required = false) CommitImportSessionRequest request) {
+        planAccessClient.requirePro(userId, "AI import sessions");
         return ResponseEntity.ok(importSessionService.commitSession(userId, id, request));
     }
 
@@ -112,6 +126,7 @@ public class AiController {
     public ResponseEntity<ImportSessionDTO> closeImportSession(
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long id) {
+        planAccessClient.requirePro(userId, "AI import sessions");
         return ResponseEntity.ok(importSessionService.closeSession(userId, id));
     }
 }

@@ -37,6 +37,16 @@ public class User {
     @Builder.Default
     private String role = "USER";
 
+    @Column(name = "paid_plan", nullable = false)
+    @Builder.Default
+    private String paidPlan = "FREE";
+
+    @Column(name = "paid_until")
+    private LocalDateTime paidUntil;
+
+    @Column(name = "trial_ends_at")
+    private LocalDateTime trialEndsAt;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean emailVerified = false;

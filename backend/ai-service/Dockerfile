@@ -1,7 +1,7 @@
 FROM maven:3.9-eclipse-temurin-21 AS builder
 WORKDIR /build
 COPY . .
-RUN mvn -f ai-service/pom.xml clean package -DskipTests
+RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn -f pom.xml -pl ai-service -am clean package -DskipTests
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app

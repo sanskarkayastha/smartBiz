@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import com.smartbiz.payment.PlanAccessClient;
 
 @Service
 @Slf4j
@@ -31,6 +32,7 @@ public class ProductService {
     private final StockHistoryRepository stockHistoryRepository;
     private final SupplierService supplierService;
     private final ApplicationEventPublisher eventPublisher;
+    private final PlanAccessClient planAccessClient;
 
     @Cacheable(value = CACHE_NAME, key = "#userId + ':' + #page + ':' + #size + ':' + #search + ':' + #category + ':' + #stockStatus")
     public PagedResponse<ProductDTO> findAll(Long userId, int page, int size, String search, String category, String stockStatus) {
@@ -51,6 +53,7 @@ public class ProductService {
     }
 
     public ProductDTO findByBarcode(Long userId, String barcode) {
+        planAccessClient.requirePro(userId, "Barcode-assisted workflows");
         return productRepository.findByBarcodeAndUserId(normalizeBarcode(barcode), userId)
             .map(ProductDTO::from)
             .orElseThrow(() -> new ProductNotFoundException(-1L));
@@ -64,6 +67,7 @@ public class ProductService {
     @Transactional
     @CacheEvict(value = {CACHE_NAME, "suppliers"}, allEntries = true)
     public ProductDTO create(Long userId, CreateProductRequest request) {
+        planAccessClient.requireWithinLimit(userId, "Products", productRepository.countByUserId(userId), 100);
         String normalizedBarcode = normalizeBarcode(request.barcode());
         ensureBarcodeAvailable(userId, normalizedBarcode, null);
         String normalizedSupplier = normalizeOptionalText(request.supplier());

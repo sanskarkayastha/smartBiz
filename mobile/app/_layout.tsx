@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 
-const PROTECTED = new Set(['(tabs)', 'add-product']);
+const PROTECTED = new Set(['(tabs)', 'add-product', 'billing-settings', 'esewa-settings', 'esewa-payment']);
 const PUBLIC = new Set(['onboarding', 'login', 'register', 'verify-email', 'forgot-password', 'reset-password']);
 
 function RootLayoutNav() {
@@ -43,6 +43,9 @@ function RootLayoutNav() {
       <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
       <Stack.Screen name="reset-password" options={{ headerShown: false }} />
       <Stack.Screen name="add-product" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen name="billing-settings" options={{ headerShown: false }} />
+      <Stack.Screen name="esewa-settings" options={{ headerShown: false }} />
+      <Stack.Screen name="esewa-payment" options={{ headerShown: false, gestureEnabled: false }} />
     </Stack>
   );
 }

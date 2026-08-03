@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Map;
+import com.smartbiz.payment.PlanLimitException;
+import com.smartbiz.payment.PlanAccessUnavailableException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -37,6 +39,22 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException e) {
         return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
+    }
+
+    @ExceptionHandler(PaymentException.class)
+    public ResponseEntity<Map<String, String>> handlePayment(PaymentException e) {
+        return ResponseEntity.status(400).body(Map.of("error", e.getMessage(), "code", "PAYMENT_ERROR"));
+    }
+
+    @ExceptionHandler(PlanLimitException.class)
+    public ResponseEntity<Map<String, Object>> handlePlanLimit(PlanLimitException e) {
+        return ResponseEntity.status(402).body(Map.of("error", e.getMessage(), "code", e.getCode(),
+            "feature", e.getFeature(), "used", e.getUsed(), "limit", e.getLimit(), "upgradePath", "/billing"));
+    }
+
+    @ExceptionHandler(PlanAccessUnavailableException.class)
+    public ResponseEntity<Map<String, String>> handlePlanUnavailable(PlanAccessUnavailableException e) {
+        return ResponseEntity.status(503).body(Map.of("error", e.getMessage(), "code", "PLAN_SERVICE_UNAVAILABLE"));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)

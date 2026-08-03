@@ -22,6 +22,19 @@ spring:
 server:
   port: 8084
 
+app:
+  internal-service-token: ${INTERNAL_SERVICE_TOKEN:smartbiz-internal-dev-token}
+  auth-service-url: ${AUTH_SERVICE_URL:http://localhost:8081}
+  esewa:
+    environment: ${ESEWA_ENVIRONMENT:UAT}
+    credential-encryption-key: ${ESEWA_CREDENTIAL_ENCRYPTION_KEY:smartbiz-dev-credential-key-change-me}
+    public-base-url: ${PAYMENTS_PUBLIC_BASE_URL:http://localhost:8080}
+    intent-book-url: ${ESEWA_INTENT_BOOK_URL:https://rc-checkout.esewa.com.np/api/client/intent/payment/book}
+    intent-status-url: ${ESEWA_INTENT_STATUS_URL:https://rc-checkout.esewa.com.np/api/client/intent/payment/status}
+    intent-cancel-url: ${ESEWA_INTENT_CANCEL_URL:https://rc-checkout.esewa.com.np/api/client/intent/payment/cancel}
+    uat-product-code: ${ESEWA_UAT_PRODUCT_CODE:INTENT}
+    uat-access-key: ${ESEWA_UAT_ACCESS_KEY:LB0REg8HUSw3MTYrI1s6JTE8Kyc6JyAqJiA3MQ==}
+
 eureka:
   client:
     service-url:

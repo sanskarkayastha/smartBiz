@@ -9,6 +9,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.smartbiz.payment.PlanAccessClient;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -37,6 +38,8 @@ class LeadServiceTest {
 
     @InjectMocks
     LeadService leadService;
+    @Mock
+    PlanAccessClient planAccessClient;
 
     @Test
     void getLeads_normalizesMissingFiltersBeforeQuerying() {

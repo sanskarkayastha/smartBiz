@@ -8,6 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "sales")
@@ -47,4 +48,16 @@ public class Sale {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "payment_expires_at")
+    private LocalDateTime paymentExpiresAt;
+
+    @Column(name = "payment_reference")
+    private String paymentReference;
+
+    @Column(name = "stock_reservation_id")
+    private UUID stockReservationId;
+
+    @Column(name = "finalized_at")
+    private LocalDateTime finalizedAt;
 }

@@ -33,7 +33,11 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             "/auth/forgot-password",
             "/auth/reset-password",
             "/auth/google/start",
-            "/auth/google/callback"
+            "/auth/google/callback",
+            "/billing/callbacks/esewa",
+            "/billing/webhooks/stripe",
+            "/sales/payments/esewa/callback",
+            "/sales/payments/esewa/return"
     );
 
     @Value("${app.jwt.secret}")
@@ -44,7 +48,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
 
-        if (PUBLIC_PATHS.stream().anyMatch(path::startsWith)) {
+        if (isPublicPath(path)) {
             return chain.filter(exchange);
         }
 
@@ -73,6 +77,11 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             log.debug("JWT validation failed: {}", e.getMessage());
             return unauthorized(exchange.getResponse());
         }
+    }
+
+    private boolean isPublicPath(String path) {
+        return PUBLIC_PATHS.stream().anyMatch(path::startsWith)
+            || path.matches("^/billing/payments/[0-9a-fA-F-]{36}/start$");
     }
 
     private Mono<Void> unauthorized(ServerHttpResponse response) {
