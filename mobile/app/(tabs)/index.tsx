@@ -243,7 +243,7 @@ export default function Home() {
                 <Ionicons
                   name={revenueTrend.positive ? 'arrow-up-outline' : 'arrow-down-outline'}
                   size={16}
-                  color={revenueTrend.positive ? '#8AF5B2' : '#FFD1B0'}
+                  color={revenueTrend.positive ? Colors.mint : Colors.rose}
                 />
                 <Text
                   style={[
@@ -285,7 +285,7 @@ export default function Home() {
 
           {(summary?.totalDue ?? 0) > 0 && (
             <View style={styles.dueHint}>
-              <Ionicons name="alert-circle-outline" size={14} color="#FFE5D4" />
+              <Ionicons name="alert-circle-outline" size={14} color={Colors.rose} />
               <Text style={styles.dueHintText}>
                 {formatCurrency(summary?.totalDue ?? 0)} still due from customers
               </Text>
@@ -570,14 +570,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#6DFF9F' },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.mint },
   liveText: { fontSize: 12, fontWeight: '700', color: Colors.textOnPrimary },
   heroLoader: { marginVertical: 22 },
   heroValue: { fontSize: 40, fontWeight: '800', color: Colors.textOnPrimary, marginTop: 18 },
   heroTrendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
   heroTrendText: { fontSize: 13, fontWeight: '600' },
-  heroTrendPositive: { color: '#C7FFD6' },
-  heroTrendNegative: { color: '#FFE5D4' },
+  heroTrendPositive: { color: Colors.mint },
+  heroTrendNegative: { color: Colors.rose },
   heroDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.18)', marginVertical: 18 },
   heroBottom: { flexDirection: 'row', alignItems: 'center' },
   heroMetricBlock: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -597,12 +597,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(18,31,65,0.18)',
+    backgroundColor: 'rgba(0,0,0,0.18)',
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  dueHintText: { fontSize: 12, fontWeight: '600', color: '#FFE5D4' },
+  dueHintText: { fontSize: 12, fontWeight: '600', color: Colors.rose },
   sectionCard: {
     backgroundColor: Colors.card,
     borderRadius: 24,
@@ -612,8 +612,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   lowStockCard: {
-    backgroundColor: '#FFF8F6',
-    borderColor: '#FBE1DA',
+    backgroundColor: Colors.dangerLight,
+    borderColor: Colors.dangerBorder,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
   barItem: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
   bar: { width: 18, borderRadius: 7 },
   barActive: { backgroundColor: Colors.primary },
-  barInactive: { backgroundColor: '#B7CCFF' },
+  barInactive: { backgroundColor: Colors.primaryBorder },
   barLast: { marginRight: 0 },
   barDay: { fontSize: 11, fontWeight: '600', color: Colors.textMuted },
   bestDayStrip: {

@@ -24,15 +24,16 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
     color: Colors.textDark,
   },
   input: {
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 14,
+    minHeight: 48,
     paddingVertical: 12,
     fontSize: 14,
     color: Colors.textDark,

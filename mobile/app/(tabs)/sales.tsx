@@ -9,6 +9,7 @@ import {
   FlatList,
   RefreshControl,
   TextInput,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Modal,
@@ -151,6 +152,7 @@ export default function Sales() {
       return [...prev, { product, quantity: 1, unitPrice: product.price }];
     });
     setProductSearch('');
+    Keyboard.dismiss();
   };
 
   const updateCartQty = (productId: number, delta: number) => {
@@ -1146,7 +1148,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  historyMethodDue: { backgroundColor: '#FEE2E2', borderColor: Colors.dangerBorder },
+  historyMethodDue: { backgroundColor: Colors.dangerLight, borderColor: Colors.dangerBorder },
   historyMethodText: { fontSize: 10, fontWeight: '600', color: Colors.textMuted },
   historyMethodDueText: { color: Colors.danger },
   historyItem: {
@@ -1161,7 +1163,7 @@ const styles = StyleSheet.create({
   historyItemName: { fontSize: 12, color: Colors.textDark, flex: 1 },
   historyItemQty: { fontSize: 11, color: Colors.textMuted, marginLeft: 8 },
   historyMore: { fontSize: 11, color: Colors.primary, fontWeight: '500', marginTop: 6 },
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: Colors.overlay },
   modalSheet: {
     backgroundColor: Colors.card,
     borderTopLeftRadius: 22,

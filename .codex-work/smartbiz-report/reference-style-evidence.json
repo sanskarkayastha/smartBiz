@@ -1,0 +1,170 @@
+{
+  "input": "C:\\Users\\sa\\Downloads\\FINAL-YEAR-PROJECT-REPORT.docx",
+  "fonts_by_char_count": {
+    "Arial": 62171
+  },
+  "direct_run_formatting_runs": 1538,
+  "direct_paragraph_formatting_paragraphs": 1052,
+  "heading_like_paragraphs_not_heading_style": [
+    {
+      "para_index": 3,
+      "text": "FINAL YEAR PROJECT REPORT",
+      "style": "Normal"
+    },
+    {
+      "para_index": 4,
+      "text": "PHOTOGROUPE",
+      "style": "Normal"
+    },
+    {
+      "para_index": 5,
+      "text": "A PHOTO SHARING AND BOOKING PLATFORM",
+      "style": "Normal"
+    },
+    {
+      "para_index": 16,
+      "text": "ASIA e UNIVERSITY",
+      "style": "Body Text"
+    },
+    {
+      "para_index": 67,
+      "text": "LIST OF TABLES",
+      "style": "Normal"
+    },
+    {
+      "para_index": 82,
+      "text": "LIST OF FIGURES",
+      "style": "Normal"
+    },
+    {
+      "para_index": 99,
+      "text": "LIST OF ABBREVIATIONS",
+      "style": "Normal"
+    },
+    {
+      "para_index": 273,
+      "text": "Top Risks",
+      "style": "Normal"
+    },
+    {
+      "para_index": 316,
+      "text": "Low-fidelity wireframes: Home page ",
+      "style": "Normal"
+    },
+    {
+      "para_index": 491,
+      "text": "Abbreviation",
+      "style": "Normal"
+    },
+    {
+      "para_index": 492,
+      "text": "Full Form",
+      "style": "Normal"
+    },
+    {
+      "para_index": 493,
+      "text": "Abbreviation",
+      "style": "Normal"
+    },
+    {
+      "para_index": 494,
+      "text": "Full Form",
+      "style": "Normal"
+    },
+    {
+      "para_index": 585,
+      "text": "Feature / Aspect",
+      "style": "Normal"
+    },
+    {
+      "para_index": 586,
+      "text": "Pinterest",
+      "style": "Normal"
+    },
+    {
+      "para_index": 587,
+      "text": "Instagram",
+      "style": "Normal"
+    },
+    {
+      "para_index": 588,
+      "text": "Flickr",
+      "style": "Normal"
+    },
+    {
+      "para_index": 589,
+      "text": "Behance",
+      "style": "Normal"
+    },
+    {
+      "para_index": 590,
+      "text": "PhotoGroupe (Proposed)",
+      "style": "Normal"
+    },
+    {
+      "para_index": 591,
+      "text": "Core Focus",
+      "style": "Normal"
+    }
+  ],
+  "examples": {
+    "direct_paragraph_formatting": [
+      {
+        "para_index": 2,
+        "text": "",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "text": "FINAL YEAR PROJECT REPORT",
+        "style": "Normal"
+      },
+      {
+        "para_index": 4,
+        "text": "PHOTOGROUPE",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "text": "A PHOTO SHARING AND BOOKING PLATFORM",
+        "style": "Normal"
+      },
+      {
+        "para_index": 6,
+        "text": "",
+        "style": "Body Text"
+      }
+    ],
+    "direct_run_formatting": [
+      {
+        "para_index": 3,
+        "run_text": "FINAL",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": " ",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "YEAR ",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "PROJECT ",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "REPORT",
+        "style": "Normal"
+      }
+    ]
+  },
+  "notes": [
+    "Direct formatting is not always wrong, but it often causes inconsistent output when templates change.",
+    "Heading-like paragraphs not using Heading styles can break TOC and accessibility."
+  ]
+}

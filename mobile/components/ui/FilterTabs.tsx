@@ -31,17 +31,20 @@ export default function FilterTabs({ tabs, active, onSelect }: Props) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 8,
+    marginHorizontal: 16,
+    paddingHorizontal: 4,
+    gap: 4,
     marginBottom: 12,
+    paddingVertical: 4,
+    borderRadius: 14,
+    backgroundColor: Colors.cardMuted,
   },
   tab: {
     flex: 1,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 11,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     alignItems: 'center',
   },
   activeTab: {

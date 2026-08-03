@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   retryText: { color: Colors.textOnPrimary, fontWeight: '600' },
 
   // Add/Edit modal
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: Colors.overlay },
   modalSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textDark },
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   historyBadgeText: { fontSize: 11, fontWeight: '600', color: Colors.primary },
   loadMoreBtn: { alignItems: 'center', paddingVertical: 16 },
   loadMoreText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
-  filterOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  filterOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: Colors.overlay },
   filterSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
   filterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   filterTitle: { fontSize: 18, fontWeight: '700', color: Colors.textDark },
@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
   applyBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: Colors.primary, alignItems: 'center' },
   applyBtnText: { fontSize: 14, fontWeight: '600', color: Colors.textOnPrimary },
   searchWrapper: { zIndex: 10 },
-  suggestOverlay: { position: 'absolute', top: 50, left: 16, right: 16, zIndex: 100, backgroundColor: Colors.card, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 8 },
+  suggestOverlay: { position: 'absolute', top: 50, left: 16, right: 16, zIndex: 100, backgroundColor: Colors.card, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 8 },
   suggestItem: { paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
   suggestText: { fontSize: 14, color: Colors.textDark },
 });

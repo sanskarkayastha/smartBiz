@@ -28,12 +28,12 @@ import { parseVoiceForLead } from '@/services/ai';
 const PIPELINE: LeadStage[] = ['NEW', 'CONTACTED', 'INTERESTED', 'PROPOSAL', 'WON'];
 
 const STAGE_CONFIG: Record<LeadStage, { label: string; bg: string; text: string }> = {
-  NEW:        { label: 'New',        bg: '#F3F4F6', text: '#6B7280' },
-  CONTACTED:  { label: 'Contacted',  bg: Colors.primary + '20', text: Colors.primary },
-  INTERESTED: { label: 'Interested', bg: '#FEF3C7', text: '#D97706' },
-  PROPOSAL:   { label: 'Proposal',   bg: '#EDE9FE', text: '#7C3AED' },
-  WON:        { label: 'Won',        bg: '#D1FAE5', text: '#059669' },
-  LOST:       { label: 'Lost',       bg: '#FEE2E2', text: Colors.danger },
+  NEW:        { label: 'New',        bg: Colors.primaryLight, text: Colors.textMuted },
+  CONTACTED:  { label: 'Contacted',  bg: Colors.primaryLight, text: Colors.primary },
+  INTERESTED: { label: 'Interested', bg: Colors.warningLight, text: Colors.warning },
+  PROPOSAL:   { label: 'Proposal',   bg: '#EEEAF2', text: '#675B73' },
+  WON:        { label: 'Won',        bg: Colors.successLight, text: Colors.success },
+  LOST:       { label: 'Lost',       bg: Colors.dangerLight, text: Colors.danger },
 };
 
 const SOURCE_LABELS: Record<LeadSource, string> = {
@@ -594,8 +594,8 @@ export default function Leads() {
                             style={({ pressed }) => [styles.actionBtn, styles.actionBtnConvert, pressed && { opacity: 0.75 }]}
                             onPress={() => handleConvert(l)}
                           >
-                            <Ionicons name="person-add-outline" size={15} color="#059669" />
-                            <Text style={[styles.actionBtnText, { color: '#059669' }]}>Convert</Text>
+                            <Ionicons name="person-add-outline" size={15} color={Colors.success} />
+                            <Text style={[styles.actionBtnText, { color: Colors.success }]}>Convert</Text>
                           </Pressable>
                         )}
                       </View>
@@ -858,7 +858,7 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', gap: 8 },
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, backgroundColor: Colors.primary + '12', borderWidth: 1, borderColor: Colors.primary + '30' },
   actionBtnDanger: { backgroundColor: Colors.dangerLight, borderColor: Colors.danger + '30' },
-  actionBtnConvert: { backgroundColor: '#D1FAE5', borderColor: '#059669' + '60' },
+  actionBtnConvert: { backgroundColor: Colors.successLight, borderColor: Colors.success + '60' },
   actionBtnText: { fontSize: 13, fontWeight: '600' },
 
   empty: { alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 32 },
@@ -867,7 +867,7 @@ const styles = StyleSheet.create({
   retryBtn: { marginTop: 8, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: Colors.primary, borderRadius: 10 },
   retryText: { color: Colors.textOnPrimary, fontWeight: '600' },
 
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: Colors.overlay },
   modalSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textDark },
@@ -881,7 +881,7 @@ const styles = StyleSheet.create({
   saveBtnText: { color: Colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
   loadMoreBtn: { alignItems: 'center', paddingVertical: 16 },
   loadMoreText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
-  filterOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  filterOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: Colors.overlay },
   filterSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
   filterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   filterTitle: { fontSize: 18, fontWeight: '700', color: Colors.textDark },
@@ -904,7 +904,7 @@ const styles = StyleSheet.create({
   applyBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: Colors.primary, alignItems: 'center' },
   applyBtnText: { fontSize: 14, fontWeight: '600', color: Colors.textOnPrimary },
   searchWrapper: { zIndex: 10 },
-  suggestOverlay: { position: 'absolute', top: 44, left: 16, right: 16, zIndex: 100, backgroundColor: Colors.card, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 8 },
+  suggestOverlay: { position: 'absolute', top: 44, left: 16, right: 16, zIndex: 100, backgroundColor: Colors.card, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 8 },
   suggestItem: { paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
   suggestText: { fontSize: 14, color: Colors.textDark },
 });

@@ -113,7 +113,7 @@ export default function VoiceButton({ onResult, size = 22, style, color = Colors
     <>
       <Pressable onPress={handlePress} style={style}>
         <Animated.View style={[styles.btn, { transform: [{ scale: pulse }] }, recording && styles.btnActive]}>
-          <Ionicons name={recording ? 'stop' : 'mic'} size={size} color={recording ? '#fff' : color} />
+          <Ionicons name={recording ? 'stop' : 'mic'} size={size} color={recording ? Colors.textOnPrimary : color} />
         </Animated.View>
       </Pressable>
 
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'center', alignItems: 'center', padding: 24 },
   dialog: { backgroundColor: Colors.card, borderRadius: 16, padding: 20, width: '100%', gap: 12 },
   dialogTitle: { fontSize: 17, fontWeight: '700', color: Colors.textDark },
   dialogSub: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },

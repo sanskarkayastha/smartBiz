@@ -16,12 +16,12 @@ export default function TabLayout() {
           tabBarActiveTintColor: Colors.primary,
           tabBarInactiveTintColor: Colors.textMuted,
           tabBarStyle: {
-            backgroundColor: 'rgba(255,255,255,0.96)',
+            backgroundColor: Colors.card,
             borderTopColor: Colors.border,
             borderTopWidth: 1,
-            height: 72,
-            paddingTop: 8,
-            paddingBottom: 8,
+            height: 76,
+            paddingTop: 9,
+            paddingBottom: 9,
           },
           tabBarItemStyle: {
             paddingVertical: 2,
@@ -40,7 +40,7 @@ export default function TabLayout() {
             tabBarLabel: 'Home',
             tabBarIcon: ({ color, focused }) => (
               <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-                <Ionicons name={focused ? 'home' : 'home-outline'} size={20} color={color} />
+                <Ionicons name={focused ? 'home' : 'home-outline'} size={20} color={focused ? Colors.textOnPrimary : color} />
               </View>
             ),
           }}
@@ -51,7 +51,7 @@ export default function TabLayout() {
             tabBarLabel: 'Sales',
             tabBarIcon: ({ color, focused }) => (
               <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-                <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={20} color={color} />
+                <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={20} color={focused ? Colors.textOnPrimary : color} />
               </View>
             ),
           }}
@@ -62,7 +62,7 @@ export default function TabLayout() {
             tabBarLabel: 'Inventory',
             tabBarIcon: ({ color, focused }) => (
               <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-                <Ionicons name={focused ? 'cube' : 'cube-outline'} size={20} color={color} />
+                <Ionicons name={focused ? 'cube' : 'cube-outline'} size={20} color={focused ? Colors.textOnPrimary : color} />
               </View>
             ),
           }}
@@ -73,7 +73,7 @@ export default function TabLayout() {
             tabBarLabel: 'CRM',
             tabBarIcon: ({ color, focused }) => (
               <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-                <Ionicons name={focused ? 'people' : 'people-outline'} size={20} color={color} />
+                <Ionicons name={focused ? 'people' : 'people-outline'} size={20} color={focused ? Colors.textOnPrimary : color} />
               </View>
             ),
           }}
@@ -84,7 +84,7 @@ export default function TabLayout() {
             tabBarLabel: 'More',
             tabBarIcon: ({ color, focused }) => (
               <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-                <Ionicons name={focused ? 'grid' : 'grid-outline'} size={20} color={color} />
+                <Ionicons name={focused ? 'grid' : 'grid-outline'} size={20} color={focused ? Colors.textOnPrimary : color} />
               </View>
             ),
           }}
@@ -101,13 +101,13 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   iconWrap: {
-    width: 34,
-    height: 28,
-    borderRadius: 14,
+    width: 38,
+    height: 30,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconWrapActive: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: Colors.primary,
   },
 });

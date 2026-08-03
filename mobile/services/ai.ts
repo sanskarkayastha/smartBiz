@@ -58,6 +58,8 @@ export type ProductResolution = {
   productName: string | null;
   category: string | null;
   supplier: string | null;
+  quantity: number | null;
+  rate: number | null;
   createCategory: boolean;
   createSupplier: boolean;
 };

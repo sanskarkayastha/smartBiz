@@ -80,6 +80,20 @@ export default function AddProduct() {
     }, 250);
   };
 
+  const handleCreateCategory = async (name: string) => {
+    try {
+      const created = await inventoryService.createCategory(name);
+      setCategories((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)));
+      return created;
+    } catch (error) {
+      const refreshed = await inventoryService.getCategories().catch(() => null);
+      const existing = refreshed?.find((item) => item.name.trim().toLowerCase() === name.trim().toLowerCase());
+      if (refreshed) setCategories(refreshed);
+      if (existing) return existing;
+      throw error;
+    }
+  };
+
   const handleSave = async () => {
     if (!productName.trim()) {
       Alert.alert('Error', 'Product name is required');
@@ -245,7 +259,12 @@ export default function AddProduct() {
 
             <View style={styles.fieldWrapper}>
               <Text style={styles.fieldLabel}>Category</Text>
-              <CategoryPicker value={category} onChange={setCategory} categories={categories} />
+              <CategoryPicker
+                value={category}
+                onChange={setCategory}
+                categories={categories}
+                onCreateCategory={handleCreateCategory}
+              />
             </View>
 
             <View style={styles.fieldWrapper}>

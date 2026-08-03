@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: Colors.overlay,
   },
   sheet: {
     backgroundColor: Colors.card,
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     minHeight: 420,
     overflow: 'hidden',
     borderRadius: 22,
-    backgroundColor: '#0F172A',
+    backgroundColor: Colors.primary,
   },
   camera: {
     flex: 1,
@@ -185,11 +185,11 @@ const styles = StyleSheet.create({
     aspectRatio: 1.4,
     borderRadius: 24,
     borderWidth: 2.5,
-    borderColor: '#FFFFFF',
+    borderColor: Colors.textOnPrimary,
     backgroundColor: 'transparent',
   },
   frameText: {
-    color: '#FFFFFF',
+    color: Colors.textOnPrimary,
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',

@@ -31,7 +31,13 @@ function skuLine(product: Product): string {
   return parts.join(' · ');
 }
 
-const PLACEHOLDER_COLORS = ['#FEE2E2', '#FEF9C3', '#F3E8FF', '#E0F2FE', '#FEF3C7'];
+const PLACEHOLDER_COLORS = [
+  Colors.dangerLight,
+  Colors.warningLight,
+  Colors.primaryLight,
+  Colors.backgroundAlt,
+  Colors.cardMuted,
+];
 
 export default function Inventory() {
   const router = useRouter();
@@ -974,7 +980,7 @@ const styles = StyleSheet.create({
   fabStack: { position: 'absolute', bottom: 28, right: 20, alignItems: 'center', gap: 10 },
   fab: { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
   fabSecondary: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', opacity: 0.85, elevation: 4 },
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: Colors.overlay },
   modalSheet: { backgroundColor: Colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 16, maxHeight: '90%' },
   confirmSheet: {
     backgroundColor: Colors.card,
@@ -1095,7 +1101,7 @@ const styles = StyleSheet.create({
   chipScroll: { marginTop: 4 },
   chipScrollContent: { flexDirection: 'row', gap: 8, paddingRight: 4 },
   searchWrapper: { zIndex: 10 },
-  suggestOverlay: { position: 'absolute', top: 50, left: 16, right: 16, zIndex: 100, backgroundColor: Colors.card, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 8 },
+  suggestOverlay: { position: 'absolute', top: 50, left: 16, right: 16, zIndex: 100, backgroundColor: Colors.card, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 8 },
   suggestItem: { paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
   suggestText: { fontSize: 14, color: Colors.textDark },
 });

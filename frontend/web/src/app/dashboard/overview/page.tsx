@@ -247,8 +247,8 @@ export default async function OverviewPage({ searchParams }: { searchParams: Sea
   ].slice(0, 5)
 
   return (
-    <div className="space-y-4">
-      <section className="grid gap-4 2xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.7fr)]">
+    <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.7fr)]">
+      <section className="space-y-4">
         <article className="min-w-0 rounded-[22px] border border-paper-3 bg-white p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -287,7 +287,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Sea
                   aria-labelledby={`trend-title-${metric} trend-description-${metric}`}
                   className="block h-auto w-full"
                 >
-                  <title id={`trend-title-${metric}`}>{metricTitle} chart</title>
+                  <title id={`trend-title-${metric}`}>{`${metricTitle} chart`}</title>
                   <desc id={`trend-description-${metric}`}>
                     {`${metricTitle} for ${rangeLabel(resolved.period, resolved.from, resolved.to)}. Focus a point to hear its exact value.`}
                   </desc>
@@ -335,7 +335,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Sea
                         aria-label={`${fullLabel}: ${formatMetricValue(metric, value)}`}
                         className="outline-none"
                       >
-                        <title>{fullLabel}: {formatMetricValue(metric, value)}</title>
+                        <title>{`${fullLabel}: ${formatMetricValue(metric, value)}`}</title>
                         <circle cx={x} cy={y} r="14" fill="transparent" />
                         <circle
                           cx={x}
@@ -374,21 +374,6 @@ export default async function OverviewPage({ searchParams }: { searchParams: Sea
           </div>
         </article>
 
-        <article className="rounded-[22px] border border-paper-3 bg-white p-5">
-          <div>
-            <p className="text-base font-semibold text-ink">Inventory & dues</p>
-            <p className="mt-2 text-sm text-ink-2">Current amounts that need attention.</p>
-          </div>
-          <div className="mt-5 space-y-3">
-            <AttentionRow href="/dashboard/customers" label="Customer due" value={formatCurrency(dueTotal)} detail={`${dueItems.length} customers to follow up`} />
-            <AttentionRow href="/dashboard/suppliers" label="Supplier balance" value={formatCurrency(supplierBalance)} detail={`${supplierSummary?.suppliersWithBalance ?? 0} suppliers awaiting payment`} />
-            <AttentionRow href="/dashboard/inventory?stockStatus=LOW_STOCK" label="Stock needs attention" value={`${stockAttention} items`} detail="Review products at or below reorder level" />
-            <AttentionRow href="/dashboard/inventory?stockStatus=OUT_OF_STOCK" label="Out of stock" value={`${outOfStock} items`} detail="Restock unavailable products first" />
-          </div>
-        </article>
-      </section>
-
-      <section className="grid gap-4 2xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.7fr)]">
         <article className="overflow-hidden rounded-[22px] border border-paper-3 bg-white">
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
             <div>
@@ -436,8 +421,21 @@ export default async function OverviewPage({ searchParams }: { searchParams: Sea
             </table>
           </div>
         </article>
+      </section>
 
-        <aside className="space-y-4">
+      <aside className="space-y-4">
+          <article className="rounded-[22px] border border-paper-3 bg-white p-5">
+            <div>
+              <p className="text-base font-semibold text-ink">Inventory & dues</p>
+              <p className="mt-2 text-sm text-ink-2">Current amounts that need attention.</p>
+            </div>
+            <div className="mt-5 space-y-3">
+              <AttentionRow href="/dashboard/customers" label="Customer due" value={formatCurrency(dueTotal)} detail={`${dueItems.length} customers to follow up`} />
+              <AttentionRow href="/dashboard/suppliers" label="Supplier balance" value={formatCurrency(supplierBalance)} detail={`${supplierSummary?.suppliersWithBalance ?? 0} suppliers awaiting payment`} />
+              <AttentionRow href="/dashboard/inventory?stockStatus=LOW_STOCK" label="Stock needs attention" value={`${stockAttention} items`} detail="Review products at or below reorder level" />
+              <AttentionRow href="/dashboard/inventory?stockStatus=OUT_OF_STOCK" label="Out of stock" value={`${outOfStock} items`} detail="Restock unavailable products first" />
+            </div>
+          </article>
           <article className="rounded-[22px] border border-paper-3 bg-white p-5">
             <h3 className="text-base font-semibold text-ink">Upcoming work</h3>
             <div className="mt-4 space-y-3">
@@ -463,8 +461,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Sea
             </div>
           </article>
           <AiInsightCard />
-        </aside>
-      </section>
+      </aside>
     </div>
   )
 }

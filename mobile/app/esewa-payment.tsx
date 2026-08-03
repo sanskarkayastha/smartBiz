@@ -68,7 +68,7 @@ export default function EsewaPayment() {
         {checking && !payment ? <ActivityIndicator size="large" color={Colors.primary} /> : null}
         {waiting && payment.qrPayload ? (
           <>
-            <View style={styles.qrFrame}><QRCode value={payment.qrPayload} size={238} backgroundColor="#FDFEFF" color="#17243D" /></View>
+            <View style={styles.qrFrame}><QRCode value={payment.qrPayload} size={238} backgroundColor={Colors.card} color={Colors.textDark} /></View>
             <Text style={styles.amountLabel}>AMOUNT TO PAY</Text>
             <Text style={styles.amount}>NPR {displayAmount}</Text>
             {isUat ? (
@@ -105,10 +105,10 @@ export default function EsewaPayment() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F6F8FD' }, top: { minHeight: 86, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  safe: { flex: 1, backgroundColor: Colors.background }, top: { minHeight: 86, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   kicker: { fontSize: 10, letterSpacing: 1.2, fontWeight: '900', color: Colors.primary }, heading: { marginTop: 4, fontSize: 22, fontWeight: '900', color: Colors.textDark },
   timer: { minWidth: 64, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12, backgroundColor: Colors.warningLight }, timerText: { textAlign: 'center', fontSize: 14, fontWeight: '900', color: Colors.textDark, fontVariant: ['tabular-nums'] },
-  body: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }, qrFrame: { padding: 18, borderRadius: 24, backgroundColor: '#FDFEFF', borderWidth: 1, borderColor: Colors.border },
+  body: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }, qrFrame: { padding: 18, borderRadius: 24, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
   amountLabel: { marginTop: 22, fontSize: 10, letterSpacing: 1.1, fontWeight: '900', color: Colors.textMuted }, amount: { marginTop: 4, fontSize: 31, fontWeight: '900', color: Colors.textDark },
   instruction: { marginTop: 12, maxWidth: 330, textAlign: 'center', fontSize: 13, lineHeight: 20, color: Colors.textMuted }, result: { alignItems: 'center', maxWidth: 330 },
   testNotice: { marginTop: 14, maxWidth: 350, width: '100%', borderRadius: 16, borderWidth: 1, borderColor: Colors.warning, backgroundColor: Colors.warningLight, padding: 14, alignItems: 'center' },

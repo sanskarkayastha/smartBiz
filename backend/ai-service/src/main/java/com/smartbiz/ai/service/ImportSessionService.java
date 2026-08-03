@@ -122,18 +122,23 @@ public class ImportSessionService {
                 if (resolution == null || resolution.normalizedName() == null || resolution.normalizedName().isBlank()) {
                     continue;
                 }
+                if (session.getMode() == ImportMode.INVENTORY) {
+                    validateInventoryResolution(resolution);
+                }
                 mergedResolutions.put(resolution.normalizedName(), resolution);
             }
         }
 
-        String supplierName = request != null && request.supplierName() != null && !request.supplierName().isBlank()
-                ? request.supplierName().trim()
-                : review.supplierName();
+        String supplierName = review.supplierName();
+        if (request != null && request.supplierName() != null) {
+            supplierName = blankToNull(request.supplierName());
+        }
+        final String resolvedSupplierName = supplierName;
 
         List<ImportReviewItem> updatedProducts = review.candidateProducts() == null
                 ? List.of()
                 : review.candidateProducts().stream()
-                .map(item -> applyProductResolution(item, mergedResolutions.get(item.normalizedName()), supplierName))
+                .map(item -> applyProductResolution(item, mergedResolutions.get(item.normalizedName()), resolvedSupplierName))
                 .toList();
 
         List<ImportSalesReviewItem> updatedSaleItems = review.candidateSaleItems() == null
@@ -145,7 +150,7 @@ public class ImportSessionService {
         ImportSessionReview updatedReview = new ImportSessionReview(
                 review.mode(),
                 review.sourceIntent(),
-                supplierName,
+                resolvedSupplierName,
                 updatedProducts,
                 review.candidateSales(),
                 updatedSaleItems,
@@ -185,7 +190,7 @@ public class ImportSessionService {
         Set<String> createdInventoryNames = new HashSet<>();
 
         if (session.getMode() == ImportMode.INVENTORY) {
-            for (ImportReviewItem item : review.candidateProducts()) {
+            for (ImportReviewItem item : groupCandidateProducts(review.candidateProducts())) {
                 ProductResolutionRequest resolution = resolutions.get(item.normalizedName());
                 if (resolution == null) {
                     continue;
@@ -194,7 +199,25 @@ public class ImportSessionService {
                     continue;
                 }
                 if ("MATCH_EXISTING".equalsIgnoreCase(resolution.action()) && resolution.productId() != null) {
-                    remoteBusinessClient.adjustStock(userId, resolution.productId(), (int) Math.round(item.quantity()), "Import session #" + sessionId);
+                    String reviewedCategory = blankToNull(resolution.category());
+                    String reviewedSupplier = blankToNull(resolution.supplier() != null ? resolution.supplier() : fallbackSupplier);
+                    Map<String, Object> productUpdates = new LinkedHashMap<>();
+                    if (resolution.rate() != null && resolution.rate().compareTo(BigDecimal.ZERO) > 0) {
+                        productUpdates.put("costPrice", resolution.rate());
+                    }
+                    if (reviewedCategory != null) {
+                        productUpdates.put("category", reviewedCategory);
+                    }
+                    if (reviewedSupplier != null) {
+                        productUpdates.put("supplier", reviewedSupplier);
+                    }
+                    if (!productUpdates.isEmpty()) {
+                        remoteBusinessClient.updateProduct(userId, resolution.productId(), productUpdates);
+                    }
+                    int reviewedQuantity = resolution.quantity() != null
+                            ? resolution.quantity()
+                            : (int) Math.round(item.quantity());
+                    remoteBusinessClient.adjustStock(userId, resolution.productId(), reviewedQuantity, "Import session #" + sessionId);
                     updatedProducts++;
                     persistAlias(
                             userId,
@@ -202,8 +225,8 @@ public class ImportSessionService {
                             item.normalizedName(),
                             resolution.productId(),
                             resolution.productName() != null ? resolution.productName() : item.sourceName(),
-                            item.category(),
-                            fallbackSupplier
+                            reviewedCategory,
+                            reviewedSupplier
                     );
                     continue;
                 }
@@ -438,7 +461,7 @@ public class ImportSessionService {
 
     private Map<String, ProductResolutionRequest> defaultResolutionsFromProducts(List<ImportReviewItem> products) {
         Map<String, ProductResolutionRequest> defaults = new LinkedHashMap<>();
-        for (ImportReviewItem item : products) {
+        for (ImportReviewItem item : groupCandidateProducts(products)) {
             defaults.putIfAbsent(item.normalizedName(), new ProductResolutionRequest(
                     item.normalizedName(),
                     item.sourceName(),
@@ -447,11 +470,30 @@ public class ImportSessionService {
                     item.matchedProductName() != null ? item.matchedProductName() : item.sourceName(),
                     item.category(),
                     item.supplier(),
+                    (int) Math.round(item.quantity()),
+                    BigDecimal.valueOf(item.rate()),
                     Boolean.TRUE,
                     Boolean.TRUE
             ));
         }
         return defaults;
+    }
+
+    private List<ImportReviewItem> groupCandidateProducts(List<ImportReviewItem> products) {
+        Map<String, ImportReviewItem> grouped = new LinkedHashMap<>();
+        for (ImportReviewItem item : products) {
+            grouped.merge(item.normalizedName(), item, (existing, duplicate) -> new ImportReviewItem(
+                    existing.normalizedName(),
+                    existing.sourceName(),
+                    existing.category(),
+                    existing.supplier(),
+                    existing.quantity() + duplicate.quantity(),
+                    existing.rate(),
+                    existing.matchedProductId(),
+                    existing.matchedProductName()
+            ));
+        }
+        return new ArrayList<>(grouped.values());
     }
 
     private Map<String, ProductResolutionRequest> defaultResolutionsFromSaleItems(List<ImportSalesReviewItem> items) {
@@ -463,6 +505,8 @@ public class ImportSessionService {
                     item.matchedProductId() != null ? "MATCH_EXISTING" : "CREATE_NEW",
                     item.matchedProductId(),
                     item.matchedProductName() != null ? item.matchedProductName() : item.productName(),
+                    null,
+                    null,
                     null,
                     null,
                     Boolean.FALSE,
@@ -521,10 +565,10 @@ public class ImportSessionService {
         return new ImportReviewItem(
                 item.normalizedName(),
                 resolution.productName() != null && "CREATE_NEW".equalsIgnoreCase(resolution.action()) ? resolution.productName() : item.sourceName(),
-                resolution.category() != null ? resolution.category() : item.category(),
+                resolution.category(),
                 resolution.supplier() != null ? resolution.supplier() : supplierName,
-                item.quantity(),
-                item.rate(),
+                resolution.quantity() != null ? resolution.quantity() : item.quantity(),
+                resolution.rate() != null ? resolution.rate().doubleValue() : item.rate(),
                 "MATCH_EXISTING".equalsIgnoreCase(resolution.action()) ? resolution.productId() : null,
                 "MATCH_EXISTING".equalsIgnoreCase(resolution.action()) ? resolution.productName() : null
         );
@@ -554,7 +598,7 @@ public class ImportSessionService {
             String fallbackSupplier,
             Set<String> existingCategories
     ) {
-        String category = blankToNull(resolution.category() != null ? resolution.category() : item.category());
+        String category = blankToNull(resolution.category());
         if (Boolean.TRUE.equals(resolution.createCategory()) && category != null && existingCategories.add(normalizeName(category))) {
             tryCreateCategory(userId, category);
         }
@@ -811,6 +855,28 @@ public class ImportSessionService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private void validateInventoryResolution(ProductResolutionRequest resolution) {
+        String action = resolution.action() != null ? resolution.action().trim().toUpperCase(Locale.ROOT) : "";
+        if (!Set.of("MATCH_EXISTING", "CREATE_NEW", "EXCLUDE").contains(action)) {
+            throw new IllegalArgumentException("Choose whether to match, create, or exclude each product.");
+        }
+        if ("EXCLUDE".equals(action)) {
+            return;
+        }
+        if (resolution.quantity() == null || resolution.quantity() < 1) {
+            throw new IllegalArgumentException("Product quantity must be a whole number of at least 1.");
+        }
+        if (resolution.rate() == null || resolution.rate().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Product unit cost must be greater than 0.");
+        }
+        if ("CREATE_NEW".equals(action) && blankToNull(resolution.productName()) == null) {
+            throw new IllegalArgumentException("A product name is required when creating a product.");
+        }
+        if ("MATCH_EXISTING".equals(action) && resolution.productId() == null) {
+            throw new IllegalArgumentException("Choose an inventory product for every matched item.");
+        }
     }
 
     private String buildInventoryArtifactSummary(InventoryExtractionResponse extraction) {

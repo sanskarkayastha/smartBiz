@@ -20,9 +20,9 @@ export default function StatusBadge({ status }: { status: Status }) {
 
 const styles = StyleSheet.create({
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
   },
   label: {
     fontSize: 11,
