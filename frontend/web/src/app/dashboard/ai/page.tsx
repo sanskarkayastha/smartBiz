@@ -35,12 +35,15 @@ export default function AiPage() {
   const [savingProducts, setSavingProducts] = useState(false)
   const [savingSales, setSavingSales] = useState(false)
   const [inventoryProducts, setInventoryProducts] = useState<InventoryProduct[]>([])
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const threadRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const thread = threadRef.current
+    if (!thread) return
+
+    thread.scrollTo({ top: thread.scrollHeight, behavior: 'smooth' })
   }, [messages, loading])
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -324,9 +327,9 @@ export default function AiPage() {
   const inventoryProductMap = buildInventoryProductMap(inventoryProducts)
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <section className="flex h-[calc(100dvh-10.25rem)] min-h-[32rem] flex-col overflow-hidden rounded-[22px] border border-paper-3 bg-white shadow-[0_1px_2px_oklch(0.20_0.006_80/0.03)]">
       {/* Header */}
-      <div className="shrink-0 pb-4 border-b border-gray-100">
+      <div className="shrink-0 border-b border-paper-3 px-4 pb-3 pt-4 sm:px-5">
         <div className="flex items-center gap-2">
           <svg className="h-5 w-5 text-ink" fill="currentColor" viewBox="0 0 20 20">
             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -338,13 +341,13 @@ export default function AiPage() {
         </div>
 
         {/* Quick prompts */}
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
           {QUICK_PROMPTS.map((p) => (
             <button
               key={p}
               onClick={() => send(p)}
               disabled={loading}
-              className="shrink-0 whitespace-nowrap rounded-full bg-paper px-3 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink disabled:opacity-50"
+              className="min-h-11 shrink-0 whitespace-nowrap rounded-full bg-paper px-4 py-2 text-xs font-medium text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
             >
               {p}
             </button>
@@ -353,7 +356,7 @@ export default function AiPage() {
       </div>
 
       {/* Chat thread */}
-      <div className="flex-1 overflow-y-auto py-4 space-y-4">
+      <div ref={threadRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-paper/40 px-4 py-5 sm:px-5">
         {messages.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center">
             <svg className="mb-3 h-10 w-10 text-paper-3" fill="currentColor" viewBox="0 0 20 20">
@@ -401,7 +404,7 @@ export default function AiPage() {
             </div>
           </div>
         )}
-        <div ref={bottomRef} />
+        <div aria-hidden="true" />
       </div>
 
       {/* Product Review Panel */}
@@ -557,7 +560,7 @@ export default function AiPage() {
       )}
 
       {/* Input Row */}
-      <div className="shrink-0 pt-3 border-t border-gray-100">
+      <div className="shrink-0 border-t border-paper-3 bg-white px-4 pb-4 pt-3 sm:px-5">
         {/* Attachment chip */}
         {attachment && (
           <div className="mb-2 flex w-fit max-w-xs items-center gap-1.5 rounded-lg border border-paper-3 bg-paper px-1 py-1">
@@ -583,7 +586,7 @@ export default function AiPage() {
             onClick={() => fileRef.current?.click()}
             disabled={loading}
             title="Attach image or Excel file"
-            className="shrink-0 rounded-lg p-2.5 text-gray-400 transition-colors hover:bg-paper hover:text-ink disabled:opacity-50"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-paper hover:text-ink focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
@@ -606,7 +609,7 @@ export default function AiPage() {
           <button
             onClick={() => send()}
             disabled={!canSend}
-            className="shrink-0 rounded-xl bg-night p-2.5 text-snow transition-colors hover:bg-night-2 disabled:opacity-40"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-night text-snow transition-colors hover:bg-night-2 focus:outline-none focus:ring-2 focus:ring-night/20 focus:ring-offset-2 disabled:opacity-40"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -615,7 +618,7 @@ export default function AiPage() {
         </div>
         <p className="text-xs text-gray-400 mt-1.5 px-1">Attach an image or .xlsx file to extract products or historical sales · Enter to send</p>
       </div>
-    </div>
+    </section>
   )
 }
 
