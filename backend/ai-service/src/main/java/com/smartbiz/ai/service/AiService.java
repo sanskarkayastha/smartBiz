@@ -67,7 +67,7 @@ public class AiService {
         if (fileText != null && !fileText.isBlank()) {
             return processWithFileText(context, window, fileText);
         }
-        return new AiQueryResponse(callGemini(context, window), null, null);
+        return new AiQueryResponse(callGemini(context, window), null, null, null);
     }
 
     public String getDailyInsight(Long userId) {
@@ -184,9 +184,10 @@ public class AiService {
                         "Respond helpfully to the user's message about this image. Use NPR for currency. Be concise and practical.\n" +
                         "Do not claim that products were added, updated, or saved already. If the user wants inventory changes, say the products were extracted and are ready for review or saving.\n" +
                         "IMPORTANT: If the user wants to add products to inventory (e.g. 'add these', 'update stock', 'I bought these'), " +
-                        "extract all products from the image and append EXACTLY the following after your response text:\n" +
-                        "PRODUCTS_JSON:[{\"name\":\"product name\",\"quantity\":1.0,\"rate\":0.0,\"category\":\"General\"}]\n" +
-                        "Infer a short category for each product based on its name. Only include PRODUCTS_JSON if you can clearly identify product data.";
+                        "extract the supplier and all products from the image, then append EXACTLY the following after your response text:\n" +
+                        "INVENTORY_JSON:{\"supplierName\":\"ABC Traders\",\"products\":[{\"name\":\"product name\",\"quantity\":1.0,\"rate\":0.0,\"category\":\"General\"}]}\n" +
+                        "Use null for supplierName when no supplier is clearly present. Infer a short category for each product based on its name. " +
+                        "Only include INVENTORY_JSON if you can clearly identify product data.";
         List<Map<String, Object>> parts = List.of(
                 Map.of("inline_data", Map.of("mime_type", mimeType != null ? mimeType : "image/jpeg", "data", image)),
                 Map.of("text", extractionPrompt)
@@ -199,7 +200,7 @@ public class AiService {
         if (shouldExtractSales(userPrompt, fileText)) {
             List<ParsedSale> sales = parseSalesFile(new ParseSalesFileRequest(fileText)).sales();
             if (!sales.isEmpty()) {
-                return new AiQueryResponse(buildSalesReviewMessage(sales), null, sales);
+                return new AiQueryResponse(buildSalesReviewMessage(sales), null, sales, null);
             }
         }
 
@@ -209,9 +210,10 @@ public class AiService {
                         "Spreadsheet or file content:\n" + fileText + "\n\n" +
                         "Respond helpfully to the user's message about this data. Use NPR for currency. Be concise and practical.\n" +
                         "Do not claim that products were added, updated, or saved already. If the user wants inventory changes, say the products were extracted and are ready for review or saving.\n" +
-                        "IMPORTANT: If the user wants to add products to inventory, extract all products and append EXACTLY the following after your response:\n" +
-                        "PRODUCTS_JSON:[{\"name\":\"product name\",\"quantity\":1.0,\"rate\":0.0,\"category\":\"General\"}]\n" +
-                        "Infer a short category for each product based on its name. Only include PRODUCTS_JSON if you can clearly extract product data.";
+                        "IMPORTANT: If the user wants to add products to inventory, extract the supplier and all products, then append EXACTLY the following after your response:\n" +
+                        "INVENTORY_JSON:{\"supplierName\":\"ABC Traders\",\"products\":[{\"name\":\"product name\",\"quantity\":1.0,\"rate\":0.0,\"category\":\"General\"}]}\n" +
+                        "Use null for supplierName when no supplier is clearly present. Infer a short category for each product based on its name. " +
+                        "Only include INVENTORY_JSON if you can clearly extract product data.";
         Map<String, Object> body = Map.of(
                 "contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("text", fullPrompt))))
         );
@@ -219,16 +221,33 @@ public class AiService {
     }
 
     private AiQueryResponse splitResponseAndProducts(String raw) {
+        if (raw != null && raw.contains("INVENTORY_JSON:")) {
+            int idx = raw.indexOf("INVENTORY_JSON:");
+            String text = raw.substring(0, idx).trim();
+            String json = raw.substring(idx + "INVENTORY_JSON:".length()).trim();
+            InventoryExtractionResponse extraction = parseInventoryExtractionJson(json);
+            List<ParsedProduct> products = extraction.products();
+            if (products != null && !products.isEmpty()) {
+                return new AiQueryResponse(
+                        text.isEmpty() ? "Products extracted successfully." : text,
+                        products,
+                        null,
+                        extraction.supplierName()
+                );
+            }
+        }
+
+        // Keep accepting the previous marker so older model responses still work.
         if (raw != null && raw.contains("PRODUCTS_JSON:")) {
             int idx = raw.indexOf("PRODUCTS_JSON:");
             String text = raw.substring(0, idx).trim();
             String json = raw.substring(idx + "PRODUCTS_JSON:".length()).trim();
             List<ParsedProduct> products = parseProductJson(json);
             if (!products.isEmpty()) {
-                return new AiQueryResponse(text.isEmpty() ? "Products extracted successfully." : text, products, null);
+                return new AiQueryResponse(text.isEmpty() ? "Products extracted successfully." : text, products, null, null);
             }
         }
-        return new AiQueryResponse(raw, null, null);
+        return new AiQueryResponse(raw, null, null, null);
     }
 
     private String buildContext(Long userId, Long importSessionId) {

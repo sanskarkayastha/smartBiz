@@ -74,4 +74,18 @@ class AiServiceTest {
         assertThat(response.sales()).hasSize(1);
         assertThat(response.response()).contains("historical sale");
     }
+
+    @Test
+    void splitResponseAndProducts_keepsExtractedSupplierForReview() {
+        AiQueryResponse response = ReflectionTestUtils.invokeMethod(
+                aiService,
+                "splitResponseAndProducts",
+                "Ready for review.\nINVENTORY_JSON:{\"supplierName\":\"Kathmandu Traders\",\"products\":[{\"name\":\"Milk\",\"quantity\":4,\"rate\":90,\"category\":\"Dairy\"}]}"
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.supplierName()).isEqualTo("Kathmandu Traders");
+        assertThat(response.products()).hasSize(1);
+        assertThat(response.products().getFirst().name()).isEqualTo("Milk");
+    }
 }

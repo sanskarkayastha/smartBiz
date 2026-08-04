@@ -10,6 +10,14 @@ type ParsedSale = { saleDate: string; customerName: string | null; paymentMethod
 type ReviewProduct = ParsedProduct & { id?: number; isNew: boolean; unitPrice: number; category?: string }
 type InventoryProduct = { id: number; name: string }
 type ProductListResponse = InventoryProduct[] | { content?: InventoryProduct[] }
+type Supplier = { id: number; name: string }
+type SupplierListResponse = Supplier[] | { content?: Supplier[] }
+type AiQueryResult = {
+  response?: string
+  products?: ParsedProduct[]
+  sales?: ParsedSale[]
+  supplierName?: string | null
+}
 type AttachmentState = {
   label: string;
   image?: string;
@@ -31,10 +39,12 @@ export default function AiPage() {
   const [loading, setLoading] = useState(false)
   const [attachment, setAttachment] = useState<AttachmentState>(null)
   const [reviewProducts, setReviewProducts] = useState<ReviewProduct[] | null>(null)
+  const [reviewSupplier, setReviewSupplier] = useState('')
   const [reviewSales, setReviewSales] = useState<ParsedSale[] | null>(null)
   const [savingProducts, setSavingProducts] = useState(false)
   const [savingSales, setSavingSales] = useState(false)
   const [inventoryProducts, setInventoryProducts] = useState<InventoryProduct[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const threadRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -95,19 +105,26 @@ export default function AiPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      const data = await res.json()
+      const data = await res.json() as AiQueryResult
       setMessages((prev) => [...prev, { role: 'ai', content: data.response ?? 'No response received.' }])
 
       if ((data.products && data.products.length > 0) || (data.sales && data.sales.length > 0)) {
-        const existing = await loadInventoryProducts()
+        const [existing, supplierOptions] = await Promise.all([
+          loadInventoryProducts(),
+          data.products && data.products.length > 0 ? loadSuppliers() : Promise.resolve(suppliers),
+        ])
 
         if (data.sales && data.sales.length > 0) {
           setReviewProducts(null)
+          setReviewSupplier('')
           setReviewSales(data.sales)
         }
 
         if (data.products && data.products.length > 0) {
           setReviewSales(null)
+          const extractedSupplier = data.supplierName?.trim() ?? ''
+          const matchedSupplier = findMatchingSupplier(extractedSupplier, supplierOptions)
+          setReviewSupplier(matchedSupplier?.name ?? extractedSupplier)
           const reviewed: ReviewProduct[] = data.products.map((p: ParsedProduct) => {
             const match = existing.find((ex) =>
               ex.name.toLowerCase() === p.name.toLowerCase()
@@ -130,6 +147,7 @@ export default function AiPage() {
     let saved = 0
     const failed: ReviewProduct[] = []
     const errors: string[] = []
+    const supplier = resolveSupplierName(reviewSupplier, suppliers)
     try {
       for (const p of reviewProducts) {
         let res: Response
@@ -137,14 +155,44 @@ export default function AiPage() {
           res = await fetch('/api/products', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: p.name, quantity: p.quantity, price: p.unitPrice, costPrice: p.unitPrice, category: p.category || undefined }),
+            body: JSON.stringify({
+              name: p.name,
+              quantity: p.quantity,
+              price: p.unitPrice,
+              costPrice: p.unitPrice,
+              category: p.category || undefined,
+              supplier: supplier || undefined,
+            }),
           })
         } else if (p.id) {
-          res = await fetch(`/api/products/${p.id}/stock`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ quantityChange: p.quantity, type: 'RESTOCK', reason: 'AI extraction' }),
-          })
+          if (supplier && p.unitPrice > 0) {
+            res = await fetch(`/api/products/${p.id}/restock`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                quantityAdded: p.quantity,
+                unitCost: p.unitPrice,
+                supplier,
+                paymentStatus: 'PAID',
+                amountPaidNow: null,
+                note: 'AI extraction',
+              }),
+            })
+          } else {
+            res = await fetch(`/api/products/${p.id}/stock`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ quantityChange: p.quantity, type: 'RESTOCK', reason: 'AI extraction' }),
+            })
+
+            if (res.ok && supplier) {
+              res = await fetch(`/api/products/${p.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ supplier }),
+              })
+            }
+          }
         } else {
           failed.push(p)
           errors.push(`${p.name}: product match is missing`)
@@ -162,9 +210,13 @@ export default function AiPage() {
       setReviewProducts(failed.length > 0 ? failed : null)
 
       if (failed.length === 0) {
+        setReviewSupplier('')
         setMessages((prev) => [
           ...prev,
-          { role: 'ai', content: `Done! ${saved} product${saved !== 1 ? 's' : ''} updated in inventory.` },
+          {
+            role: 'ai',
+            content: `Done! ${saved} product${saved !== 1 ? 's' : ''} updated in inventory.${supplier ? ` Supplier: ${supplier}.` : ''}`,
+          },
         ])
         return
       }
@@ -189,6 +241,14 @@ export default function AiPage() {
     const existingData: ProductListResponse = await existingRes.json().catch(() => [])
     const existing = extractInventoryProducts(existingData)
     setInventoryProducts(existing)
+    return existing
+  }
+
+  async function loadSuppliers(): Promise<Supplier[]> {
+    const res = await fetch('/api/suppliers?page=0&size=100')
+    const data: SupplierListResponse = await res.json().catch(() => [])
+    const existing = extractSuppliers(data)
+    setSuppliers(existing)
     return existing
   }
 
@@ -325,6 +385,7 @@ export default function AiPage() {
 
   const canSend = (!!input.trim() || !!attachment) && !loading
   const inventoryProductMap = buildInventoryProductMap(inventoryProducts)
+  const matchedReviewSupplier = findMatchingSupplier(reviewSupplier, suppliers)
 
   return (
     <section className="flex h-[calc(100dvh-10.25rem)] min-h-[32rem] flex-col overflow-hidden rounded-[22px] border border-paper-3 bg-white shadow-[0_1px_2px_oklch(0.20_0.006_80/0.03)]">
@@ -412,9 +473,37 @@ export default function AiPage() {
         <div className="shrink-0 border-t border-gray-100 bg-amber-50 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-amber-800">Review Extracted Products ({reviewProducts.length})</p>
-            <button onClick={() => setReviewProducts(null)} className="text-gray-400 hover:text-gray-600">
+            <button
+              onClick={() => { setReviewProducts(null); setReviewSupplier('') }}
+              aria-label="Close product review"
+              className="flex h-11 w-11 items-center justify-center rounded-xl text-gray-400 hover:bg-amber-100 hover:text-gray-600"
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
+          </div>
+          <div className="grid items-end gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-amber-900">Supplier</span>
+              <input
+                value={reviewSupplier}
+                onChange={(e) => setReviewSupplier(e.target.value)}
+                list="ai-supplier-options"
+                placeholder="No supplier detected"
+                className="h-11 w-full rounded-xl border border-amber-200 bg-white px-3 text-sm text-ink placeholder:text-ink-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-amber/35"
+              />
+              <datalist id="ai-supplier-options">
+                {suppliers.map((supplierOption) => (
+                  <option key={supplierOption.id} value={supplierOption.name} />
+                ))}
+              </datalist>
+            </label>
+            <p className={`pb-3 text-xs font-medium ${matchedReviewSupplier ? 'text-emerald-700' : reviewSupplier.trim() ? 'text-amber-800' : 'text-ink-3'}`}>
+              {matchedReviewSupplier
+                ? 'Existing supplier matched'
+                : reviewSupplier.trim()
+                  ? 'New supplier will be created'
+                  : 'Products will have no supplier'}
+            </p>
           </div>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {reviewProducts.map((p, idx) => (
@@ -454,7 +543,7 @@ export default function AiPage() {
             ))}
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setReviewProducts(null)} className="flex-1 py-2 border border-amber-200 rounded-lg text-sm font-medium text-amber-700 hover:bg-amber-100 transition-colors">
+            <button onClick={() => { setReviewProducts(null); setReviewSupplier('') }} className="flex-1 py-2 border border-amber-200 rounded-lg text-sm font-medium text-amber-700 hover:bg-amber-100 transition-colors">
               Cancel
             </button>
             <button
@@ -640,6 +729,12 @@ function extractInventoryProducts(data: ProductListResponse): InventoryProduct[]
   return []
 }
 
+function extractSuppliers(data: SupplierListResponse): Supplier[] {
+  if (Array.isArray(data)) return data
+  if (data && Array.isArray(data.content)) return data.content
+  return []
+}
+
 function normalizeName(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, ' ')
 }
@@ -662,6 +757,18 @@ function buildInventoryProductMap(products: InventoryProduct[]) {
 
 function findMatchingInventoryProduct(name: string, productMap: Map<string, InventoryProduct>) {
   return lookupKeys(name).map((key) => productMap.get(key)).find(Boolean)
+}
+
+function findMatchingSupplier(name: string, suppliers: Supplier[]) {
+  if (!name.trim()) return undefined
+  const keys = lookupKeys(name)
+  return suppliers.find((supplier) => lookupKeys(supplier.name).some((key) => keys.includes(key)))
+}
+
+function resolveSupplierName(name: string, suppliers: Supplier[]) {
+  const trimmed = name.trim()
+  if (!trimmed) return ''
+  return findMatchingSupplier(trimmed, suppliers)?.name ?? trimmed
 }
 
 function normalizeSalePaymentMethod(paymentMethod: string) {
