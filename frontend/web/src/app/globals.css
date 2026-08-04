@@ -31,13 +31,149 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes hero-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes hero-product-rise {
+  from {
+    opacity: 0;
+    transform: translateX(90px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes hero-image-settle {
+  from { transform: scale(1.035); }
+  to { transform: scale(1); }
+}
+
 .fade-up-0 { animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .fade-up-1 { animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.10s both; }
 .fade-up-2 { animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.20s both; }
 .fade-up-3 { animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.30s both; }
 
+.landing-nav {
+  position: relative;
+  z-index: 50;
+  border-bottom: 1px solid oklch(0.895 0.008 80 / 0.78);
+  background: oklch(0.972 0.004 80 / 0.88);
+  backdrop-filter: blur(18px);
+}
+
+.hero-stage {
+  background:
+    radial-gradient(circle at 76% 46%, oklch(0.93 0.055 154 / 0.88), transparent 34%),
+    linear-gradient(180deg, oklch(0.972 0.004 80) 0%, oklch(0.956 0.006 80) 72%, oklch(0.925 0.006 80) 100%);
+}
+
+.hero-stage::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  opacity: 0.34;
+  background-image: radial-gradient(oklch(0.42 0.006 80 / 0.22) 0.7px, transparent 0.7px);
+  background-size: 8px 8px;
+  mask-image: linear-gradient(to bottom, black, transparent 54%);
+}
+
+.hero-reveal {
+  animation: hero-reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hero-reveal-1 { animation-delay: 0.05s; }
+.hero-reveal-2 { animation-delay: 0.14s; }
+.hero-reveal-3 { animation-delay: 0.26s; }
+.hero-reveal-4 { animation-delay: 0.38s; }
+
+.hero-product-wrap {
+  animation: hero-product-rise 1.15s cubic-bezier(0.16, 1, 0.3, 1) 0.48s both;
+  transform-origin: center bottom;
+}
+
+.hero-product-image {
+  animation: hero-image-settle 1.6s cubic-bezier(0.16, 1, 0.3, 1) 0.48s both;
+  filter: drop-shadow(0 34px 28px oklch(0.16 0.01 80 / 0.25));
+  transform-origin: center;
+}
+
+.hero-floor {
+  position: absolute;
+  z-index: 0;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 21%;
+  background: linear-gradient(180deg, transparent, oklch(0.20 0.006 80 / 0.06));
+  pointer-events: none;
+}
+
+.button-press:active {
+  transform: translateY(1px) scale(0.99);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .fade-up-0, .fade-up-1, .fade-up-2, .fade-up-3 { animation: none; }
+  .fade-up-0,
+  .fade-up-1,
+  .fade-up-2,
+  .fade-up-3,
+  .hero-reveal,
+  .hero-product-wrap,
+  .hero-product-image {
+    animation: none;
+  }
+
+  .animate-ping {
+    animation: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .hero-stage {
+    background:
+      radial-gradient(circle at 68% 76%, oklch(0.93 0.055 154 / 0.88), transparent 32%),
+      linear-gradient(180deg, oklch(0.972 0.004 80) 0%, oklch(0.956 0.006 80) 72%, oklch(0.925 0.006 80) 100%);
+  }
+
+  .hero-product-shell {
+    min-height: 250px;
+  }
+
+  .hero-product-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-product-wrap {
+    height: 215px;
+    min-height: 215px;
+    margin-top: -1.25rem;
+  }
+
+  .hero-product-shell {
+    height: 215px;
+    min-height: 215px;
+  }
 }
 
 html {

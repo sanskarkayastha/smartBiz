@@ -19,9 +19,9 @@ const bricolage = Bricolage_Grotesque({
 });
 
 export const metadata: Metadata = {
-  title: "SmartBiz — Business Management for Nepal",
+  title: "SmartBiz | Business Management for Nepal",
   description:
-    "Inventory, sales POS, customer management, and analytics — all in one place. Built for small businesses in Nepal.",
+    "Inventory, sales POS, customer management, and analytics in one place. Built for small businesses in Nepal.",
 };
 
 export default function RootLayout({
